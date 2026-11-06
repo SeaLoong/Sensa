@@ -182,7 +182,7 @@ for (const locale of ['zh-CN', 'en-US']) {
     test.use({ locale });
 
     test('combined calculations drive typed OSC and configured stop values / 组合计算驱动 OSC 并发送停止值',
-      { tag: ['@osc', '@input', '@config', '@transport', '@i18n', '@visual'] }, async ({ page, rig }, info) => {
+      { tag: ['@osc', '@input', '@config', '@transport', '@i18n', '@visual', '@layout-preflight'] }, async ({ page, rig }, info) => {
         // Keep the real loopback endpoint stable in documentation screenshots, with a port for each locale and viewport.
         const previewPort = 31540 + (info.project.name === 'mobile' ? 2 : 0) + (locale === 'en-US' ? 1 : 0);
         const receiver = await oscReceiver(previewPort);

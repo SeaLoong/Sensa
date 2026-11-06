@@ -144,20 +144,21 @@ test('disabled binding drafts preserve legacy readiness wording and never supply
 });
 
 for (const locale of ['zh-CN', 'en-US']) {
-  test('task setup is immediate without outputs and collapsed for saved setups in ' + locale, () => {
+  test('scene entrypoints stay visible while the richer first-run invitation stays compact for saved setups in ' + locale, () => {
     setLocale(locale);
     const props = { onNavigate() {} };
     const firstRun = render(GettingStarted, props);
     assert.match(firstRun, /data-testid="getting-started"/);
     assert.doesNotMatch(firstRun, /<details/);
-    for (const task of ['osc', 'script', 'manual']) assert.ok(firstRun.includes(`data-testid="setup-task-${task}"`), task);
-    assert.ok(firstRun.includes(t('准备好后，再打开顶部的“输入启用”。')));
+    for (const task of ['osc', 'script', 'manual', 'protocol']) assert.ok(firstRun.includes(`data-testid="setup-task-${task}"`), task);
+    assert.match(firstRun, /onboarding-invitation/);
+    assert.match(firstRun, /data-testid="onboarding-start"/);
+    assert.match(firstRun, /data-testid="setup-connect-device"/);
     const saved = render(GettingStarted, { ...props, hasOutputs: true });
-    const disclosure = saved.match(/<details\b[^>]*data-testid="quick-setup"[^>]*>/)?.[0];
-    assert.ok(disclosure);
-    assert.doesNotMatch(disclosure, /\bopen(?:=|\s|>)/);
-    assert.ok(saved.includes(t('快速设置')));
-    assert.match(saved, /data-testid="setup-connect-device"/);
+    assert.match(saved, /scene-launchpad--compact/);
+    assert.doesNotMatch(saved, /onboarding-invitation|data-testid="quick-setup"/);
+    assert.match(saved, /data-testid="open-scene-presets"/);
+    for (const task of ['osc', 'script', 'manual', 'protocol']) assert.ok(saved.includes(`data-testid="setup-task-${task}"`), task);
   });
 
   test('manual axis details keep all drafts and browser axis selection behind one collapsed control in ' + locale, () => {
@@ -194,7 +195,7 @@ test('task choices only request navigation and filter unavailable host inputs', 
   assert.match(empty, /data-testid="setup-connect-device"/);
 });
 
-test('shared workbench keeps one actual readiness status and output errors visible beside collapsed setup', () => {
+test('shared workbench keeps one actual readiness status and visible errors beside the input and device columns', () => {
   setLocale('en-US');
   const config = createDefaultConfiguration();
   config.outputs = [{ ...config.outputs[0], id: 'saved-device', name: 'Saved device', enabled: true }];
@@ -203,8 +204,9 @@ test('shared workbench keeps one actual readiness status and output errors visib
     outputs: [{ id: 'saved-device', enabled: true, connected: false, lastError: 'Device connection failed' }] };
   const html = render(Workbench, { client, initialSnapshot: { config, overview, logs: [], serialPorts: [] } });
   assert.equal((html.match(/class="control-readiness control-readiness--/g) || []).length, 1);
-  assert.ok(html.includes(t('连接设备 → 选择输入 → 启用输入')));
-  assert.match(html, /data-testid="quick-setup"/);
+  assert.ok(html.includes(t('设备控制台')));
+  for (const className of ['workbench-layout', 'workbench-main', 'workbench-aside', 'workspace-status']) assert.ok(html.includes(`class="${className}"`));
+  assert.match(html, /data-testid="open-scene-presets"/);
   assert.match(html, /<div class="output-detail"><div class="notice notice--error" role="alert">Device connection failed<\/div><\/div>/);
-  assert.ok(html.indexOf('data-testid="quick-setup"') < html.indexOf('class="section input-section"'));
+  assert.ok(html.indexOf('class="workspace-status"') < html.indexOf('class="section input-section"'));
 });

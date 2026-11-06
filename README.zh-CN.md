@@ -1,6 +1,6 @@
 # Sensa
 
-[English](README.md) · [打开 WebSensa](https://sealoong.github.io/Sensa/websensa/) · [下载](https://github.com/SeaLoong/Sensa/releases/latest) · [文档站](https://sealoong.github.io/Sensa/)
+[English](README.md) · [打开 WebSensa](https://sealoong.github.io/Sensa/websensa/) · [下载](https://github.com/SeaLoong/Sensa/releases/latest) · [使用指南](docs/start.md) · [设备](docs/devices.md)
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 [![E2E](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml)
@@ -9,19 +9,19 @@
 
 **让 VRChat／SPS、funscript 或手动滑条驱动 OSR 等互动设备。**
 
-Sensa 将 VRChat 的接触参数转为设备动作或振动。你也可以播放 `.funscript`，或直接移动滑条控制设备。
+Sensa 将 VRChat 的接触参数转为设备动作或振动。你也可以播放 `.funscript`，或直接移动滑条控制设备。首次使用向导会帮助你选择目标、连接设备并准备输入。
 
 ## 建立你需要的流程
 
-- **VRChat／SPS／OGB：**使用 Avatar 已有的接触参数，选择预设并校准响应。[按目标选择方案](docs/usage-scenarios.md)
-- **播放 funscript：**连接设备，载入文件，点击播放。[WebSensa](docs/websensa.md)
-- **手动控制：**连接设备，从主轴 L0 滑条开始。[首次使用](docs/quick-start.md)
+- **VRChat／SPS／OGB**：使用 Avatar 接触参数与映射预设，再校准响应。[VRChat 设置](docs/usage-scenarios.md#已有-ogb--sps)
+- **播放 funscript**：连接设备，载入文件。[播放器指南](docs/websensa.md#手动控制与脚本)
+- **手动控制**：连接设备，使用对应的位置或振动滑条。[首次使用](docs/quick-start.md)
 
 ## 选择运行方式
 
 [打开 WebSensa](https://sealoong.github.io/Sensa/websensa/)，无需安装 Sensa 即可手动控制或播放脚本。支持 Intiface、TCode WebSocket，以及浏览器支持的串口／蓝牙设备。
 
-使用 **VRChat／OSC**、原生串口／UDP／TCP，或接收其他应用的控制时，[下载 Sensa](https://github.com/SeaLoong/Sensa/releases/latest)。需要桌面窗口选择 **Desktop**，需要浏览器操作或后台服务选择 **CLI**。[连接能力与下载格式](docs/features.md)
+使用 **VRChat／OSC**、原生串口／UDP／TCP，或接收其他应用的控制时，[下载 Sensa](https://github.com/SeaLoong/Sensa/releases/latest)。需要桌面窗口选择 **Desktop**，需要浏览器操作或后台服务选择 **CLI**。[比较连接方式](docs/devices.md#选择桌面版或-websensa) · [下载格式](docs/features.md#配置与开发)
 
 ![Sensa 实际运行界面](docs/screenshots/desktop/control-page.png)
 
@@ -29,15 +29,15 @@ Sensa 将 VRChat 的接触参数转为设备动作或振动。你也可以播放
 
 ## 启动桌面工作台
 
-1. 下载、解压并运行 Sensa。Desktop 打开桌面窗口，CLI 打开浏览器。
-2. 添加输出设备，保存设置，再点击设备卡片上的**启用**。
-3. 选择输入并应用输入方式，最后打开**输入启用**。
+1. 下载、解压并运行 Sensa，跟随首次使用向导选择目标。
+2. 连接一个输出设备，准备输入，适用时使用预设。
+3. 检查连接与量程，准备好后打开**输入启用**。
 
-[跟随首次使用步骤](docs/quick-start.md) · [工作台指南](docs/guide.md)
+[跟随首次使用步骤](docs/quick-start.md) · [全部指南](docs/start.md) · [工作台地图](docs/guide.md)
 
 ## 连接设备与应用
 
-通过 TCode 连接 OSR／SR6，或通过 Intiface Central 发现设备。其他输出包括 Handy、Lovense、Autoblow、VacuGlide、DG-LAB、OSC、MIDI、HTTP／WebSocket 与 MQTT。[功能参考](docs/features.md)
+通过 TCode 连接 OSR／SR6，或通过 Intiface Central 发现兼容设备。位置、振动与旋转使用设备声明的能力。其他输出包括 Handy、Lovense、Autoblow、VacuGlide、DG-LAB、OSC、MIDI、HTTP／WebSocket 与 MQTT。[设备与连接](docs/devices.md) · [功能参考](docs/features.md)
 
 将网站或播放器的控制送到 OSR 时，可以使用 **网站 → Sensa 虚拟 Buttplug 设备 → TCode → OSR**。[协议输入与设备桥](docs/protocol-inputs.md)
 

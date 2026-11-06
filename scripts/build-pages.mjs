@@ -12,8 +12,8 @@ const locales = ['en', 'zh-CN'];
 const folders = ['', 'docs', 'unity/top.sealoong.sensa', 'tools/unity-avatar-lab', 'tools/unity-world-lab', 'tools/protocol-bridge'];
 const diagramAssets = ['parameter-geometry-model.js', 'parameter-geometry-signal.js', 'parameter-geometry-view.js', 'parameter-geometry-style.css', 'parameter-geometry-3d.js', 'parameter-geometry-3d.LICENSE.txt', 'osc-parameter-reference.js'];
 const words = {
-  en: { docs: 'Help', diagram: 'Parameter explorer', source: 'View source', download: 'Download', navigation: 'Browse guides', top: 'On this page', skip: 'Skip to content', home: 'Home', filter: 'Find a guide', empty: 'No matching guide. Try a shorter name.', table: 'Table; scroll horizontally when needed', code: 'Code example; scroll horizontally when needed' },
-  'zh-CN': { docs: '使用帮助', diagram: '参数图解', source: '查看源码', download: '下载', navigation: '浏览帮助目录', top: '本页目录', skip: '跳到正文', home: '首页', filter: '查找文档', empty: '没有找到匹配的文档，可以缩短关键词再试。', table: '表格；内容超宽时可横向滚动', code: '代码示例；内容超宽时可横向滚动' },
+  en: { docs: 'Guides', diagram: 'Parameter explorer', source: 'View source', download: 'Download', navigation: 'Browse guides', top: 'On this page', skip: 'Skip to content', home: 'Home', filter: 'Find a guide', empty: 'No matching guide. Try a shorter name.', table: 'Table; scroll horizontally when needed', code: 'Code example; scroll horizontally when needed' },
+  'zh-CN': { docs: '使用指南', diagram: '参数图解', source: '查看源码', download: '下载', navigation: '浏览帮助目录', top: '本页目录', skip: '跳到正文', home: '首页', filter: '查找文档', empty: '没有找到匹配的文档，可以缩短关键词再试。', table: '表格；内容超宽时可横向滚动', code: '代码示例；内容超宽时可横向滚动' },
 };
 const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const relative = (from, to) => path.posix.relative(path.posix.dirname(from), to) || path.posix.basename(to);
@@ -27,6 +27,37 @@ const scriptFallback = target => "this.onerror=null;const load=()=>{const script
 export function mapDocumentHeadings(outline, translated) {
   if (outline.length !== translated.length || !outline.every((heading, index) => heading.tag === translated[index].tag)) return {};
   return Object.fromEntries(outline.map((heading, index) => [heading.id, translated[index].id]));
+}
+
+/** One template also produces explicit-language entry pages that work without JS. */
+function localizedHomepage(html, locale) {
+  const english = locale === 'en';
+  let page = html.replace('<html lang="en-US">', '<html lang="' + (english ? 'en-US' : 'zh-CN') + '">')
+    .replace('<body data-home ', '<body data-home data-home-locale="' + locale + '" ')
+    .replace(/<title>[^<]*<\/title>/, '<title>' + (english ? 'Sensa — VRChat, SPS and funscripts for your devices' : 'Sensa — 连接 VRChat、SPS、funscript 与互动设备') + '</title>')
+    .replace(/(<button[^>]+id="language"[^>]*>)[^<]*(<\/button>)/, '$1' + (english ? '简体中文' : 'English') + '$2')
+    .replace('<a class="brand" href="./">', '<a class="brand" href="' + locale + '/index.html">')
+    .replaceAll(escape(stylesheetFallback('site.css')), escape(stylesheetFallback('../site.css')))
+    .replaceAll(escape(scriptFallback('site.js')), escape(scriptFallback('../site.js')));
+  if (!english) page = page.replace(/(<meta name="description" content=")[^"]+/, '$1连接 VRChat／SPS、funscript 与 OSR 等互动设备，了解设备连接、桌面版与 WebSensa 的使用方式。');
+  page = page.replace(/<([a-z][\w:-]*)([^<>]*\sdata-(en|zh)(?=[\s>])[^<>]*)>/gi, (_, tag, attributes, language) => {
+    const visible = language === (english ? 'en' : 'zh');
+    return '<' + tag + attributes.replace(/\s+hidden(?=\s|$)/g, '') + (visible ? '' : ' hidden') + '>';
+  }).replace(/<([a-z][\w:-]*)([^<>]*\sdata-label-en="[^<>]*)>/gi, (_, tag, attributes) => {
+    const label = attributes.match(new RegExp('data-label-' + (english ? 'en' : 'zh') + '="([^"]*)"'));
+    return '<' + tag + (label ? attributes.replace(/aria-label="[^"]*"/, 'aria-label="' + label[1] + '"') : attributes) + '>';
+  });
+  page = page.replace(/<a\b([^>]*\bdata-doc="([^"]+)"[^>]*)>/g, (_, attributes, document) => {
+    const fragment = attributes.match(new RegExp('data-fragment-' + (english ? 'en' : 'zh') + '="([^"]+)"'))?.[1];
+    return '<a' + attributes.replace(/href="[^"]*"/, 'href="' + locale + '/' + document + '.html' + (fragment ? '#' + encodeURIComponent(fragment) : '') + '"') + '>';
+  });
+  const scene = JSON.parse(page.match(/<script type="application\/json" id="screenshot-data">([^<]+)<\/script>/)[1])[0];
+  const picture = scene.images.desktop[locale], title = english ? scene.en : scene.zh;
+  page = page.replace(/(<a id="screenshot-original"[^>]*href=")[^"]+/, '$1' + picture.url)
+    .replace(/<img id="screenshot-image"[^>]+>/, '<img id="screenshot-image" src="' + picture.url + '" alt="' + escape(title) + '" width="' + picture.width + '" height="' + picture.height + '" loading="lazy" decoding="async">')
+    .replace(/(<figcaption id="screenshot-caption">)[^<]*/, '$1' + escape(title));
+  return page.replace(/\b(href|src)="([^"]+)"/g, (all, attribute, target) =>
+    /^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(target) ? all : attribute + '="../' + target + '"');
 }
 
 export async function buildPages({ source = root, output = path.join(root, 'artifacts/pages'), commit = process.env.GITHUB_SHA || '' } = {}) {
@@ -97,12 +128,23 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     const outline = outlines.get(route) || [], buddyOutline = outlines.get(buddy) || [];
     const headingMap = routes.has(other + ':' + document.slug) ? mapDocumentHeadings(outline, buddyOutline) : {};
     const href = target => escape(relative(route, target));
+    const landing = document.slug === 'docs/start';
+    const primary = [
+      ['features', 'docs/features.html', 'Features', '功能'],
+      ['devices', 'docs/devices.html', 'Devices & connections', '设备与连接'],
+      ['guides', 'docs/start.html', 'Guides', '使用指南'],
+      ['websensa', null, 'WebSensa', 'WebSensa'],
+    ].map(([key, target, en, zh]) => {
+      const destination = target ? locale + '/' + target : 'websensa/index.html';
+      return '<a data-site-destination="' + key + '"' + (destination === route ? ' aria-current="page"' : '')
+        + ' href="' + href(destination) + '">' + escape(locale === 'en' ? en : zh) + '</a>';
+    }).join('');
     const groups = [
       { en: 'Start here', zh: '开始使用', links: [
-        ['README', 'About Sensa', '认识 Sensa'], ['docs/quick-start', 'First run', '首次使用'],
+        ['docs/start', 'Guides', '使用指南'], ['README', 'About Sensa', '认识 Sensa'], ['docs/quick-start', 'First run', '首次使用'],
         ['docs/usage-scenarios', 'VRChat / SPS setup', 'VRChat / SPS 设置'],
         ['docs/websensa', 'Browser control and scripts', '网页控制与脚本'], ['docs/guide', 'Workbench map', '工作台地图'],
-        ['docs/features', 'Feature reference', '功能参考'],
+        ['docs/devices', 'Devices and connections', '设备与连接'], ['docs/features', 'Feature reference', '功能参考'],
       ] },
       { en: 'Connections and reference', zh: '连接与参考', collapsed: true, links: [
         ['docs/signal-pipeline', 'Build a flow', '建立信号流程'], ['docs/computed-signals', 'Calculations', '计算与映射'],
@@ -134,9 +176,11 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     }).join('');
     const diagramScript = document.diagrams ? '<script defer src="' + href(siteAssets.diagrams.name)
       + '" onerror="' + escape(scriptFallback(relative(route, 'document-diagrams.js'))) + '"></script>' : '';
-    return '<!doctype html><html lang="' + (locale === 'en' ? 'en-US' : locale) + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="' + escape(titleOf(document) + ' — Sensa ' + t.docs) + '"><title>' + escape(titleOf(document)) + ' · Sensa</title><link rel="stylesheet" href="' + href(siteAssets.css.name) + '" onerror="' + escape(stylesheetFallback(relative(route, 'site.css'))) + '"><script defer src="' + href(siteAssets.js.name) + '" onerror="' + escape(scriptFallback(relative(route, 'site.js'))) + '"></script>' + diagramScript + '</head><body><a class="skip" href="#content">' + t.skip + '</a>'
-      + '<header><a class="brand" href="' + href('index.html') + '"><span class="brand-mark" aria-hidden="true">S</span>Sensa<span class="brand-context">' + t.docs + '</span></a><nav aria-label="' + t.navigation + '"><a href="' + href('websensa/index.html') + '">WebSensa</a><a href="' + href('parameter-geometry.html') + '">' + t.diagram + '</a><a data-download="release" href="https://github.com/SeaLoong/Sensa/releases/latest">' + t.download + '</a><a data-locale="' + other + '" data-heading-map="' + escape(JSON.stringify(headingMap)) + '" href="' + href(buddy) + '">' + (other === 'en' ? 'English' : '简体中文') + '</a></nav></header>'
-      + '<div class="layout"><details class="navigation" open><summary>' + t.navigation + '</summary><label class="guide-filter"><span>' + t.filter + '</span><input type="search" data-guide-filter autocomplete="off"></label><nav aria-label="' + t.docs + '">' + navigation + '</nav><p class="guide-empty" role="status" hidden>' + t.empty + '</p></details><main id="content" tabindex="-1"><nav class="doc-breadcrumb" aria-label="' + t.docs + '"><a href="' + href('index.html') + '">' + t.home + '</a><span aria-hidden="true">/</span><span>' + t.docs + '</span></nav><article>' + body + '</article><footer><a href="https://github.com/SeaLoong/Sensa/blob/main/' + escape(document.file) + '">' + t.source + '</a><span>MIT · SeaLoong</span></footer></main><aside aria-label="' + t.top + '"><p>' + t.top + '</p>' + toc.map(x => '<a href="#' + escape(x.id) + '">' + escape(x.title) + '</a>').join('') + '</aside></div></body></html>\n';
+    const sidebar = landing ? '' : '<details class="navigation" open><summary>' + t.navigation + '</summary><label class="guide-filter"><span>' + t.filter + '</span><input type="search" data-guide-filter autocomplete="off"></label><nav aria-label="' + t.docs + '">' + navigation + '</nav><p class="guide-empty" role="status" hidden>' + t.empty + '</p></details>';
+    const contents = landing ? '' : '<aside aria-label="' + t.top + '"><p>' + t.top + '</p>' + toc.map(x => '<a href="#' + escape(x.id) + '">' + escape(x.title) + '</a>').join('') + '</aside>';
+    return '<!doctype html><html lang="' + (locale === 'en' ? 'en-US' : locale) + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="' + escape(titleOf(document) + ' — Sensa ' + t.docs) + '"><title>' + escape(titleOf(document)) + ' · Sensa</title><link rel="stylesheet" href="' + href(siteAssets.css.name) + '" onerror="' + escape(stylesheetFallback(relative(route, 'site.css'))) + '"><script defer src="' + href(siteAssets.js.name) + '" onerror="' + escape(scriptFallback(relative(route, 'site.js'))) + '"></script>' + diagramScript + '</head><body' + (landing ? ' class="guide-landing" data-guide-landing' : '') + '><a class="skip" href="#content">' + t.skip + '</a>'
+      + '<header><a class="brand" href="' + href(locale + '/index.html') + '"><span class="brand-mark" aria-hidden="true">S</span>Sensa<span class="brand-context">' + t.docs + '</span></a><nav data-site-nav aria-label="' + (locale === 'en' ? 'Main navigation' : '主导航') + '">' + primary + '<a data-download="release" href="https://github.com/SeaLoong/Sensa/releases/latest">' + t.download + '</a><a data-locale="' + other + '" data-heading-map="' + escape(JSON.stringify(headingMap)) + '" href="' + href(buddy) + '">' + (other === 'en' ? 'English' : '简体中文') + '</a></nav></header>'
+      + '<div class="layout">' + sidebar + '<main id="content" tabindex="-1"><nav class="doc-breadcrumb" aria-label="' + t.docs + '"><a href="' + href(locale + '/index.html') + '">' + t.home + '</a><span aria-hidden="true">/</span><a href="' + href(locale + '/docs/start.html') + '">' + t.docs + '</a></nav><article>' + body + '</article><footer><a href="https://github.com/SeaLoong/Sensa/blob/main/' + escape(document.file) + '">' + t.source + '</a><span>MIT · SeaLoong</span></footer></main>' + contents + '</div></body></html>\n';
   };
   for (const document of documents.values()) {
     const toc = [], seen = new Map(), ids = new Set(), outline = [];
@@ -254,6 +298,10 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     }
   }
   await write('index.html', homepage);
+  for (const locale of locales) {
+    await write(locale + '/index.html', localizedHomepage(homepage, locale));
+    routes.set(locale + ':index', locale + '/index.html');
+  }
   for (const [extension, asset] of Object.entries(siteAssets).filter(([extension]) => extension !== 'diagrams')) {
     await write(asset.name, asset.content);
     // Previously cached pages still reference these names. New pages use the content hash.

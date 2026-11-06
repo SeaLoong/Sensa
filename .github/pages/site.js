@@ -13,7 +13,9 @@
     history.replaceState(null, '', url);
   }
   const home = document.body.hasAttribute('data-home');
-  let locale = normalize(read())
+  const homeLocale = home ? normalize(document.body.dataset.homeLocale) : null;
+  const projectRoot = new URL('.', document.currentScript?.src || new URL(homeLocale ? '../' : './', location.href));
+  let locale = homeLocale || normalize(read())
     || [...(navigator.languages || []), navigator.language].map(normalize).find(Boolean) || 'en';
   let updateScreenshots = () => {};
   const apply = next => {
@@ -24,10 +26,10 @@
     document.querySelectorAll('[data-zh]').forEach(x => { x.hidden = next !== 'zh-CN'; });
     document.querySelectorAll('[data-doc]').forEach(x => {
       const fragment = next === 'en' ? x.dataset.fragmentEn : x.dataset.fragmentZh;
-      x.href = next + '/' + x.dataset.doc + '.html' + (fragment ? '#' + encodeURIComponent(fragment) : '');
+      x.href = new URL(next + '/' + x.dataset.doc + '.html' + (fragment ? '#' + encodeURIComponent(fragment) : ''), projectRoot).href;
     });
     document.querySelectorAll('[data-label-en]').forEach(x => { x.setAttribute('aria-label', next === 'en' ? x.dataset.labelEn : x.dataset.labelZh); });
-    document.querySelectorAll('[data-diagram]').forEach(x => { x.href = 'parameter-geometry.html'; });
+    document.querySelectorAll('[data-diagram]').forEach(x => { x.href = new URL('parameter-geometry.html', projectRoot).href; });
     document.getElementById('language').textContent = next === 'en' ? '简体中文' : 'English';
     const available = document.body.dataset.vpm === 'true';
     if (document.getElementById('vcc')) document.getElementById('vcc').hidden = !available;
@@ -48,10 +50,10 @@
         const title = locale === 'en' ? scene.en : scene.zh;
         const screen = locale === 'en' ? (viewport === 'desktop' ? 'Desktop' : 'Narrow') : (viewport === 'desktop' ? '桌面' : '窄屏');
         const language = picture.language === 'en-US' ? 'English' : '简体中文';
-        image.src = picture.url; image.width = picture.width; image.height = picture.height;
+        image.src = new URL(picture.url, projectRoot).href; image.width = picture.width; image.height = picture.height;
         image.alt = `${title} · ${screen} · ${language}`;
         document.getElementById('screenshot-caption').textContent = image.alt;
-        document.getElementById('screenshot-original').href = picture.url;
+        document.getElementById('screenshot-original').href = image.src;
         sceneButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.screenshotScene === scene.id)));
         viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.screenshotView === viewport)));
       };
@@ -63,10 +65,19 @@
       }));
     }
     apply(locale);
+    if (homeLocale) save(locale);
     document.getElementById('language').addEventListener('click', () => {
-      apply(locale === 'en' ? 'zh-CN' : 'en'); save(locale);
+      const next = locale === 'en' ? 'zh-CN' : 'en';
+      save(next);
+      if (homeLocale) {
+        const target = new URL(next + '/index.html', projectRoot);
+        let fragment;
+        try { fragment = decodeURIComponent(location.hash.slice(1)); } catch { fragment = ''; }
+        if (fragment && document.getElementById(fragment)) target.hash = location.hash;
+        location.assign(target.href);
+      } else apply(next);
     });
-    const vpm = new URL('vpm.json', location.href).href;
+    const vpm = new URL('vpm.json', projectRoot).href;
     document.getElementById('vcc').href = 'vcc://vpm/addRepo?url=' + encodeURIComponent(vpm);
     document.getElementById('copy-vpm').addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(vpm); document.getElementById('vpm-status').textContent = locale === 'en' ? 'VPM URL copied.' : 'VPM 地址已复制。'; }

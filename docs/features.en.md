@@ -2,7 +2,17 @@
 
 [简体中文](features.md) | **English**
 
-Sensa connects VRChat/SPS/OGB, funscript and manual input to interactive devices. For your first connection, use [First run](quick-start.en.md). This page is a reference for what you can add later.
+Drive an OSR or another interactive device from VRChat/SPS, funscripts or manual controls. Start with the guided setup, use presets for common configurations, then add calculations, recordings or more outputs as needed.
+
+[Connect your first device](quick-start.en.md) · [Devices and connections](devices.en.md) · [Browse guides](start.en.md)
+
+## Guided setup and presets
+
+**Start setup guide** takes you through **Choose a scene → Connect device → Prepare input → Review setup**. Save your progress and return with **Resume setup**, or reopen it through **Guided setup**. After **Finish setup**, turn on **Input enabled** when ready.
+
+**Scene presets** prepares common VRChat/SPS mapping drafts and TCode axis profiles. Review and save a mapping draft before use. For a device-motion preset, review and save the new axis profile, then select it on the output. Choose ranges that match your actual device. A [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) can reuse a whole configuration, including inputs and outputs.
+
+[First-run steps](quick-start.en.md) · [Mapping templates](presets.en.md) · [Workbench map](guide.en.md)
 
 ## Choose an edition
 
@@ -14,7 +24,7 @@ Desktop/CLI provide live VRChat OSC, UDP/TCP listeners, native connections and f
 
 ## Browser workbench
 
-**Control** connects outputs and runs manual/script input. **OSC** inspects and maps parameters. **Flow** adds calculations, bindings and plans. **Settings** holds axis profiles and logs. Available connections follow the host's capabilities. [Workbench map](guide.en.md) · [Browser connections](websensa.en.md)
+Scene shortcuts give common tasks a starting point. **Control** connects outputs and runs manual/script input. **OSC** inspects and maps parameters. **Flow** adds calculations, bindings and plans. **Settings** holds axis profiles and logs. Available connections follow the host's capabilities. [Workbench map](guide.en.md) · [Browser connections](websensa.en.md)
 
 ## Desktop inputs
 
@@ -32,7 +42,7 @@ Blend, scale, smooth or gate readings; add timed effects or spatial calculations
 - **DG-LAB, OSC, MIDI CC, HTTP/WebSocket JSON and MQTT:** device, Avatar and application connections.
 - **Recording:** funscript tracks, CSV and JSON Lines.
 
-[Output settings and binding reference](signal-pipeline.en.md#add-outputs-and-bindings) · [Bluetooth profiles and serial bridges](../tools/protocol-bridge/README.md) · [Adapter catalog](adapter-catalog.en.md)
+[Choose a device connection](devices.en.md) · [Output settings and binding reference](signal-pipeline.en.md#add-outputs-and-bindings) · [Bluetooth profiles and serial bridges](../tools/protocol-bridge/README.md) · [Adapter catalog](adapter-catalog.en.md)
 
 ## Shared connections and instances
 

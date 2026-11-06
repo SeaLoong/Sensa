@@ -3,7 +3,7 @@ import { pointSamples, poseSamples, ports } from './mocks.js';
 import { assertCalibrationAlignment } from './ui-quality.js';
 import { readFile } from 'node:fs/promises';
 
-test('manual controls reach every transport, record, stop and never auto-resume', { tag: ['@transport','@input','@visual'] }, async ({ page, rig }) => {
+test('manual controls reach every transport, record, stop and never auto-resume', { tag: ['@transport','@input','@visual','@layout-preflight'] }, async ({ page, rig }) => {
   await enable(page);
   expect(rig.wire.serial).toEqual(expect.arrayContaining(['D0', 'D1', 'D2']));
   await checkpointViewport(page, 'control-page');
@@ -133,7 +133,7 @@ test('OSC scalar steps, literal FT prefix filtering, parameter preview and gate 
   await checkpoint(page, page.locator('.table-scroll'), 'osc-parameters');
   await rig.send([['CI/Active',0]]);
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
-  await workspace(page, '控制'); await checkpoint(page, page.locator('main .section').first(), 'osc-gate-stopped');
+  await workspace(page, '控制'); await checkpoint(page, page.locator('.input-section'), 'osc-gate-stopped');
 });
 
 test('PB calibration replaces the previous gate, opts in explicitly and persists', { tag: ['@osc','@config','@visual'] }, async ({ page, rig }) => {
@@ -188,7 +188,7 @@ test.describe('modern OGB SPS', () => {
   });
 });
 
-test('funscript import, playback, pause, stepping and unload', { tag: ['@input','@transport','@visual'] }, async ({ page, rig }) => {
+test('funscript import, playback, pause, stepping and unload', { tag: ['@input','@transport','@visual','@layout-preflight'] }, async ({ page, rig }) => {
   await enable(page, ['Mock UDP']); await mode(page, '脚本');
   await page.locator('input[type=file]').setInputFiles({ name:'ci-motion.funscript', mimeType:'application/json', buffer:Buffer.from(JSON.stringify({actions:[{at:0,pos:0},{at:5000,pos:100},{at:10000,pos:0}]})) });
   await expect.poll(async () => (await rig.overview()).input.script.loaded).toBe(true);
@@ -214,14 +214,15 @@ test('funscript import, playback, pause, stepping and unload', { tag: ['@input',
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
 });
 
-test('help, output editing, conflicts and profile dialog remain usable', { tag: ['@config','@visual'] }, async ({ page, rig }) => {
+test('help, output editing, conflicts and profile dialog remain usable', { tag: ['@config','@visual','@layout-preflight'] }, async ({ page, rig }) => {
   await page.getByRole('button', { name:'帮助', exact:true }).click();
-  const help = page.getByRole('dialog', { name:'从这里开始', exact:true });
+  const help = page.getByRole('dialog', { name:'帮助与指南', exact:true });
   await expect(help.locator('.usage-choices h3')).toHaveCount(6);
   await expect(help.getByRole('heading', { level: 3 })).toHaveCount(3);
   await expect(help.locator('details')).not.toHaveAttribute('open');
   await checkpoint(page, help, 'help-workflow');
-  await expect(page.getByRole('link', { name:'使用指南', exact:true })).toHaveAttribute('href', /guide\.md$/);
+  await expect(help.getByRole('link', { name:'使用指南', exact:true })).toHaveAttribute('href', /start\.md$/);
+  await expect(help.getByRole('link', { name:'工作台说明', exact:true })).toHaveAttribute('href', /guide\.md$/);
   const beforeBrowse = rig.commands.filter(command => command.method !== 'GET').length;
   await expand(page, '更多连接与测量');
   await help.getByRole('button', { name: '编辑信号流程', exact: true }).click();
@@ -274,7 +275,7 @@ test('paired pose is diagnostic by default, explicit opt-in drives, missing land
   await feed.set(poseSamples().map(([path,value]) => [path,path.endsWith('/Tip/A0') ? 0 : value]));
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
   await expect.poll(async () => (await rig.overview()).runtime.poseBlocked).toBe(true);
-  await workspace(page, '控制'); await checkpoint(page, page.locator('main .section').first(), 'pose-landmark-lost');
+  await workspace(page, '控制'); await checkpoint(page, page.locator('.input-section'), 'pose-landmark-lost');
 });
 
 test.describe('OSCQuery and Hub', () => {

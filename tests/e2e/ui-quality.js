@@ -403,12 +403,24 @@ export async function inspectManualAlignment(page, layout) {
 }
 
 export async function inspectMoreAxesAlignment(page, layout) {
-  const fields = page.getByTestId('manual-more-axes').locator('.manual-extra-axes > .value-field');
+  const grid = page.getByTestId('manual-more-axes').locator('.manual-extra-axes');
+  const fields = grid.locator(':scope > .value-field');
+  const gridLayout = await grid.evaluate(element => {
+    const style = getComputedStyle(element), box = element.getBoundingClientRect();
+    return { width: box.width, columnGap: parseFloat(style.columnGap),
+      columns: style.gridTemplateColumns.trim().split(/\s+/).length,
+      containerWidth: element.closest('.workbench-main').getBoundingClientRect().width };
+  });
+  // The editor uses one column in its narrow container, then fits 200px fields.
+  // Verify the concrete container contract before grouping every axis by row.
+  const columns = gridLayout.containerWidth <= 520 ? 1
+    : Math.max(1, Math.min(11, Math.floor((gridLayout.width + gridLayout.columnGap + 1) / (200 + gridLayout.columnGap))));
   const groups = await geometryGroups(fields, {
     label: '.value-field__heading label', number: '.value-field__heading input.number-input',
     slider: '.value-field__controls input[type=range]',
   });
-  return geometricEvidence({ layout, groups }, () => {
+  return geometricEvidence({ layout, gridLayout, columns, groups }, () => {
+    expect(gridLayout.columns, 'Additional axes fit the actual editor width / 更多轴按编辑区实际宽度分列').toBe(columns);
     expect(groups, 'All eleven additional axes remain available / 其余十一个动作轴均可用').toHaveLength(11);
     const slack = tolerance(groups.map(group => group.box));
     for (const group of groups) {
@@ -420,9 +432,9 @@ export async function inspectMoreAxesAlignment(page, layout) {
       near([slider.right, number.right], slack, 'Additional axis input and slider right edges / 更多轴数值与滑条右沿');
     }
     near(groups.map(group => group.box.width), slack, 'Additional axes use equal widths / 更多轴等宽');
-    if (layout === 'columns') {
-      for (let start = 0; start < groups.length; start += 3) {
-        const row = groups.slice(start, start + 3);
+    if (columns > 1) {
+      for (let start = 0; start < groups.length; start += columns) {
+        const row = groups.slice(start, start + columns);
         near(row.map(group => only(group, 'number').bottom), slack, 'Additional axis numbers share a row / 更多轴数值同排');
         near(row.map(group => only(group, 'label').textBottom), slack, 'Additional axis title baselines / 更多轴标题基线');
         near(row.map(group => only(group, 'slider').top), slack, 'Additional axis sliders share a row / 更多轴滑条同排');

@@ -16,6 +16,8 @@ header{min-height:72px;border-bottom:1px solid var(--line);display:flex;align-it
 .brand .brand-context{font-size:13px;font-weight:500;color:var(--muted);border-left:1px solid var(--line);padding:7px 0 7px 14px;margin-left:4px}
 header nav{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 header nav a,header button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;color:#35445a;font-size:13px}
+header nav a{min-width:44px;padding-inline:4px}
+header [data-site-nav] a[aria-current="page"]{color:var(--blue);font-weight:650;text-decoration:underline;text-underline-offset:5px}
 button{background:#fff;border:1px solid #c6d0df;border-radius:8px;padding:7px 13px;min-height:44px}
 button:hover{border-color:var(--blue);color:var(--blue)}
 h1,h2,h3{color:var(--ink);line-height:1.4;scroll-margin-top:100px}
@@ -60,6 +62,10 @@ footer a{display:inline-flex;align-items:center;min-height:28px}
 .layout article{overflow-wrap:anywhere}
 .layout article>h1:first-child{margin-top:0}
 .layout article>p:first-of-type{font-size:13px;color:var(--muted);margin-bottom:24px}
+.guide-landing .layout{display:block;max-width:1100px}
+.guide-landing article>ul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:0;list-style:none}
+.guide-landing article>ul>li{margin:0;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:8px;line-height:1.75}
+.guide-landing article>ul>li>a:first-child{display:block;min-height:44px;font-size:16px;font-weight:600}
 .layout aside{font-size:12px;color:var(--muted);position:sticky;top:104px;max-height:calc(100vh - 128px);overflow:auto;padding:4px 0 0;overscroll-behavior:contain}
 .layout aside p{font-weight:650;margin:0 0 12px;color:#35445a}
 .layout aside a{display:block;color:var(--muted);border-left:1px solid var(--line);padding:7px 0 7px 13px;line-height:1.55;overflow-wrap:anywhere}
@@ -114,6 +120,20 @@ footer a{display:inline-flex;align-items:center;min-height:28px}
 .entry-grid h3{margin:0 0 10px;font-size:17px}
 .entry-grid p{margin:0;font-size:14px;line-height:1.75}
 .entry-grid .arrow{color:var(--blue);font-size:18px;line-height:1.5}
+.entry-grid .case-flow{font-size:12px;color:#354d6d;font-weight:600;margin:0 0 12px;line-height:1.7}
+.entry-link{display:block;color:var(--blue);font-size:13px;margin-top:16px}
+.capability-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.capability-grid article,.feature-grid article{min-width:0;padding:20px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.capability-grid h3,.feature-grid h3{margin:0 0 10px}
+.capability-grid p,.feature-grid p{font-size:14px;line-height:1.8;margin:0}
+.capability-grid h3{overflow-wrap:anywhere}
+.edition-comparison table{display:table;table-layout:fixed;margin:0;font-size:14px}
+.edition-comparison caption{text-align:left;font-size:13px;color:var(--muted);padding:0 0 12px}
+.edition-comparison th:first-child{width:28%}
+.edition-comparison th,.edition-comparison td{overflow-wrap:anywhere}
+.getting-started{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center}
+.getting-started .actions{max-width:230px;justify-content:flex-start}
 .start-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;list-style:none;padding:0;margin:0 0 18px}
 .start-steps li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;align-items:start;min-width:0;margin:0}
 .step-number{margin-top:2px}
@@ -152,7 +172,7 @@ footer a{display:inline-flex;align-items:center;min-height:28px}
 @media(max-width:1150px){.layout{grid-template-columns:210px minmax(0,1fr);gap:30px}.layout aside{display:none}.home .hero{gap:32px}}
 @media(max-width:760px){
 header{position:relative;padding:14px 20px;gap:10px;flex-wrap:wrap}
-header nav{gap:4px 18px;row-gap:4px}
+header nav{flex-basis:100%;width:100%;gap:4px 18px;row-gap:4px}
 header nav a,header button{font-size:12px}
 .brand{font-size:22px}.brand .brand-context{font-size:12px}
 h1,h2,h3{scroll-margin-top:24px}
@@ -177,6 +197,12 @@ footer{flex-direction:column;gap:8px}
 .section-heading{margin-bottom:20px}
 .entry-grid{grid-template-columns:minmax(0,1fr);gap:12px}
 .entry-grid>a{padding:18px}
+.capability-grid,.feature-grid,.guide-landing article>ul{grid-template-columns:minmax(0,1fr);gap:12px}
+.capability-grid article,.feature-grid article{padding:18px}
+.edition-comparison table{font-size:12px;line-height:1.7}
+.edition-comparison th,.edition-comparison td{padding:9px 8px}
+.getting-started{grid-template-columns:minmax(0,1fr);gap:4px}
+.getting-started .actions{max-width:none}
 .start-steps{grid-template-columns:minmax(0,1fr);gap:20px}
 .running-screenshot>a{padding:10px;min-height:180px}
 .running-screenshot img{max-height:480px}

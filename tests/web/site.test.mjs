@@ -46,7 +46,7 @@ test('public guides build into bilingual routes with resolvable local links and 
       const html = await fs.readFile(path.join(output, route), 'utf8');
       assert.match(html, /<main/);
       assert.doesNotMatch(html, /download\.html|[?&]asset=|data-installer|download-status|download-more/);
-      if (route !== 'index.html')
+      if (route !== 'index.html' && !/^(?:en|zh-CN)\/index\.html$/.test(route))
         assert.match(html, /<header>[\s\S]*?<a data-download="release" href="https:\/\/github\.com\/SeaLoong\/Sensa\/releases\/latest">/);
       assert.doesNotMatch(html, /(?:file:\/\/|[A-Z]:[\\/](?:Users|Code)|__(?:VPM|SITE)_[A-Z_]+__)/);
       const stylesheet = html.match(/<link rel="stylesheet" href="([^"]+)" onerror="([^"]+)">/);
@@ -133,7 +133,7 @@ test('public guides build into bilingual routes with resolvable local links and 
       assert.match(article, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/releases\/latest"/);
       assert.doesNotMatch(article, /data-download=/, 'The guide contains ordinary release links');
       if (locale === 'zh-CN')
-        for (const label of ['OSR／SR6／TCode', 'VRChat／SPS／OGB', '手动'])
+        for (const label of ['OSR／SR6／TCode', 'VRChat／SPS', '手动'])
           assert.ok(article.includes('<strong>' + label + '</strong>：'), 'First-run device/source labels render as emphasis: ' + label);
       const installReference = await fs.readFile(path.join(output, locale + '/docs/features.html'), 'utf8');
       const installArticle = installReference.match(/<article>([\s\S]*?)<\/article>/)[1];
@@ -150,6 +150,30 @@ test('public guides build into bilingual routes with resolvable local links and 
       const unity = await fs.readFile(path.join(output, locale + '/docs/unity-build.html'), 'utf8');
       assert.ok(unity.includes('<code>SensaTrackingFrame.prefab</code>'));
       assert.ok(unity.includes('<code>SensaTrackingFrame</code>'));
+      const landing = await fs.readFile(path.join(output, locale + '/docs/start.html'), 'utf8');
+      assert.match(landing, /<body class="guide-landing" data-guide-landing>/);
+      assert.doesNotMatch(landing, /<details class="navigation"|<aside/);
+      assert.match(landing, /<article>[\s\S]*<ul>[\s\S]*<a href="quick-start\.html">/);
+      for (const route of [locale + '/docs/start.html', locale + '/docs/devices.html', locale + '/docs/features.html', locale + '/index.html']) {
+        assert.ok(manifest.routes.includes(route), route);
+        const page = await fs.readFile(path.join(output, route), 'utf8');
+        const primary = page.match(/<nav data-site-nav[^>]*>([\s\S]*?)<\/nav>/)?.[1];
+        assert.ok(primary, 'Dedicated primary navigation: ' + route);
+        for (const [key, target] of [['features', locale + '/docs/features.html'], ['devices', locale + '/docs/devices.html'], ['guides', locale + '/docs/start.html'], ['websensa', 'websensa/']]) {
+          const link = primary.match(new RegExp('<a data-site-destination="' + key + '"[^>]*href="([^"]+)"'));
+          assert.ok(link, route + ': ' + key);
+          const destination = new URL(decodeAttribute(link[1]), 'https://example.test/Sensa/' + route);
+          assert.equal(destination.pathname.replace(/index\.html$/, ''), '/Sensa/' + target.replace(/index\.html$/, ''));
+          assert.equal(destination.hash, '', 'Primary navigation opens a real destination page');
+        }
+      }
+      const localizedHome = await fs.readFile(path.join(output, locale + '/index.html'), 'utf8');
+      assert.match(localizedHome, new RegExp('data-home-locale="' + locale + '"'));
+      assert.doesNotMatch(localizedHome, /<base\b/);
+      assert.ok(localizedHome.includes(locale === 'en' ? '<span data-en>Features</span>' : '<span data-zh>功能</span>'), 'Selected language is visible without JavaScript');
+      assert.ok(localizedHome.includes(locale === 'en' ? '<span data-zh hidden>功能</span>' : '<span data-en hidden>Features</span>'), 'Other language is hidden in static HTML');
+      const gallery = JSON.parse(localizedHome.match(/<script type="application\/json" id="screenshot-data">([^<]+)<\/script>/)[1]);
+      assert.ok(localizedHome.includes('src="../' + gallery[0].images.desktop[locale].url + '"'), 'No-JS gallery starts in the explicit page language');
     }
     const guide = await fs.readFile(path.join(output, 'en/docs/guide.html'), 'utf8');
     const translatedGuide = await fs.readFile(path.join(output, 'zh-CN/docs/guide.html'), 'utf8');
@@ -256,8 +280,13 @@ test('public guides build into bilingual routes with resolvable local links and 
     assert.deepEqual([...tasks.matchAll(/data-doc="([^"]+)"/g)].map(match => match[1]), ['docs/usage-scenarios', 'docs/guide', 'docs/websensa']);
     const advanced = homepage.match(/<details id="advanced" class="advanced-section">([\s\S]*?)<\/details>/)?.[1];
     assert.ok(advanced, 'Technical capabilities are available through a closed native disclosure');
-    for (const capability of ['outputs-heading', 'recording-heading', 'unity-heading', 'data-diagram', 'docs/computed-signals', 'docs/development', 'copy-vpm'])
+    for (const capability of ['unity-heading', 'data-diagram', 'docs/computed-signals', 'docs/development', 'copy-vpm'])
       assert.ok(advanced.includes(capability), 'Technical capability remains discoverable: ' + capability);
+    const visibleOverview = homepage.slice(0, homepage.indexOf('<details id="advanced"'));
+    for (const section of ['outputs-heading', 'recording-heading', 'editions-heading', 'features-heading'])
+      assert.ok(visibleOverview.includes('id="' + section + '"'), 'Core capability is visible without opening advanced reference: ' + section);
+    assert.match(visibleOverview, /<div class="capability-grid">[\s\S]*DG-LAB[\s\S]*MQTT/);
+    assert.match(visibleOverview, /<table>[\s\S]*<th scope="col">WebSensa<\/th>[\s\S]*No native UDP\/TCP listener/);
     assert.ok(homepage.indexOf('id="purpose-heading"') < homepage.indexOf('class="entry-grid"'));
     assert.ok(homepage.indexOf('class="entry-grid"') < homepage.indexOf('id="screenshot-image"'));
     assert.match(homepage, /<noscript>[\s\S]*href="en\/README.html"[\s\S]*href="zh-CN\/README.html"[\s\S]*<\/noscript>/);
@@ -282,16 +311,16 @@ test('homepage switches task anchors and accessible labels with unavailable pref
   });
   assert.equal(document.documentElement.lang, 'en-US');
   assert.equal(document.title, 'Sensa — VRChat, SPS and funscripts for your devices');
-  assert.equal(recording.href, 'en/docs/signal-pipeline.html#record-and-inspect');
+  assert.equal(recording.href, 'https://example.test/Sensa/en/docs/signal-pipeline.html#record-and-inspect');
   assert.equal(label['aria-label'], 'Main navigation');
   callbacks.get('click')();
   assert.equal(document.documentElement.lang, 'zh-CN');
   assert.equal(document.title, 'Sensa — 连接 VRChat、SPS、funscript 与互动设备');
   assert.equal(english.hidden, true); assert.equal(chinese.hidden, false);
-  assert.equal(recording.href, 'zh-CN/docs/signal-pipeline.html#' + encodeURIComponent('录制与观察'));
+  assert.equal(recording.href, 'https://example.test/Sensa/zh-CN/docs/signal-pipeline.html#' + encodeURIComponent('录制与观察'));
   assert.equal(label['aria-label'], '主导航'); assert.equal(elements.language.textContent, 'English');
   assert.equal(elements.vcc.hidden, true); assert.equal(elements['copy-vpm'].hidden, true);
-  callbacks.get('click')(); assert.equal(recording.href, 'en/docs/signal-pipeline.html#record-and-inspect');
+  callbacks.get('click')(); assert.equal(recording.href, 'https://example.test/Sensa/en/docs/signal-pipeline.html#record-and-inspect');
 });
 
 test('homepage uses the tab or browser language and removes legacy language query parameters', async () => {
@@ -317,11 +346,38 @@ test('homepage uses the tab or browser language and removes legacy language quer
     assert.equal(document.documentElement.lang, sample.expected);
     assert.equal(persistentReads, 0);
     assert.equal(location.search, '?keep=1'); assert.equal(location.hash, '#start');
-    assert.equal(diagram.href, 'parameter-geometry.html');
+    assert.equal(diagram.href, 'https://example.test/Sensa/parameter-geometry.html');
     events.get('click')();
     assert.equal(values.get('sensa.locale'), sample.expected === 'en-US' ? 'zh-CN' : 'en-US');
     assert.equal(location.search, '?keep=1'); assert.equal(location.hash, '#start');
   }
+  const events = new Map(), navigations = [], values = new Map([['sensa.locale', 'en-US']]);
+  const location = new URL('https://example.test/Sensa/zh-CN/index.html#recording-heading');
+  location.assign = target => navigations.push(target);
+  const guide = { dataset: { doc: 'docs/start' } }, diagram = {};
+  const scene = { id: 'manual', en: 'Manual', zh: '手动', images: { desktop: {
+    en: { url: 'media/manual-en.png', width: 800, height: 600, language: 'en-US' },
+    'zh-CN': { url: 'media/manual-zh.png', width: 800, height: 600, language: 'zh-CN' },
+  } } };
+  const elements = { language: { addEventListener: (name, action) => events.set(name, action) },
+    vcc: {}, 'copy-vpm': { addEventListener() {} }, 'vpm-status': {}, 'recording-heading': {},
+    'screenshot-data': { textContent: JSON.stringify([scene]) }, 'screenshot-image': {}, 'screenshot-caption': {}, 'screenshot-original': {} };
+  const document = { documentElement: {}, currentScript: { src: 'https://example.test/Sensa/site.1234.js' },
+    body: { hasAttribute: name => name === 'data-home', dataset: { homeLocale: 'zh-CN', vpm: 'true' } },
+    getElementById: name => elements[name], querySelectorAll: selector => selector === '[data-doc]' ? [guide] : selector === '[data-diagram]' ? [diagram] : [] };
+  vm.runInNewContext(source, { URL, document, location, navigator: { languages: ['en-US'], language: 'en-US' },
+    sessionStorage: { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) }, matchMedia: () => ({ matches: false }) });
+  assert.equal(document.documentElement.lang, 'zh-CN', 'Explicit homepage language overrides tab/browser preferences');
+  assert.equal(values.get('sensa.locale'), 'zh-CN', 'Explicit homepage language carries into WebSensa and the explorer');
+  assert.equal(guide.href, 'https://example.test/Sensa/zh-CN/docs/start.html');
+  assert.equal(diagram.href, 'https://example.test/Sensa/parameter-geometry.html');
+  assert.equal(elements['screenshot-image'].src, 'https://example.test/Sensa/media/manual-zh.png');
+  assert.equal(elements['screenshot-original'].href, elements['screenshot-image'].src);
+  assert.equal(elements.vcc.href, 'vcc://vpm/addRepo?url=' + encodeURIComponent('https://example.test/Sensa/vpm.json'));
+  events.get('click')();
+  assert.equal(navigations[0], 'https://example.test/Sensa/en/index.html#recording-heading');
+  location.hash = '#unknown'; events.get('click')();
+  assert.equal(navigations[1], 'https://example.test/Sensa/en/index.html', 'Unknown fragments do not follow the language switch');
 });
 
 test('language section maps require a matching outline instead of guessing from mismatched headings', () => {

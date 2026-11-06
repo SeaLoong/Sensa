@@ -2,15 +2,21 @@ import React from 'react';
 import { t, docUrl } from './i18n.js';
 import { Button, ButtonLink, Disclosure, Modal } from './ui.tsx';
 
-export default function HelpDialog({ open, onClose, onNavigate, emergencyAction, error, supportsListeners = true }) {
+export default function HelpDialog({ open, onClose, onNavigate, onStartGuide, onOpenPresets, emergencyAction, error, supportsListeners = true }) {
   const guide = (path, label) => <ButtonLink variant="text" href={docUrl(path)} target="_blank" rel="noreferrer">{label}</ButtonLink>;
+  const openTool = callback => { onClose(); callback(); };
   return (
-    <Modal open={open} emergencyAction={emergencyAction} error={error} title={t('从这里开始')} wide
+    <Modal open={open} emergencyAction={emergencyAction} error={error} title={t('帮助与指南')} wide
       onClose={onClose} actions={<Button onClick={onClose}>{t('关闭帮助')}</Button>}>
       <p className="help-intro">{supportsListeners
         ? t('Sensa 把 VRChat / SPS、funscript 或网站控制连接到 OSR 和其他互动设备。先连接设备，再选择一种用法。')
         : t('WebSensa 可以直接在浏览器中手动控制设备，或播放 funscript。先连接设备，再选择一种用法。')}</p>
-      {onNavigate && <div className="actions"><Button tone="primary" onClick={() => onNavigate('outputs')}>{t('连接设备')}</Button></div>}
+      <div className="actions help-entry-actions">
+        {onStartGuide && <Button tone="primary" onClick={() => openTool(onStartGuide)}>{t('操作引导')}</Button>}
+        {onOpenPresets && <Button onClick={() => openTool(onOpenPresets)}>{t('场景预设')}</Button>}
+        {guide('docs/start.md', t('使用指南'))}
+        {onNavigate && <Button variant="text" onClick={() => onNavigate('outputs')}>{t('连接设备')}</Button>}
+      </div>
       <div className="usage-choices">
         {supportsListeners && <div>
           <div><h3>{t('VRChat / SPS 联动')}</h3><p className="caption muted">{t('选择 OGB / SPS 预设，把 Avatar 的接触深度或触摸转换为设备动作。')}</p></div>
@@ -45,7 +51,8 @@ export default function HelpDialog({ open, onClose, onNavigate, emergencyAction,
       </Disclosure>
       <div className="help-links">
         {guide('docs/quick-start.md', t('快速上手'))}
-        {guide('docs/guide.md', t('使用指南'))}
+        {guide('docs/guide.md', t('工作台说明'))}
+        {guide('docs/devices.md', t('设备与连接'))}
         {guide('docs/usage-scenarios.md', t('使用方案'))}
       </div>
     </Modal>

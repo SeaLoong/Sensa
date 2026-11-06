@@ -2,7 +2,7 @@
 
 [简体中文](quick-start.md) | **English**
 
-Connect one device first: use L0 for an OSR/TCode stroke, or V0 for an Intiface vibrator. Then choose VRChat/SPS, a funscript or manual control.
+Follow the setup guide to choose a scene, connect one device and prepare an input. Use L0 for an OSR/TCode stroke, or V0 for an Intiface vibrator using its default source. [Which connection does my device use?](devices.en.md)
 
 ## 1. Start
 
@@ -12,25 +12,38 @@ For **VRChat/OSC**, [download Sensa](https://github.com/SeaLoong/Sensa/releases/
 
 Current Desktop/CLI builds are also available in [development previews](https://github.com/SeaLoong/Sensa/releases); Download opens the latest stable release. Choose **x64** for Intel/AMD or **ARM64** for Apple Silicon/Windows ARM. [All download formats and Linux setup](features.en.md#configuration-and-development)
 
+Click **Start setup guide**. Choose the scene you want, such as **VRChat / SPS control**, **Play a funscript** or **Manual device control**, then continue. WebSensa shows the scenes supported by the browser host.
+
+The guide stays available as **Guided setup**. **Save progress, continue later** keeps your place; **Resume setup** returns to it. Scene shortcuts open the relevant controls directly.
+
 ![Manual controls in Sensa](screenshots/desktop/english-manual.png)
 
 [Narrow layout](screenshots/mobile/english-manual.png) · [More running examples](screenshots.en.md)
 
 ## 2. Add an output
 
-1. Open **Control → Outputs**, choose an **Output type** and click **Add output**.
+1. In the guide, click **Connect or configure a device** to open **Control → Outputs**. Choose an **Output type** and click **Add output**.
 2. Enter your device's connection in **Output settings**:
    - **OSR / SR6 / TCode:** select serial and the port, or enter its network endpoint. Choose the device's axis profile.
    - **Intiface:** start Intiface Central and scan for your device. Enter its WebSocket address in Sensa. Use **Matching device name** under **Devices and features** to limit control to your device.
 3. Click **Save output**, then **Enable** on the output card. Confirm that it connects.
 
-For TCode, check direction and travel in **Settings → Axis profiles** before the first movement. For another device type, follow [output setup](signal-pipeline.en.md#add-outputs-and-bindings).
+For TCode, **Scene presets → Device axis profiles** offers a **Device motion preset**. Click **Review and create an axis profile**, check direction and travel in the editor, then save. Select that saved profile on your TCode output. You can also edit profiles in **Settings → Axis profiles**.
+
+Return to the guide after the output is available, then continue to input preparation. [Other output types](devices.en.md)
 
 ## 3. Enable input and inspect results
 
-1. In **Control**, choose **Manual** and click **Apply input mode** if shown.
-2. Turn on **Input enabled** in the header.
-3. For OSR/TCode, move **L0** a small amount. For an Intiface vibrator, open **More motion axes** and adjust **V0** instead. In WebSensa, also enable **V0** under **Motion axes**. Click **Send once** and watch the device respond. **Send continuously** follows later slider changes.
+In the guide, click **Open input settings** and prepare your chosen scene:
+
+- **Manual:** check L0, or V0 under **More motion axes** for an Intiface vibrator. In WebSensa, also enable V0 under **Motion axes**.
+- **Script:** click **Choose script** and load a `.funscript`. For a vibration-only Intiface device, set its output's **Vibration source** to **L0 · Depth to vibration**.
+- **VRChat / SPS:** receive OSC parameters, choose a mapping preset and save the calibrated mapping. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps)
+- **Website or software:** configure a protocol input and connect the upstream application. [Protocol input steps](protocol-inputs.en.md)
+
+Click **Apply input mode** if shown. Return to the guide, check the output and prepared input, then click **Finish setup**. Finishing records your progress and returns to **Control** with your chosen input. Turn on **Input enabled** separately when ready.
+
+For a first manual movement, make a small slider adjustment and click **Send once**. **Send continuously** follows later edits. For a script, press **Play** after enabling input.
 
 The output card shows connection status and recent values. If nothing happens, check the selected device/port, output **Enable**, applied input mode and **Input enabled**.
 
@@ -38,17 +51,15 @@ Turn off **Input enabled** when finished. **Emergency stop** stops all outputs a
 
 ## 4. Choose sources and add computation
 
-- **VRChat / SPS / OGB:** use the desktop edition and follow [the OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps). Select a preset, check received values and calibrate before enabling input.
-- **Funscript:** choose **Script**, **Choose script**, then **Apply input mode** if shown. For a vibration-only Intiface device, set its **Vibration source** to **L0 · Depth to vibration**. Turn on **Input enabled** and press **Play**. [Player controls](websensa.en.md#manual-controls-and-scripts)
-- **Manual:** keep using L0. Expand the additional axes when your device needs them.
+Use the scene shortcuts to switch tasks, or reopen **Guided setup** for the steps. **Scene presets** lets you inspect OSC and device-motion presets. Loading a preset prepares an editable draft; save it to change the running configuration.
 
-Once this works, [computed signals](computed-signals.en.md) can mix inputs or smooth a response. [Protocol inputs](protocol-inputs.en.md) receive controls from websites and other players.
+Once one connection works, [computed signals](computed-signals.en.md) can mix inputs or smooth a response. [Choose a setup](usage-scenarios.en.md) for additional input and Avatar tracking options.
 
 ## 5. Save recordings and complete plans
 
 [Recording and replay](signal-pipeline.en.md#record-and-inspect) can save your interaction as funscript. [Complete plans](signal-pipeline.en.md#save-and-reuse-a-complete-plan) save mappings, calculations, axis profiles and outputs together.
 
-Browser settings are saved locally; download completed browser recordings before reloading or closing the page. [WebSensa connection details](websensa.en.md) · [Workbench map](guide.en.md)
+Browser settings and guide progress are saved locally; download completed browser recordings before reloading or closing the page. [WebSensa connection details](websensa.en.md) · [Workbench map](guide.en.md) · [All guides](start.en.md)
 
 ## Run several instances
 

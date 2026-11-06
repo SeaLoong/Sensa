@@ -18,6 +18,33 @@ export interface ButtonLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement>
 export function ButtonLink({ children, tone, variant, size, className, ...props }: ButtonLinkProps) {
   return <a className={buttonClassName(tone, variant, size, className)} {...props}>{children}</a>;
 }
+export interface TaskTileProps extends Omit<ButtonProps, 'title' | 'children'> {
+  title: ReactNode; description?: ReactNode; icon?: ReactNode; selected?: boolean;
+}
+export function TaskTile({ title, description, icon, selected, className = '', 'aria-pressed': pressed, ...props }: TaskTileProps) {
+  return <Button {...props} className={`task-tile${selected ? ' task-tile--selected' : ''} ${className}`.trim()}
+    aria-pressed={selected ?? pressed}>
+    {icon && <span className="task-tile__icon" aria-hidden="true">{icon}</span>}
+    <span className="task-tile__content"><strong className="task-tile__title">{title}</strong>
+      {description && <small className="task-tile__description">{description}</small>}</span>
+    <svg className="task-tile__arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.8" aria-hidden="true" focusable="false"><path d="m9 5 7 7-7 7" /></svg>
+  </Button>;
+}
+export interface WorkspaceHeaderProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
+  title: ReactNode; description?: ReactNode; eyebrow?: ReactNode; actions?: ReactNode;
+  headingLevel?: 2 | 3; actionsClassName?: string;
+}
+export function WorkspaceHeader({ title, description, eyebrow, actions, headingLevel = 2,
+  className = '', actionsClassName = '', ...props }: WorkspaceHeaderProps) {
+  const Heading = headingLevel === 3 ? 'h3' : 'h2';
+  return <header {...props} className={`workspace-header ${className}`.trim()}>
+    <div className="workspace-header__content">{eyebrow && <p className="workspace-header__eyebrow">{eyebrow}</p>}
+      <Heading className="workspace-header__title">{title}</Heading>
+      {description && <p className="workspace-header__description muted">{description}</p>}</div>
+    {actions && <div className={`actions workspace-header__actions ${actionsClassName}`.trim()}>{actions}</div>}
+  </header>;
+}
 export function FieldHint({ id, children, visible = false }: { id: string; children?: ReactNode; visible?: boolean }) {
   return children ? <span className={visible ? 'field__hint' : 'sr-only'} id={id}>{children}</span> : null;
 }
@@ -99,8 +126,8 @@ export function Modal({ open, title, onClose, children, actions, emergencyAction
 }
 export interface SectionProps { title: ReactNode; description?: ReactNode; actions?: ReactNode; children?: ReactNode; className?: string; }
 export function Section({ title, description, actions, children, className = '' }: SectionProps) {
-  return <section className={`section ${className}`}><header className="section__header"><div><h2>{title}</h2>
-    {description && <p className="muted">{description}</p>}</div>{actions && <div className="actions section__actions">{actions}</div>}</header>{children}</section>;
+  return <section className={`section ${className}`}><WorkspaceHeader className="section__header" title={title}
+    description={description} actions={actions} actionsClassName="section__actions" />{children}</section>;
 }
 export interface DisclosureProps extends Omit<DetailsHTMLAttributes<HTMLDetailsElement>, 'title'> {
   title: ReactNode; description?: ReactNode; actions?: ReactNode; defaultOpen?: boolean;

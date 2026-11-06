@@ -1,32 +1,30 @@
 import React from 'react';
-import { Button, Disclosure } from './ui.tsx';
+import { Button, TaskTile, WorkspaceHeader } from './ui.tsx';
+import { onboardingScenes } from './onboarding.js';
 import { t } from './i18n.js';
 
-// Choosing a task only opens its setup view. Input activation stays explicit.
-export default function GettingStarted({ hasOutputs = false, inputModes, onNavigate }) {
-  const supports = mode => !inputModes || inputModes.includes(mode);
-  const choices = [
-    ...(supports('osc') ? [{ id: 'osc', label: t('VRChat / SPS → 设备'), detail: t('接收 OSC，设置动作映射。') }] : []),
-    ...(supports('script') ? [{ id: 'script', label: t('funscript → 设备'), detail: t('载入脚本，检查播放目标。') }] : []),
-    ...(supports('manual') ? [{ id: 'manual', label: t('手动控制'), detail: t('使用滑条调整动作目标。') }] : []),
-  ];
-  const content = <div className="stack getting-started__content">
-    <div className="getting-started__choices">
-      {choices.map(choice => <Button key={choice.id} className="getting-started__choice"
-        data-testid={`setup-task-${choice.id}`} onClick={() => onNavigate(choice.id)}>
-        <strong>{choice.label}</strong><small>{choice.detail}</small>
-      </Button>)}
+export default function GettingStarted({ hasOutputs = false, inputModes, supportsListeners = true,
+  onboarding = { status: 'new' }, onNavigate, onStartGuide, onDismissGuide, onOpenPresets }) {
+  const welcome = !hasOutputs && onboarding.status === 'new';
+  const scenes = onboardingScenes({ inputModes, supportsListeners });
+  return <section className={`getting-started scene-launchpad scene-launchpad--${welcome ? 'welcome' : 'compact'}`} data-testid="getting-started">
+    <WorkspaceHeader title={welcome ? t('让设备开始联动') : t('选择使用场景')}
+      description={welcome ? t('选一种用法，跟着引导连接设备、准备输入，再由你启用。') : undefined}
+      actions={<><Button data-testid="open-scene-presets" onClick={() => onOpenPresets?.()}>{t('场景预设')}</Button>
+        <Button tone={welcome ? 'primary' : 'default'} data-testid={onboarding.status === 'dismissed' ? 'onboarding-resume' : 'onboarding-start'} onClick={onStartGuide}>
+          {onboarding.status === 'dismissed' ? t('继续设置') : welcome ? t('开始设置向导') : t('操作引导')}
+        </Button></>} />
+    {welcome && <ol className="guided-steps onboarding-invitation" aria-label={t('首次设置步骤')}>
+      {[t('选择场景'), t('连接设备'), t('准备输入'), t('检查并完成')].map((label, index) => <li className="guided-step" key={label}><span>{index + 1}</span>{label}</li>)}
+    </ol>}
+    <div className={welcome ? 'task-tiles' : 'scene-launchpad__shortcuts'}>
+      {scenes.map(scene => <TaskTile key={scene.id} title={scene.title} description={welcome ? scene.description : undefined}
+        className="getting-started__choice" data-testid={`setup-task-${scene.id}`} selected={onboarding.goal === scene.id}
+        onClick={() => onNavigate(scene.destination, scene.id)} />)}
     </div>
-    <div className="actions">
-      <Button data-testid="setup-connect-device" onClick={() => onNavigate('outputs')}>{t('连接设备')}</Button>
-      <span className="caption muted">{t('准备好后，再打开顶部的“输入启用”。')}</span>
-    </div>
-  </div>;
-  return <div className="getting-started" data-testid="getting-started">
-    {hasOutputs ? <Disclosure title={t('快速设置')} data-testid="quick-setup">{content}</Disclosure>
-      : <div className="stack getting-started__first-run">
-          <strong>{t('你想怎样控制设备？')}</strong>
-          {content}
-        </div>}
-  </div>;
+    {welcome && <div className="actions scene-launchpad__footer">
+      <Button data-testid="setup-connect-device" onClick={() => onNavigate('outputs')}>{t('直接连接设备')}</Button>
+      <Button variant="text" data-testid="onboarding-skip" onClick={onDismissGuide}>{t('稍后设置')}</Button>
+    </div>}
+  </section>;
 }

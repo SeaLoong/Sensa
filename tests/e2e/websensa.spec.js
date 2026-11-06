@@ -58,6 +58,82 @@ test.afterAll(async () => { if (sockets) await new Promise(resolve => sockets.cl
 async function open(page) { await openWorkbench(page, base + '/Sensa/websensa/?lang=en'); }
 
 for (const locale of ['zh-CN', 'en-US']) {
+  test('@site @onboarding WebSensa guides supported goals and saves a reviewed real profile locally / 网页工作台引导支持场景并明确保存真实轴预设 ' + locale,
+    async ({ page }, info) => {
+      const label = zh => locale === 'en-US' ? english[zh] || zh : zh;
+      await page.goto(base + '/Sensa/websensa/?lang=' + locale);
+      await expect(page.getByRole('heading', { name: 'WebSensa', exact: true })).toBeVisible();
+      const original = await page.evaluate(() => localStorage.getItem('sensa.web.configuration.v1'));
+      await page.getByTestId('onboarding-start').click();
+      await expect(page.locator('[data-testid^="onboarding-goal-"]')).toHaveCount(2);
+      await expect(page.getByTestId('onboarding-goal-osc')).toHaveCount(0);
+      await expect(page.getByTestId('onboarding-goal-protocol')).toHaveCount(0);
+      await page.getByTestId('onboarding-goal-manual').click();
+      await page.getByTestId('onboarding-next').click();
+      await page.getByTestId('onboarding-step-ready').click();
+      await expect(page.getByTestId('onboarding-complete')).toBeDisabled();
+      await page.getByTestId('onboarding-step-device').click();
+      await page.getByTestId('onboarding-skip').click();
+      expect(await page.evaluate(() => localStorage.getItem('sensa.web.configuration.v1'))).toBe(original);
+      await page.reload();
+      await page.getByTestId('onboarding-resume').click();
+      await expect(page.getByTestId('onboarding-step-device')).toHaveAttribute('aria-current', 'step');
+      await page.getByTestId('onboarding-step-input').click();
+      await page.getByTestId('onboarding-prepare-input').click();
+      await expect(page.locator('#input-tabs-manual')).toBeFocused();
+      await expect(page.getByTestId('onboarding-apply-input')).toHaveCount(0);
+      await page.getByTestId('onboarding-skip').click();
+      await page.getByTestId('open-scene-presets').click();
+      let library = page.getByRole('dialog', { name: label('场景预设'), exact: true });
+      await expect(library.getByRole('tab')).toHaveCount(1);
+      await expect(library.locator('#scene-preset-tabs-osc')).toHaveCount(0);
+      await library.getByTestId('scene-axis-preset').selectOption('osr-first-run');
+      await library.getByTestId('scene-axis-review').click();
+      let dialog = page.getByRole('dialog', { name: label('轴配置'), exact: true });
+      await expect(dialog.getByRole('tabpanel').getByRole('spinbutton', { name: label('映射范围') + label('起点'), exact: true })).toHaveValue('400');
+      await expect(dialog.getByRole('tabpanel').getByRole('spinbutton', { name: label('映射范围') + label('终点'), exact: true })).toHaveValue('600');
+      await dialog.getByRole('button', { name: label('取消'), exact: true }).click();
+      expect(await page.evaluate(() => localStorage.getItem('sensa.web.configuration.v1'))).toBe(original);
+      await page.getByTestId('open-scene-presets').click();
+      library = page.getByRole('dialog', { name: label('场景预设'), exact: true });
+      await library.getByTestId('scene-axis-review').click();
+      dialog = page.getByRole('dialog', { name: label('轴配置'), exact: true });
+      const name = 'Browser reviewed OSR ' + locale;
+      await dialog.getByRole('textbox', { name: label('配置名称'), exact: true }).fill(name);
+      await dialog.getByRole('button', { name: label('保存轴配置'), exact: true }).click();
+      await expect(dialog).toBeHidden();
+      const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('sensa.web.configuration.v1')));
+      const profile = saved.axisProfiles.find(candidate => candidate.name === name);
+      expect(profile).toBeDefined();
+      expect(profile.motion.l0).toMatchObject({ mode: 'Normal', min: 400, max: 600, remapMin: 400, remapMax: 600, maxSpeed: 100 });
+      for (const axis of ['l1', 'l2', 'r0', 'r1', 'r2', 'v0', 'v1', 'v2', 'a0', 'a1', 'a2']) expect(profile.motion[axis].mode).toBe('Ignored');
+      expect(saved.outputs).toEqual([]);
+      await expect(page.getByRole('switch')).not.toBeChecked();
+      await page.reload();
+      expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sensa.web.configuration.v1')))).toEqual(saved);
+      await expect(page.getByRole('switch')).not.toBeChecked();
+      await expect(page.locator('.manual-workspace').getByRole('slider')).toHaveCount(1);
+      await expect(page.getByTestId('manual-more-axes')).not.toHaveAttribute('open');
+      expect(commands).toEqual([]);
+      expect(connections).toEqual([]);
+      expect(requests.some(endpoint => /^\/(?:Sensa\/)?(?:api|ws)(?:\/|$)/.test(endpoint))).toBe(false);
+      const preference = await page.evaluate(() => {
+        const key = Object.keys(localStorage).find(candidate => candidate.startsWith('sensa.onboarding.v1:'));
+        return { key, state: JSON.parse(localStorage.getItem(key)) };
+      });
+      expect(preference.key).toBe('sensa.onboarding.v1:local:/Sensa/websensa/');
+      expect(preference.state).toEqual({ status: 'dismissed', goal: 'manual', step: 'input' });
+      const proof = { schema: 1, sourceCommit: process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA,
+        runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT, testId: info.testId,
+        project: info.project.name, locale, workflow: 'browser-guide-presets', supportedGoals: ['script', 'manual'],
+        preset: 'osr-first-run', profile, preference, draftConfigurationUnchanged: true,
+        cancelConfigurationUnchanged: true, savedLocally: true, inputActive: false, outputs: saved.outputs,
+        backendRequests: 0, commands, connections };
+      const output = info.outputPath('onboarding-outcome.json');
+      await fs.writeFile(output, JSON.stringify(proof, null, 2));
+      await info.attach('onboarding-outcome', { path: output, contentType: 'application/json' });
+    });
+
   test('@site @beginner @quality @i18n WebSensa shares the compact task chooser and keyboard motion disclosure / 网页工作台沿用简洁任务选择与键盘动作折叠 ' + locale,
     async ({ page }, info) => {
       const label = zh => locale === 'en-US' ? english[zh] || zh : zh;

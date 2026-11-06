@@ -14,10 +14,9 @@ async function unchanged(page, rig, config, mutations) {
   expect(Object.values(rig.wire).every(lane => lane.length === 0)).toBe(true);
 }
 
-async function openQuickSetup(page) {
-  const details = page.getByTestId('quick-setup');
-  if (await details.getAttribute('open') === null) await details.locator('summary').click();
-  await expect(details).toHaveAttribute('open', '');
+async function requireSceneLaunchpad(page) {
+  await expect(page.getByTestId('getting-started')).toBeVisible();
+  await expect(page.getByTestId('setup-task-script')).toBeVisible();
 }
 
 for (const locale of ['zh-CN', 'en-US']) {
@@ -26,14 +25,14 @@ for (const locale of ['zh-CN', 'en-US']) {
 
     test.describe('empty configuration / 空配置', () => {
       test.use({ scenario: 'first-run' });
-      test('three first-run tasks reach usable setup without applying a mode or enabling input / 首次使用三项任务可直达设置且不应用或启用输入',
+      test('first-run tasks reach usable setup without applying a mode or enabling input / 首次使用任务可直达设置且不应用或启用输入',
         { tag: ['@beginner', '@config', '@quality', '@i18n'] }, async ({ page, rig }, info) => {
           const config = await configuration(page, rig), mutations = rig.commands.filter(command => command.method !== 'GET').length;
           const chooser = page.getByTestId('getting-started');
           await expect(chooser).toBeVisible();
-          await expect(chooser.getByTestId('quick-setup')).toHaveCount(0);
-          await expect(chooser.locator('[data-testid^="setup-task-"]')).toHaveCount(3);
-          for (const task of ['osc', 'script', 'manual']) await expect(chooser.getByTestId('setup-task-' + task)).toBeVisible();
+          await expect(chooser).toHaveClass(/scene-launchpad--welcome/);
+          await expect(chooser.locator('[data-testid^="setup-task-"]')).toHaveCount(4);
+          for (const task of ['osc', 'script', 'manual', 'protocol']) await expect(chooser.getByTestId('setup-task-' + task)).toBeVisible();
           await chooser.getByTestId('setup-task-script').click();
           await expect(page.locator('#input-tabs-script')).toBeFocused();
           await expect(page.locator('#input-tabs-script')).toHaveAttribute('aria-selected', 'true');
@@ -46,6 +45,13 @@ for (const locale of ['zh-CN', 'en-US']) {
           await expect(page.locator('.preset-strip')).toBeInViewport();
           expect(await page.locator('.preset-strip').evaluate(region => region.contains(document.activeElement))).toBe(true);
           await workspace(page, '控制');
+          await chooser.getByTestId('setup-task-protocol').click();
+          await expect(page.locator('#workspace-tabs-settings')).toHaveAttribute('aria-selected', 'true');
+          const protocol = page.getByTestId('protocol-inputs-panel');
+          await expect(protocol).toBeInViewport();
+          expect(await protocol.evaluate(region => region.contains(document.activeElement))).toBe(true);
+          expect((await rig.overview()).input.mode).toBe('manual');
+          await workspace(page, '控制');
           await chooser.getByTestId('setup-task-manual').click();
           await expect(page.locator('#input-tabs-manual')).toBeFocused();
           await expect(page.getByRole('slider', { name: await text(page, 'L0 主轴'), exact: true })).toBeVisible();
@@ -54,29 +60,27 @@ for (const locale of ['zh-CN', 'en-US']) {
           await expect(page.getByTestId('add-output')).toBeInViewport();
           await unchanged(page, rig, config, mutations);
           await info.attach('first-run-task-navigation.json', { body: JSON.stringify({ locale,
-            tasks: ['osc', 'script', 'manual'], mode: 'manual', inputActive: false, configUnchanged: true }), contentType: 'application/json' });
+            tasks: ['osc', 'script', 'manual', 'protocol'], mode: 'manual', inputActive: false, configUnchanged: true }), contentType: 'application/json' });
         });
     });
 
-    test('existing connections keep setup compact and return to the selected output without enabling it / 已有连接收起快速设置且可定位输出而不启用',
+    test('existing connections keep task shortcuts compact and return to the selected output without enabling it / 已有连接保留紧凑任务入口且可定位输出而不启用',
       { tag: ['@beginner', '@config', '@quality', '@i18n'] }, async ({ page, rig }, info) => {
         const config = await configuration(page, rig), mutations = rig.commands.filter(command => command.method !== 'GET').length;
-        const quick = page.getByTestId('quick-setup'), summary = quick.locator('summary');
-        await expect(quick).not.toHaveAttribute('open');
-        await expect(page.getByTestId('setup-task-script')).toBeHidden();
-        await summary.focus(); await summary.press('Enter');
-        await expect(quick).toHaveAttribute('open', '');
-        await expect(summary).toBeFocused();
-        await page.getByTestId('setup-task-script').click();
+        const launchpad = page.getByTestId('getting-started');
+        await expect(launchpad).toHaveClass(/scene-launchpad--compact/);
+        await requireSceneLaunchpad(page);
+        const script = launchpad.getByTestId('setup-task-script');
+        await script.focus(); await script.press('Enter');
         await expect(page.locator('#input-tabs-script')).toBeFocused();
         await expect(page.getByRole('button', { name: await text(page, '应用输入方式'), exact: true })).toBeVisible();
         expect((await rig.overview()).input.mode).toBe('manual');
-        await openQuickSetup(page);
+        await requireSceneLaunchpad(page);
         await page.getByTestId('setup-connect-device').click();
         await expect(page.getByTestId('output-type')).toBeFocused();
         await expect(card(page, 'Mock UDP').getByRole('button', { name: await text(page, '启用'), exact: true })).toBeEnabled();
         await unchanged(page, rig, config, mutations);
-        await info.attach('quick-setup-navigation.json', { body: JSON.stringify({ locale, keyboardOpened: true,
+        await info.attach('scene-shortcut-navigation.json', { body: JSON.stringify({ locale, keyboardActivated: true,
           configurationUnchanged: true, mode: 'manual', inputActive: false }), contentType: 'application/json' });
       });
 
@@ -104,8 +108,8 @@ for (const locale of ['zh-CN', 'en-US']) {
         await summary.focus(); await summary.press('Enter');
         await expect(l1).toHaveValue('735');
         await expect(manual.locator('input[type=number]').nth(3)).toHaveValue('285');
-        await openQuickSetup(page); await page.getByTestId('setup-task-script').click();
-        await openQuickSetup(page); await page.getByTestId('setup-task-manual').click();
+        await requireSceneLaunchpad(page); await page.getByTestId('setup-task-script').click();
+        await requireSceneLaunchpad(page); await page.getByTestId('setup-task-manual').click();
         await expect(l0).toHaveValue('615');
         if (await details.getAttribute('open') === null) await summary.click();
         await expect(l1).toHaveValue('735');

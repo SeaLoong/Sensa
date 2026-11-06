@@ -2,7 +2,7 @@
 
 [简体中文](guide.md) | **English**
 
-This is a map of the workbench. For the first connection, follow [First run](quick-start.en.md). For VRChat/SPS, follow [OGB/SPS setup](usage-scenarios.en.md#existing-ogb--sps).
+Use this map to find a control. [Guides](start.en.md) helps you choose a task; [First run](quick-start.en.md) follows the setup guide from a goal to one working connection.
 
 | Open | Use it to |
 | --- | --- |
@@ -10,6 +10,14 @@ This is a map of the workbench. For the first connection, follow [First run](qui
 | **OSC** | Inspect VRChat parameters, choose presets and calibrate mappings |
 | **Flow** | Add calculations, bindings, recordings and reusable plans |
 | **Settings** | Set device travel, protocol listeners and logs |
+
+## Guided setup and scene presets
+
+**Start setup guide** begins four steps: **Choose a scene → Connect device → Prepare input → Review setup**. Later, use **Guided setup** to reopen it. **Save progress, continue later** keeps your place; **Resume setup** continues. **Finish setup** records completion and returns to **Control** with your chosen input. Turn on **Input enabled** when ready.
+
+**Scene presets** opens two groups. **VRChat / OSC mappings** prepares a mapping draft with **Append to mapping draft** or **Replace mapping draft**; review and **Save mappings** in the editor. **Device axis profiles** offers **Device motion preset → Review and create an axis profile**; review and save the profile, then select it on your TCode output.
+
+Scene shortcuts open the controls for a task. Selecting a scene or a preset does not enable input.
 
 ## Prepare, apply the input mode, then enable input
 
@@ -19,7 +27,7 @@ Prepare your source and output, save, then **Apply input mode** and turn on **In
 
 ### Manual and script
 
-Start with L0. **Send once** sends the selected target; **Send continuously** follows edits. **More motion axes** reveals the other axes. For funscript, choose **Script**, load a file, apply the mode, enable input and press **Play**. [Player and browser steps](websensa.en.md#manual-controls-and-scripts)
+Use L0 for a position stroke, or V0 under **More motion axes** for an Intiface vibrator using its default source. **Send once** sends the selected target; **Send continuously** follows edits. For funscript, choose **Script**, load a file, apply the mode, enable input and press **Play**. [Player, vibration-source and browser steps](websensa.en.md#manual-controls-and-scripts)
 
 ### Combined input
 
@@ -53,7 +61,7 @@ Check reception and sender port first, then source selection, saved mapping, out
 
 ### Turn an input into motion (mapping)
 
-Choose a [preset](presets.en.md), **Replace draft**, calibrate its range/direction and **Save mappings**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps)
+Open **Scene presets** to choose an OSC preset and load it into a mapping draft. You can also use the preset selector in OSC. Calibrate its range/direction and **Save mappings**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps) · [Template reference](presets.en.md)
 
 ### Combine inputs first (computed signals)
 
@@ -73,7 +81,7 @@ Use Flow after a direct input/output connection works. It adds calculations, per
 
 ## Settings and help
 
-**Axis profiles** set TCode direction, travel and motion. Select the saved profile on the output. Protocol listeners and logs are also here. [Connection reference](protocol-inputs.en.md) · [Independent desktop instances](quick-start.en.md#run-several-instances)
+**Axis profiles** set TCode direction, travel and motion. A device-motion preset can prepare a new profile; save it and select it on the output. Protocol listeners and logs are also here. Help links to [Guides](start.en.md) and can reopen guided setup or scene presets. [Connection reference](protocol-inputs.en.md) · [Independent desktop instances](quick-start.en.md#run-several-instances)
 
 ## Explore approach, contact and position
 

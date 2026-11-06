@@ -36,8 +36,10 @@ for (const locale of ['zh-CN', 'en-US']) {
       assert.ok(html.includes('>' + axis.axis + '</span>'));
       assert.ok(html.includes(' ' + axis.label + '</span>'));
     }
+    const rangeLegends = [...html.matchAll(/<legend\b[^>]*>([^<]*)/g)].map(match => match[1].trim());
+    assert.equal(rangeLegends.length, 2, 'Both native range legends remain present');
     for (const range of ['映射范围', '边界范围']) {
-      assert.ok(html.includes('<legend>' + t(range)));
+      assert.ok(rangeLegends.includes(t(range)));
       for (const end of ['起点', '终点']) assert.ok(html.includes('aria-label="' + t('{0}{1}', [t(range), t(end)]) + '"'));
     }
     assert.ok(html.includes('aria-label="' + t('{0}数值', [t('速度限制')]) + '"'));

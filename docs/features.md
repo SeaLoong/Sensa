@@ -2,19 +2,29 @@
 
 **简体中文** | [English](features.en.md)
 
-Sensa 将 VRChat／SPS／OGB、funscript 与手动输入连接到互动设备。首次连接请跟随[首次使用](quick-start.md)，本页供之后扩展功能时查阅。
+让 VRChat／SPS、funscript 或手动控制驱动 OSR 等互动设备。从使用向导开始，用预设准备常见配置，再按需添加计算、录制或更多输出。
+
+[连接第一个设备](quick-start.md) · [设备与连接](devices.md) · [浏览指南](start.md)
+
+## 使用向导与预设
+
+**开始设置向导**会打开**选择场景 → 连接设备 → 准备输入 → 检查并完成**四个步骤。保存进度后可以通过**继续设置**返回，或通过**操作引导**重新打开。点击**完成设置**后，准备好再打开**输入启用**。
+
+**场景预设**准备常见的 VRChat／SPS 映射草稿与 TCode 轴配置。映射草稿检查并保存后再使用。设备动作预设需要检查并保存新轴配置，再到输出上选择使用。量程应符合实际设备。[整套方案](signal-pipeline.md#保存与复用整套方案)可以复用包含输入与输出的完整配置。
+
+[首次使用步骤](quick-start.md) · [映射模板](presets.md) · [工作台地图](guide.md)
 
 ## 选择版本
 
-- **WebSensa：**[在浏览器打开](https://sealoong.github.io/Sensa/websensa/)，用于手动控制、脚本和浏览器支持的设备连接。
-- **Desktop：**下载并运行桌面窗口，使用完整本地服务。
-- **CLI：**运行同一本地服务，通过浏览器操作，支持后台运行与独立实例。
+- **WebSensa**：[在浏览器打开](https://sealoong.github.io/Sensa/websensa/)，用于手动控制、脚本和浏览器支持的设备连接。
+- **Desktop**：下载并运行桌面窗口，使用完整本地服务。
+- **CLI**：运行同一本地服务，通过浏览器操作，支持后台运行与独立实例。
 
 Desktop／CLI 提供实时 VRChat OSC、UDP／TCP 监听、原生连接与文件系统录制。各版本共用工作台与信号引擎。[架构](architecture.md)
 
 ## 浏览器工作台
 
-**控制**连接输出并运行手动／脚本输入，**OSC**查看参数与映射，**流程**添加计算、绑定与方案，**设置**管理轴配置与日志。可用连接取决于运行环境。[工作台地图](guide.md) · [浏览器连接](websensa.md)
+场景快捷入口为常见任务提供起点。**控制**连接输出并运行手动／脚本输入，**OSC**查看参数与映射，**流程**添加计算、绑定与方案，**设置**管理轴配置与日志。可用连接取决于运行环境。[工作台地图](guide.md) · [浏览器连接](websensa.md)
 
 ## 桌面输入
 
@@ -26,13 +36,13 @@ Desktop／CLI 提供实时 VRChat OSC、UDP／TCP 监听、原生连接与文件
 
 ## 设备与输出传输
 
-- **OSR／SR6／TCode：**按运行环境使用串口、UDP、TCP 或 WebSocket，配合轴量程与运动配置。
-- **Intiface／Buttplug：**发现设备，将位置、振动、旋转与标量功能映射到来源。
-- **Handy、Lovense、Autoblow、VacuGlide：**使用支持的设备 API 与脚本控制。
-- **DG-LAB、OSC、MIDI CC、HTTP／WebSocket JSON 与 MQTT：**连接设备、Avatar 与应用。
-- **录制：**保存 funscript 轨道、CSV 与 JSON Lines。
+- **OSR／SR6／TCode**：按运行环境使用串口、UDP、TCP 或 WebSocket，配合轴量程与运动配置。
+- **Intiface／Buttplug**：发现设备，将位置、振动、旋转与标量功能映射到来源。
+- **Handy、Lovense、Autoblow、VacuGlide**：使用支持的设备 API 与脚本控制。
+- **DG-LAB、OSC、MIDI CC、HTTP／WebSocket JSON 与 MQTT**：连接设备、Avatar 与应用。
+- **录制**：保存 funscript 轨道、CSV 与 JSON Lines。
 
-[输出设置与绑定参考](signal-pipeline.md#添加输出与绑定) · [蓝牙配置与串口桥](../tools/protocol-bridge/README.zh-CN.md) · [适配器目录](adapter-catalog.md)
+[选择设备连接](devices.md) · [输出设置与绑定参考](signal-pipeline.md#添加输出与绑定) · [蓝牙配置与串口桥](../tools/protocol-bridge/README.zh-CN.md) · [适配器目录](adapter-catalog.md)
 
 ## 共用连接与多实例
 

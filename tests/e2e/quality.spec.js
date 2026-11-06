@@ -28,6 +28,8 @@ async function inspectWorkspaceShell(page) {
   const evidence = await page.evaluate(() => {
     const box = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; };
     return { header: box('.app-header'), navigation: box('.workspace-sidebar'), main: box('.workspace-scroll'),
+      status: box('.workspace-status'), workbench: box('.workbench-layout'),
+      inputColumn: box('.workbench-main'), deviceColumn: box('.workbench-aside'),
       title: document.querySelector('.workspace-intro h2')?.textContent,
       targets: [...document.querySelectorAll('.workspace-nav [role=tab]')].map(element => { const r = element.getBoundingClientRect(); return { width: r.width, height: r.height }; }) };
   });
@@ -35,6 +37,16 @@ async function inspectWorkspaceShell(page) {
   expect(evidence.navigation.top).toBeGreaterThanOrEqual(evidence.header.bottom - 1);
   if (wide) expect(evidence.navigation.right).toBeLessThanOrEqual(evidence.main.left + 1);
   else expect(evidence.navigation.bottom).toBeLessThanOrEqual(evidence.main.top + 1);
+  expect(evidence.status.bottom).toBeLessThanOrEqual(evidence.workbench.top + 1);
+  if (wide) {
+    expect(evidence.inputColumn.right).toBeLessThanOrEqual(evidence.deviceColumn.left + 1);
+    expect(Math.abs(evidence.inputColumn.top - evidence.deviceColumn.top)).toBeLessThanOrEqual(1);
+    expect(evidence.deviceColumn.right - evidence.deviceColumn.left).toBeCloseTo(360, 0);
+  } else {
+    expect(evidence.inputColumn.bottom).toBeLessThanOrEqual(evidence.deviceColumn.top + 1);
+    expect(Math.abs(evidence.inputColumn.left - evidence.deviceColumn.left)).toBeLessThanOrEqual(1);
+    expect(Math.abs(evidence.inputColumn.right - evidence.deviceColumn.right)).toBeLessThanOrEqual(1);
+  }
   expect(evidence.targets).toHaveLength(4);
   for (const target of evidence.targets) { expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44); }
   return evidence;
@@ -155,14 +167,14 @@ for (const locale of ['zh-CN', 'en-US']) {
       finally { await report.write(); }
     });
 
-    test('keyboard focus, modal boundaries and narrow reflow / 键盘焦点、对话框边界与窄屏重排', { tag: ['@quality'] }, async ({ page, rig }, info) => {
+    test('keyboard focus, modal boundaries and narrow reflow / 键盘焦点、对话框边界与窄屏重排', { tag: ['@quality', '@layout-preflight'] }, async ({ page, rig }, info) => {
       test.setTimeout(120000);
       const report = createUiQualityReport(page, info, { kind: 'behavior', plannedChecks: behaviorChecks });
       try {
         const layout = info.project.name === 'desktop' ? 'columns' : 'stacked';
         await report.check('workspace-navigation-layout / 工作区导航与正文布局', () => inspectWorkspaceShell(page));
         await report.check('manual-alignment / 主轴对齐', () => inspectManualAlignment(page, layout));
-        await report.check('output-row-alignment / 输出对应列', () => inspectOutputAlignment(page, layout));
+        await report.check('output-row-alignment / 输出对应列', () => inspectOutputAlignment(page, 'stacked'));
         await report.check('skip-link-focus-and-target / 跳过导航的焦点与目标', async () => {
           const skip = page.getByRole('link', { name: await label(page, '跳到主要内容'), exact: true });
           await page.keyboard.press('Tab');
@@ -178,7 +190,7 @@ for (const locale of ['zh-CN', 'en-US']) {
             await page.keyboard.press('End');
             await expect.poll(() => main.evaluate(element => Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop))).toBeLessThanOrEqual(1);
           }
-          const firstControl = page.getByTestId('quick-setup').locator('summary');
+          const firstControl = page.getByTestId('open-scene-presets');
           await page.keyboard.press('Tab');
           await expect(firstControl).toBeFocused();
           const bounds = await firstControl.evaluate(element => {

@@ -102,7 +102,7 @@ test('English experimental calibration drives only after opt-in and stops on rel
   await feed.set(pointSamples(.1,false)); await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
 });
 
-test('English presets, script and compact help use localized documentation', {tag:['@i18n','@visual']}, async ({page,rig}) => {
+test('English presets, script and compact help use localized documentation', {tag:['@i18n','@visual','@layout-preflight']}, async ({page,rig}) => {
   await mode(page,'脚本');
   await expect(page.getByRole('slider',{name:await text(page,'时间轴'),exact:true})).toHaveCount(0);
   await checkpoint(page,page.locator('.script-player__controls'),'english-script');
@@ -152,9 +152,10 @@ test('English presets, script and compact help use localized documentation', {ta
   await page.getByLabel(await text(page,'预设方案'),{exact:true}).selectOption('ogb-depth');
   await expect(page.getByRole('button',{name:await text(page,'替换草稿'),exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'Help',exact:true}).click();
-  const help = page.getByRole('dialog', { name: await text(page, '从这里开始'), exact: true });
+  const help = page.getByRole('dialog', { name: await text(page, '帮助与指南'), exact: true });
   await expand(page, await text(page, '更多连接与测量'));
-  await expect(page.getByRole('link',{name:await text(page,'使用指南'),exact:true})).toHaveAttribute('href',/guide\.en\.md$/);
+  await expect(help.getByRole('link',{name:await text(page,'使用指南'),exact:true})).toHaveAttribute('href',/start\.en\.md$/);
+  await expect(help.getByRole('link',{name:await text(page,'工作台说明'),exact:true})).toHaveAttribute('href',/guide\.en\.md$/);
   await expect(page.getByRole('link',{name:await text(page,'Unity 指南'),exact:true})).toHaveAttribute('href',/\/README\.md$/);
   await expect(page.getByRole('link',{name:await text(page,'使用方案'),exact:true})).toHaveAttribute('href',/usage-scenarios\.en\.md$/);
   await help.locator('summary').click();

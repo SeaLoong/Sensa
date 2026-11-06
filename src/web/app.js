@@ -106,7 +106,7 @@ import HelpDialog from './HelpDialog.jsx';
 import OscFlowStatus from './OscFlowStatus.jsx';
 import OscParameterTable from './OscParameterTable.jsx';
 import ControlFlowStatus from './ControlFlowStatus.jsx';
-import { outputRoutingScope } from './control-workflow.js';
+import { controlReadiness, outputRoutingScope } from './control-workflow.js';
 import ComputedSignalsPanel from './ComputedSignalsPanel.jsx';
 import OscParameterReference from './OscParameterReference.jsx';
 import OutputBindings, { OutputSignalStatus, RecordingReplayControls } from './OutputBindings.jsx';
@@ -121,6 +121,9 @@ import IntifaceFeatureFields from './IntifaceFeatureFields.jsx';
 import { intifaceFeatureErrors } from './intiface-feature-routing.js';
 import GettingStarted from './GettingStarted.jsx';
 import ManualControls from './ManualControls.jsx';
+import Onboarding from './Onboarding.jsx';
+import ScenePresets from './ScenePresets.jsx';
+import { guideInputPrepared, loadOnboarding, onboardingReducer, onboardingScenes, saveOnboarding } from './onboarding.js';
 
 const EMPTY_OSC_CATALOG = Object.freeze([]);
 
@@ -186,6 +189,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const [normalizeLogSnapshot] = useState(createLogNormalizer);
   const [logDetailsOpen, setLogDetailsOpen] = useState(false);
   const [studio, setStudio] = useState(initialState.studio);
+  const onboardingPath = typeof window === 'undefined' ? '/' : window.location.pathname;
+  const [onboarding, setOnboarding] = useState(() => loadOnboarding(realtime.kind, onboardingPath));
+  const [scenePresets, setScenePresets] = useState({ open: false, group: 'osc' });
   const [serialPorts, setSerialPorts] = useState(initialState.serialPorts);
   const [midiPorts, setMidiPorts] = useState([]);
   const [recordingFiles, setRecordingFiles] = useState([]);
@@ -258,6 +264,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   const scriptState = overview?.input?.script || null;
   const scriptLoaded = Boolean(scriptState?.loaded);
+  const availableOutputCount = controlReadiness({ outputs, outputStates: overview?.outputs || [] }).availableOutputs;
+  const guidePrepared = guideInputPrepared(onboarding.goal, { mode: actualInputMode, scriptLoaded,
+    listening: Boolean(overview?.osc?.listening), mappingCount: config?.signals?.length || 0, protocolInputs: overview?.protocolInputs || [] });
   const scriptDurationMs = Math.max(0, Number(scriptState?.durationMs || 0));
   const scriptPositionMs = Math.max(0, Math.min(Number(scriptState?.positionMs || 0), scriptDurationMs || 0));
   const scriptSliderMax = Math.max(scriptDurationMs, 1);
@@ -355,6 +364,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     if (!studio) return;
     saveStudio(studio);
   }, [studio]);
+
+  useEffect(() => { saveOnboarding(onboarding, realtime.kind, onboardingPath); }, [onboarding, realtime.kind, onboardingPath]);
 
   useEffect(() => {
     if (scriptSettingsInitializedRef.current === false) return;
@@ -1785,6 +1796,54 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     if (workspace !== 'settings') setLogDetailsOpen(false);
   }, [workspace]);
 
+  function changeGuide(action) {
+    setOnboarding(previous => onboardingReducer(previous, action));
+    if (action.type === 'step') setNavigationTarget('[data-testid="onboarding-panel"]');
+    if (action.type === 'dismiss') setNavigationTarget(workspace === 'control' ? '[data-testid="onboarding-resume"]' : '[data-testid="workspace-start-guide"]');
+    if (action.type === 'complete') {
+      const goal = onboardingScenes(platform).some(scene => scene.id === onboarding.goal) ? onboarding.goal : actualInputMode;
+      setWorkspace('control');
+      selectInputTab(goal);
+      setNavigationTarget(`#input-tabs-${goal}`);
+    }
+  }
+
+  function startGuide() {
+    setHelpOpen(false);
+    setScenePresets(previous => ({ ...previous, open: false }));
+    setWorkspace('control');
+    setOnboarding(previous => onboardingReducer(previous, { type: 'start' }));
+    setNavigationTarget('[data-testid="onboarding-panel"]');
+  }
+
+  function openScenePresets(group = 'osc') {
+    setHelpOpen(false);
+    const supportsOsc = platform.supportsListeners !== false && (!platform.inputModes || platform.inputModes.includes('osc'));
+    setScenePresets({ open: true, group: supportsOsc ? group : 'profile' });
+    if (!selectedOscPreset) setSelectedOscPreset(getOscMappingPresets(config)[0]?.id || '');
+  }
+
+  function navigateScene(destination, goal) {
+    if (goal) changeGuide({ type: 'goal', goal });
+    navigateWorkflow(destination);
+  }
+
+  function useSceneOscPreset(mode) {
+    applyOscPreset(mode);
+    setScenePresets(previous => ({ ...previous, open: false }));
+    navigateWorkflow('osc');
+  }
+
+  function reviewSceneAxisPreset(presetId) {
+    if (!config) return;
+    const preset = AXIS_PROFILE_PRESETS().find(item => item.id === presetId);
+    if (!preset) return;
+    setScenePresets(previous => ({ ...previous, open: false }));
+    clearErrorNotification();
+    setProfileDialog({ ...buildNewProfileDialogDraft(config), name: preset.name, presetId,
+      profile: cloneMotionProfile(createAxisProfilePresetMotion(presetId), false) });
+  }
+
   function navigateWorkflow(destination) {
     setHelpOpen(false);
     if (['manual', 'script'].includes(destination)) {
@@ -1821,7 +1880,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     target?.focus({ preventScroll: true });
     (region.classList.contains('recording-panel') ? region : region.closest('.input-section') || region).scrollIntoView({ block: 'start', behavior: 'instant' });
     setNavigationTarget(null);
-  }, [navigationTarget, workspace, oscWorkspaceTab, helpOpen]);
+  }, [navigationTarget, workspace, oscWorkspaceTab, helpOpen, onboarding.status, onboarding.step]);
 
   function renderScriptPlayer() {
     return (
@@ -1940,7 +1999,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             </div>
             <Disclosure title={t('定位与 A-B')}>
               <div className="stack">
-                <div className="actions">
+                <div className="actions script-seek-controls">
                   <Field
                     label={t('跳转时间')}
                     value={scriptJumpInput}
@@ -1970,7 +2029,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                     </Button>
                   ))}
                 </div>
-                <div className="actions">
+                <div className="actions script-loop-actions">
                   <Button disabled={!scriptLoaded || scriptBusy} onClick={() => setScriptLoopBoundary('start')}>
                     {t('设 A')}
                   </Button>
@@ -2496,7 +2555,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     );
 
   const workspaceIntroduction = {
-    control: { title: t('连接设备 → 选择输入 → 启用输入'), number: '01' },
+    control: { title: t('设备控制台'), number: '01' },
     osc: { title: t('读懂收到的每个参数'), description: t('查看 OSC 实时数据，为需要的参数设置映射，或把定位结果转换为动作。'), number: '02' },
     pipeline: { title: t('把输入变成需要的结果'), description: t('组合多个来源，设置计算，再将结果发送到设备、应用或录制文件。'), number: '03' },
     settings: { title: t('调好设备，查看运行情况'), description: t('保存常用的轴范围与运动设置，通过日志了解连接、输入和输出的运行状态。'), number: '04' },
@@ -2560,7 +2619,14 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             aria-labelledby={`workspace-tabs-${workspace}`}
             className={`workspace-panel workspace-panel--${workspace}`}
           >
-            <header className="workspace-intro"><span className="workspace-intro__number" aria-hidden="true">{workspaceIntroduction.number}</span><div><h2>{workspaceIntroduction.title}</h2>{workspaceIntroduction.description && <p>{workspaceIntroduction.description}</p>}</div></header>
+            {onboarding.status === 'active' ? <Onboarding state={onboarding} platform={platform}
+              outputCount={outputs.length} availableOutputs={availableOutputCount} inputPrepared={guidePrepared}
+              actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
+              onChange={changeGuide} onNavigate={navigateWorkflow} onOpenPresets={openScenePresets}
+              onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />
+              : <header className="workspace-intro"><span className="workspace-intro__number" aria-hidden="true">{workspaceIntroduction.number}</span><div><h2>{workspaceIntroduction.title}</h2>{workspaceIntroduction.description && <p>{workspaceIntroduction.description}</p>}</div>
+                  {workspace !== 'control' && <div className="actions workspace-header__actions"><Button data-testid="workspace-open-presets" onClick={() => openScenePresets()}>{t('场景预设')}</Button><Button data-testid="workspace-start-guide" onClick={startGuide}>{t('操作引导')}</Button></div>}
+                </header>}
             {!online && workspace !== 'control' && (
               <Notice tone="warning" role="status">
                 {t('连接已断开。恢复连接后，请重新执行需要的操作。')}
@@ -2578,16 +2644,22 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
               {t('其他输出连接继续使用各自的有效输入。')}</Notice>}
             {workspace === 'control' && (
               <>
-                <GettingStarted hasOutputs={outputs.length > 0} inputModes={platform.inputModes} onNavigate={navigateWorkflow} />
+                {onboarding.status !== 'active' && <GettingStarted hasOutputs={outputs.length > 0} inputModes={platform.inputModes}
+                  supportsListeners={platform.supportsListeners !== false} onboarding={onboarding} onNavigate={navigateScene}
+                  onStartGuide={startGuide} onDismissGuide={() => changeGuide({ type: 'dismiss' })} onOpenPresets={openScenePresets} />}
+                <div className="workspace-status">
+                  <ControlFlowStatus online={online} runtime={runtimeOverview || {}} mode={actualInputMode}
+                    selectedMode={selectedInputTab} script={scriptState || {}} outputs={outputs}
+                    outputStates={overview?.outputs || []} mappings={config?.signals || []}
+                    mappingDirty={hasUnsavedMappings} listening={Boolean(overview?.osc?.listening)} protocolInputs={overview?.protocolInputs || []} onNavigate={navigateWorkflow} />
+                </div>
+                <div className="workbench-layout">
+                <div className="workbench-main">
                 <Section
                   title={t('输入')}
                   className="input-section"
                   actions={<><Badge>{t('当前 {0}', [formatMode(actualInputMode)])}</Badge>{platform.supportsListeners === false && <ButtonLink href={docUrl('docs/parameter-geometry.html')}>{t('打开参数图解')}</ButtonLink>}{platform.connectExplorer && <Button onClick={() => void connectBrowserExplorer()}>{t('连接参数图解')}</Button>}</>}
                 >
-                  <ControlFlowStatus online={online} runtime={runtimeOverview || {}} mode={actualInputMode}
-                    selectedMode={selectedInputTab} script={scriptState || {}} outputs={outputs}
-                    outputStates={overview?.outputs || []} mappings={config?.signals || []}
-                    mappingDirty={hasUnsavedMappings} listening={Boolean(overview?.osc?.listening)} protocolInputs={overview?.protocolInputs || []} onNavigate={navigateWorkflow} />
                   <div className="input-toolbar">
                     <Tabs
                       id="input-tabs"
@@ -2659,7 +2731,16 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   </div>
                   {renderRecording()}
                 </Section>
-                {renderOutputs()}
+                </div>
+                <aside className="workbench-aside" aria-label={t('设备与连接')}>
+                  <div className="device-summary" data-testid="device-summary">
+                    <strong>{onboardingScenes(platform).find(scene => scene.id === onboarding.goal)?.title || formatMode(actualInputMode)}</strong>
+                    <span>{t('可用输出 {0}/{1}', [availableOutputCount, outputs.length])}</span>
+                    <Button variant="text" data-testid={outputs.length > 0 ? 'setup-connect-device' : 'manage-output-devices'} onClick={() => navigateWorkflow('outputs')}>{t('管理设备')}</Button>
+                  </div>
+                  {renderOutputs()}
+                </aside>
+                </div>
 
               </>
             )}
@@ -3188,7 +3269,15 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           <Button tone="primary" disabled={!online || recordingBusy} onClick={() => { setRecordingRestartOpen(false); void recordingAction('start'); }}>{t('重新录制')}</Button></>}>
         <p>{t('将清空当前录制的 {0} 帧。可先取消并导出。', [overview?.recording?.frameCount || 0])}</p>
       </Modal>
-      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} onNavigate={navigateWorkflow} supportsListeners={platform.supportsListeners !== false} emergencyAction={emergencyAction} error={modalError} />
+      <ScenePresets open={scenePresets.open} initialGroup={scenePresets.group}
+        supportsOsc={platform.supportsListeners !== false && (!platform.inputModes || platform.inputModes.includes('osc'))} oscPresets={oscMappingPresets}
+        axisPresets={AXIS_PROFILE_PRESETS()} oscPresetId={selectedOscPreset} onOscPresetChange={setSelectedOscPreset}
+        onUseOscPreset={useSceneOscPreset} onReviewAxisPreset={reviewSceneAxisPreset}
+        onClose={() => setScenePresets(previous => ({ ...previous, open: false }))}
+        emergencyAction={emergencyAction} error={modalError} disabled={!config || Boolean(busyKey)} />
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} onNavigate={navigateWorkflow}
+        onStartGuide={startGuide} onOpenPresets={openScenePresets}
+        supportsListeners={platform.supportsListeners !== false} emergencyAction={emergencyAction} error={modalError} />
       {snackbar.open && (
         <div className={`toast toast--${snackbar.severity}`} role={snackbar.severity === 'error' ? 'alert' : 'status'}>
           <span>{diagnostic(snackbar.message)}</span>

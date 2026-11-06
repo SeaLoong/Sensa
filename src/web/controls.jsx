@@ -106,6 +106,7 @@ export function ValueSliderField({
   valueFormatter = (next) => formatCompactNumber(next, precisionFromStep(step)),
   unit = '',
   disabled = false,
+  className = '',
 }) {
   const id = useId();
   const numberDirtyRef = useRef(false);
@@ -115,9 +116,9 @@ export function ValueSliderField({
   const normalize = (next) =>
     normalizeRangePair(next, next, { min, max, step, fallbackStart: value, fallbackEnd: value })[0];
   return (
-    <div className="value-field">
+    <div className={`value-field ${className}`.trim()}>
       <div className="value-field__heading">
-        <label htmlFor={id} title={title}>
+        <label className="field__label" htmlFor={id} title={title}>
           {label}
         </label>
         <div className="value-field__number">
@@ -184,6 +185,8 @@ export function RangeField({
   startLabel = t('起点'),
   endLabel = t('终点'),
   valueFormatter = (next) => formatCompactNumber(next, precisionFromStep(inputStep)),
+  className = '',
+  disabled = false,
 }) {
   const id = useId();
   const update = (index, next) => {
@@ -200,8 +203,8 @@ export function RangeField({
     );
   };
   return (
-    <fieldset className="range-field" aria-describedby={title ? `${id}-hint` : undefined}>
-      <legend title={title}>
+    <fieldset className={`range-field ${className}`.trim()} disabled={disabled} aria-describedby={title ? `${id}-hint` : undefined}>
+      <legend className="field__label" title={title}>
         {label}{' '}
         <span className="muted">
           {valueFormatter(value[0])} – {valueFormatter(value[1])}

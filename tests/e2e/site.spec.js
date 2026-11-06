@@ -68,7 +68,7 @@ async function inspectRunningScreenshots(page, info) {
       await expect(button).toHaveAttribute('aria-pressed', 'true');
       await expect(page.locator('[data-screenshot-view][aria-pressed=true]')).toHaveCount(1);
       const record = catalog.scenes[index].images[view][locale];
-      await expect(image).toHaveAttribute('src', 'media/docs/screenshots/' + record.file);
+      await expect(image).toHaveAttribute('src', new URL('media/docs/screenshots/' + record.file, base).href);
       await expect.poll(() => image.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
       const title = locale === 'en' ? catalog.scenes[index].en : catalog.scenes[index].zh;
       const screen = locale === 'en' ? (view === 'desktop' ? 'Desktop' : 'Narrow') : (view === 'desktop' ? '桌面' : '窄屏');
@@ -172,7 +172,7 @@ async function inspectFirstRunLinks(page, locale) {
   const links = page.locator('a[data-doc="docs/quick-start"]');
   await expect(links).toHaveCount(3);
   for (const link of await links.all()) {
-    await expect(link).toHaveAttribute('href', locale + '/docs/quick-start.html');
+    await expect(link).toHaveAttribute('href', new URL(locale + '/docs/quick-start.html', base).href);
   }
 }
 
@@ -275,9 +275,10 @@ test('@site standalone Pages language, document navigation and independent geome
   await expect(page.locator('#advanced')).not.toHaveAttribute('open');
   await page.locator('#advanced > summary').click();
   await expect(page.locator('#advanced')).toHaveAttribute('open', '');
-  await expect(page.locator('.outputs-section')).toContainText('DG-LAB');
-  await expect(page.locator('.outputs-section')).toContainText('MQTT');
-  await expect(page.locator('.recording-section [data-doc]')).toHaveAttribute('href', /en\/docs\/signal-pipeline.html#record-and-inspect$/);
+  await expect(page.locator('#connections')).toContainText('DG-LAB');
+  await expect(page.locator('#connections')).toContainText('MQTT');
+  await expect(page.locator('.feature-grid article').filter({ has: page.locator('#recording-heading') }).locator('[data-doc]'))
+    .toHaveAttribute('href', /en\/docs\/signal-pipeline.html#record-and-inspect$/);
   await expect(page.locator('.more-links [data-doc="docs/computed-signals"]')).toHaveAttribute('href', /en\/docs\/computed-signals.html$/);
   await inspectWorkflowBadges(page.locator('.project-status'));
   if (await page.locator('body').getAttribute('data-vpm') === 'false') {
@@ -295,7 +296,7 @@ test('@site standalone Pages language, document navigation and independent geome
   await auditHome(page, testInfo, 'en-US');
   await captureSiteReview(page, testInfo, 'site-review-home-en-US', reviewImages);
   await page.locator('#advanced > summary').click();
-  await page.locator('.recording-section [data-doc="docs/signal-pipeline"]').click();
+  await page.locator('.feature-grid article').filter({ has: page.locator('#recording-heading') }).locator('[data-doc="docs/signal-pipeline"]').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Inputs, computation and outputs', exact: true })).toBeVisible();
   const navigation = page.locator('.navigation');
   const navigationToggle = navigation.locator(':scope > summary');
@@ -346,7 +347,7 @@ test('@site standalone Pages language, document navigation and independent geome
   await expect(page.locator('.entry-grid [data-doc="docs/guide"]')).toContainText('funscript → 设备');
   await expect(page.locator('.more-links [data-doc="docs/features"]')).toHaveAttribute('href', /zh-CN\/docs\/features.html$/);
   await expect(page.locator('#start')).toContainText('选择输入，再启用');
-  await expect(page.locator('.recording-section [data-doc]')).toHaveAttribute('href',
+  await expect(page.locator('.feature-grid article').filter({ has: page.locator('#recording-heading') }).locator('[data-doc]')).toHaveAttribute('href',
     new RegExp('zh-CN/docs/signal-pipeline.html#' + encodeURIComponent('录制与观察') + '$'));
   await inspectFirstRunLinks(page, 'zh-CN');
   await page.reload();
@@ -469,7 +470,7 @@ for (const locale of ['zh-CN', 'en-US']) {
       for (const [documentName, title] of tasks) {
         const task = page.locator('.entry-grid > a[data-doc="' + documentName + '"]');
         await expect(task.getByRole('heading', { level: 3, name: title, exact: true })).toBeVisible();
-        await expect(task).toHaveAttribute('href', prefix + '/' + documentName + '.html');
+        await expect(task).toHaveAttribute('href', new URL(prefix + '/' + documentName + '.html', base).href);
         await task.click();
         await expect(page).toHaveURL(new URL(prefix + '/' + documentName + '.html', base).href);
         await expect(page.locator('html')).toHaveAttribute('lang', locale);
@@ -478,18 +479,21 @@ for (const locale of ['zh-CN', 'en-US']) {
       }
       const advanced = page.locator('#advanced'), summary = advanced.locator(':scope > summary');
       await expect(advanced).not.toHaveAttribute('open');
-      await expect(page.locator('.outputs-section')).toBeHidden();
+      await expect(page.locator('#connections')).toBeVisible();
+      await expect(page.locator('#connections .capability-grid > article')).toHaveCount(6);
+      await expect(page.locator('.package-section')).toBeHidden();
       await summary.focus(); await summary.press('Enter');
       await expect(advanced).toHaveAttribute('open', '');
       await expect(summary).toBeFocused();
-      await expect(page.locator('.outputs-section')).toBeVisible();
-      await expect(page.locator('.outputs-section')).toContainText('TCode');
-      await expect(page.locator('.outputs-section')).toContainText('DG-LAB');
+      await expect(page.locator('.package-section')).toBeVisible();
+      await expect(page.locator('#connections')).toContainText('TCode');
+      await expect(page.locator('#connections')).toContainText('DG-LAB');
       await expect(page.locator('.more-links [data-doc="docs/computed-signals"]')).toBeVisible();
       expect(await page.locator('body').evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
       await summary.focus(); await summary.press('Space');
       await expect(advanced).not.toHaveAttribute('open');
-      await expect(page.locator('.outputs-section')).toBeHidden();
+      await expect(page.locator('.package-section')).toBeHidden();
+      await expect(page.locator('#connections')).toBeVisible();
       await info.attach('homepage-beginner-tasks.json', { body: JSON.stringify({ locale, viewport: page.viewportSize(),
         purpose: initialPurpose, tasks: tasks.map(([route]) => route), keyboardDisclosure: true }), contentType: 'application/json' });
     });
@@ -833,3 +837,199 @@ test('@site downloads stay direct in both languages without JavaScript or remote
   }
   await info.attach('download-links.json', { body: JSON.stringify(evidence), contentType: 'application/json' });
 });
+
+for (const locale of ['en-US', 'zh-CN']) {
+  const prefix = locale === 'en-US' ? 'en' : 'zh-CN';
+  const destinations = ['features', 'devices', 'guides', 'websensa'];
+  const documents = { features: 'features', devices: 'devices', guides: 'start' };
+  const headings = {
+    'en-US': { features: 'Feature reference', devices: 'Devices and connections', guides: 'Guides' },
+    'zh-CN': { features: '功能参考', devices: '设备与连接', guides: '使用指南' },
+  };
+  const navigationNames = {
+    'en-US': ['Features', 'Devices & connections', 'Guides', 'WebSensa'],
+    'zh-CN': ['功能', '设备与连接', '使用指南', 'WebSensa'],
+  };
+  async function inspectOnboardingNavigation(page, { home = false, language = locale } = {}) {
+    const routeLocale = language === 'en-US' ? 'en' : 'zh-CN';
+    const nav = page.getByRole('navigation', { name: language === 'en-US' ? 'Main navigation' : '主导航', exact: true });
+    await expect(nav).toBeVisible();
+    await expect(nav.locator('a[data-site-destination]')).toHaveCount(4);
+    const links = [];
+    for (const [index, destination] of destinations.entries()) {
+      const link = nav.getByRole('link', { name: navigationNames[language][index], exact: true });
+      await expect(link).toHaveAttribute('data-site-destination', destination);
+      const href = await link.getAttribute('href');
+      const url = new URL(href, page.url());
+      const expected = new URL(destination === 'websensa' ? (home ? 'websensa/' : 'websensa/index.html')
+        : routeLocale + '/docs/' + documents[destination] + '.html', base).href;
+      expect(href).not.toMatch(/^#/);
+      expect(url.hash).toBe('');
+      expect(url.href).toBe(expected);
+      links.push({ destination, url: url.href });
+    }
+    return { nav, links };
+  }
+  async function followOnboardingLink(page, url, activate) {
+    const [response] = await Promise.all([
+      page.waitForResponse(response => response.url() === url && response.request().isNavigationRequest()),
+      activate(),
+    ]);
+    expect(response.status(), 'A native link reaches a real generated page').toBe(200);
+    await expect(page).toHaveURL(url);
+  }
+  async function attachOnboardingOutcome(info, workflow, details) {
+    const sourceCommit = process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA;
+    expect(sourceCommit).toMatch(/^[a-f0-9]{40}$/);
+    const file = info.outputPath('onboarding-outcome.json');
+    await fs.writeFile(file, JSON.stringify({ schema: 1, sourceCommit, runId: process.env.GITHUB_RUN_ID,
+      attempt: process.env.GITHUB_RUN_ATTEMPT, testId: info.testId, project: info.project.name, locale, workflow, ...details }));
+    await info.attach('onboarding-outcome', { path: file, contentType: 'application/json' });
+  }
+
+  test('localized primary navigation reaches real destinations without JavaScript / 无脚本主导航访问真实页面 ' + locale,
+    { tag: ['@site', '@onboarding'] }, async ({ browser }, info) => {
+      const context = await browser.newContext({ javaScriptEnabled: false, locale, viewport: info.project.use.viewport });
+      const page = await context.newPage(), evidence = [];
+      const home = new URL(prefix + '/index.html', base).href;
+      try {
+        for (const destination of destinations) {
+          expect((await page.goto(home)).status()).toBe(200);
+          await expect(page.locator('body')).toHaveAttribute('data-home-locale', prefix);
+          await expect(page.locator('html')).toHaveAttribute('lang', locale);
+          const { nav, links } = await inspectOnboardingNavigation(page, { home: true });
+          const url = links.find(link => link.destination === destination).url;
+          await followOnboardingLink(page, url, () => nav.locator('[data-site-destination="' + destination + '"]').click());
+          if (destination === 'websensa') {
+            await expect(page.locator('noscript')).toBeVisible();
+            await expect(page.locator('noscript')).toContainText('WebSensa needs JavaScript to connect outputs and run scripts.');
+            await expect(page.locator('noscript')).toContainText('请启用 JavaScript 运行 WebSensa。');
+          } else {
+            await expect(page.locator('html')).toHaveAttribute('lang', locale);
+            await expect(page.getByRole('heading', { level: 1, name: headings[locale][destination], exact: true })).toBeVisible();
+            await inspectOnboardingNavigation(page);
+            if (destination === 'guides') {
+              const images = [];
+              await captureSiteReview(page, info, 'onboarding-guide-landing', images);
+              const manifestFile = path.join(directory, 'site-manifest.json'), manifestBytes = await fs.readFile(manifestFile);
+              const sourceCommit = process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA;
+              expect(sourceCommit).toMatch(/^[a-f0-9]{40}$/);
+              expect(JSON.parse(manifestBytes).commit).toBe(sourceCommit);
+              await info.attach('onboarding-guide-landing-manifest', { path: manifestFile, contentType: 'application/json' });
+              const sourcePath = info.outputPath('onboarding-guide-landing-source.json');
+              await fs.writeFile(sourcePath, JSON.stringify({ schema: 1, sourceCommit, siteCommit: JSON.parse(manifestBytes).commit,
+                repository: process.env.GITHUB_REPOSITORY, runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT,
+                testId: info.testId, project: info.project.name, locale, javaScriptEnabled: false, pageUrl: page.url(),
+                siteManifestAttachment: 'onboarding-guide-landing-manifest',
+                siteManifestSha256: createHash('sha256').update(manifestBytes).digest('hex'),
+                attachment: images[0].attachment, sha256: images[0].sha256 }));
+              await info.attach('onboarding-guide-landing-source', { path: sourcePath, contentType: 'application/json' });
+            }
+          }
+          evidence.push({ destination, url: page.url(), status: 200,
+            heading: destination === 'websensa' ? null : await page.getByRole('heading', { level: 1 }).innerText(),
+            htmlLanguage: await page.locator('html').getAttribute('lang'),
+            noscriptExplanation: destination === 'websensa' ? await page.locator('noscript').innerText() : null });
+        }
+        await attachOnboardingOutcome(info, 'site-nojs-destinations', { javaScriptEnabled: false, destinations: evidence });
+      } finally { await context.close(); }
+    });
+
+  test('primary navigation stays touchable and keyboard linked at narrow widths / 窄屏主导航触控与键盘访问 ' + locale,
+    { tag: ['@site', '@onboarding'] }, async ({ browser }, info) => {
+      const context = await browser.newContext({ locale, viewport: info.project.use.viewport, hasTouch: true });
+      const page = await context.newPage(), evidence = [];
+      const home = new URL(prefix + '/index.html', base).href;
+      try {
+        for (const width of [320, 390]) {
+          await page.setViewportSize({ width, height: info.project.use.viewport.height });
+          const priorLanguage = locale === 'en-US' ? 'zh-CN' : 'en-US';
+          await page.goto(new URL('?lang=' + priorLanguage, base).href);
+          await expect(page.locator('html')).toHaveAttribute('lang', priorLanguage);
+          await page.goto(home);
+          await expect(page.locator('body')).toHaveAttribute('data-home-locale', prefix);
+          const { nav, links } = await inspectOnboardingNavigation(page, { home: true });
+          await page.evaluate(() => document.fonts.ready);
+          const geometry = await nav.evaluate(element => {
+            const targets = [...element.querySelectorAll('a[data-site-destination]')].map(link => {
+              const box = link.getBoundingClientRect(), x = box.left + box.width / 2, y = box.top + box.height / 2;
+              const hit = document.elementFromPoint(x, y);
+              return { destination: link.dataset.siteDestination, left: box.left, right: box.right, top: box.top,
+                bottom: box.bottom, width: box.width, height: box.height, x, y, hitCenter: hit === link || link.contains(hit) };
+            });
+            return { targets, width: innerWidth, scrollWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) };
+          });
+          expect(geometry.targets).toHaveLength(4);
+          expect(geometry.scrollWidth, 'The document has zero horizontal overflow').toBeLessThanOrEqual(geometry.width);
+          for (const [index, target] of geometry.targets.entries()) {
+            expect(target.width, target.destination + ' touch width').toBeGreaterThanOrEqual(44);
+            expect(target.height, target.destination + ' touch height').toBeGreaterThanOrEqual(44);
+            expect(target.hitCenter, target.destination + ' receives its center hit').toBe(true);
+            for (const other of geometry.targets.slice(index + 1)) {
+              const overlap = Math.min(target.right, other.right) > Math.max(target.left, other.left)
+                && Math.min(target.bottom, other.bottom) > Math.max(target.top, other.top);
+              expect(overlap, target.destination + ' does not overlap ' + other.destination).toBe(false);
+            }
+          }
+          const devices = geometry.targets.find(target => target.destination === 'devices');
+          await followOnboardingLink(page, links.find(link => link.destination === 'devices').url,
+            () => page.touchscreen.tap(devices.x, devices.y));
+          await expect(page.getByRole('heading', { level: 1, name: headings[locale].devices, exact: true })).toBeVisible();
+          await inspectOnboardingNavigation(page);
+
+          const otherLocale = locale === 'en-US' ? 'zh-CN' : 'en-US', otherPrefix = otherLocale === 'en-US' ? 'en' : 'zh-CN';
+          const buddy = page.locator('header [data-locale="' + otherPrefix + '"]');
+          await buddy.focus();
+          await followOnboardingLink(page, new URL(otherPrefix + '/docs/devices.html', base).href, () => buddy.press('Enter'));
+          await expect(page.locator('html')).toHaveAttribute('lang', otherLocale);
+          await expect(page.getByRole('heading', { level: 1, name: headings[otherLocale].devices, exact: true })).toBeVisible();
+          await inspectOnboardingNavigation(page, { language: otherLocale });
+          const brand = page.locator('header .brand');
+          await brand.focus();
+          await followOnboardingLink(page, new URL(otherPrefix + '/index.html', base).href, () => brand.press('Enter'));
+          await expect(page.locator('body')).toHaveAttribute('data-home-locale', otherPrefix);
+          await inspectOnboardingNavigation(page, { home: true, language: otherLocale });
+          await page.locator('#language').focus();
+          await followOnboardingLink(page, home, () => page.locator('#language').press('Enter'));
+          await expect(page.locator('html')).toHaveAttribute('lang', locale);
+
+          const keyboardNavigations = [];
+          let current = await inspectOnboardingNavigation(page, { home: true });
+          const features = current.nav.locator('[data-site-destination="features"]');
+          await features.focus();
+          await expect(features).toBeFocused();
+          await followOnboardingLink(page, current.links[0].url, () => features.press('Enter'));
+          await expect(page.getByRole('heading', { level: 1, name: headings[locale].features, exact: true })).toBeVisible();
+          keyboardNavigations.push({ destination: 'features', url: page.url(), status: 200,
+            heading: await page.getByRole('heading', { level: 1 }).innerText(),
+            htmlLanguage: await page.locator('html').getAttribute('lang') });
+          for (const [index, destination] of destinations.entries()) {
+            if (!index) continue;
+            current = await inspectOnboardingNavigation(page);
+            const previous = current.nav.locator('[data-site-destination="' + destinations[index - 1] + '"]');
+            const next = current.nav.locator('[data-site-destination="' + destination + '"]');
+            await previous.focus();
+            await page.keyboard.press('Tab');
+            await expect(next).toBeFocused();
+            await followOnboardingLink(page, current.links[index].url, () => next.press('Enter'));
+            if (destination !== 'websensa') {
+              await expect(page.locator('html')).toHaveAttribute('lang', locale);
+              await expect(page.getByRole('heading', { level: 1, name: headings[locale][destination], exact: true })).toBeVisible();
+            } else {
+              await expect(page.getByRole('heading', { level: 1, name: 'WebSensa', exact: true })).toBeVisible();
+              await expect(page.locator('html')).toHaveAttribute('lang', locale);
+            }
+            keyboardNavigations.push({ destination, url: page.url(), status: 200,
+              heading: destination === 'websensa' ? null : await page.getByRole('heading', { level: 1 }).innerText(),
+              htmlLanguage: await page.locator('html').getAttribute('lang') });
+          }
+          evidence.push({ width, navRoutes: links, targets: geometry.targets, keyboardNavigations,
+            minimumTargetWidth: Math.min(...geometry.targets.map(target => target.width)),
+            minimumTargetHeight: Math.min(...geometry.targets.map(target => target.height)),
+            pointerHit: geometry.targets.every(target => target.hitCenter),
+            overflow: geometry.scrollWidth > geometry.width, touchDestination: 'devices', localeBuddyAndLocalizedHome: true });
+        }
+        await attachOnboardingOutcome(info, 'site-navigation-reflow', { widths: [320, 390], states: evidence });
+      } finally { await context.close(); }
+    });
+}
