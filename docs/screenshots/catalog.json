@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sourceCommit": "338ee0add1600401582610195b23f34271b9180b",
-  "runId": "42179712565",
+  "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
+  "runId": "42200163244",
   "attempt": "1",
   "scenes": [
     {
@@ -105,12 +105,12 @@
         "desktop": {
           "en": {
             "file": "desktop/computed-signal-editor-en-US.png",
-            "sha256": "c6e6c6601a3a2a182902726aea32e1908c1be0ab642f3740447c971c91c72de1",
+            "sha256": "2506b388d0fc9890159164f5a0f2271142ae33470166157971ccbfa3b9d90dd8",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "desktop/computed-signal-editor-zh-CN.png",
-            "sha256": "4be51c929f7c6d5b4e3313327c1bf48c655ddb582f83fc20ec0b92460d20cbd5",
+            "sha256": "1211c3a6c35f4e9f6017357f69f63cdebe7d2135b0cb17e6f11d54bc67f618a9",
             "language": "zh-CN"
           }
         },

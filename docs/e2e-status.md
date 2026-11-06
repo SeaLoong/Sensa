@@ -4,6 +4,25 @@
 
 每项结果对应明确的源码、运行与 attempt。[当前 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml) · [开发与检查](development.md)
 
+## OSC 分段导航与流程职责：15e15cf4
+
+源码 [`15e15cf4`](https://github.com/SeaLoong/Sensa/commit/15e15cf47dcb5bd49083b1df1123e9aa143c3bf2)，[候选运行 42200163244](https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1)，attempt 1：
+
+| 检查 | 本轮记录 |
+| --- | --- |
+| 本地 Web／文档与工具检查 | **497／48 项通过**；本轮新增 19 项 Web 单元 |
+| 定向预检 | [52/52 项通过](https://github.com/SeaLoong/Sensa/actions/runs/42198781679/attempts/1)，诊断衍生源码 `eff33bcce`；不代表主源码的完整执行 |
+| 完整浏览器候选 | **306/306 项通过**，桌面与窄屏各 153 项；每项单次执行，retry 与其他结果均为零 |
+| 布局与操作检查 | **20 份报告、52 个状态、92 项检查通过** |
+| 图片选择 | 26 张变化原图均逐张打开；选择 14 张（6 张应用、8 张站点），保留 12 张栅格差异候选。所选方法：14 张本轮观察、146 张精确摘要复用与 12 张旧图保留 |
+| 文档镜像 | 38 张均有本轮采集证明并与所选基线逐字节一致，其中 2 张更新、36 张未变 |
+
+新增四项浏览器用例覆盖双语、桌面与窄屏。流程独占计算编辑；OSC 映射负责轴映射与计算结果选择。共享的 **保存更改**／**恢复更改** 原子处理计算与轴映射草稿；输出连接单独保存，计算来源使用已保存计算配置的实时结果，方案导出也只包含已保存配置。
+
+逐图记录保留采集源码／运行身份与实际可见裁图范围；局部裁图不证明未显示的字段。连接使用隔离模拟，实体设备与 Unity／VRChat 客户端另行验收。原图审阅与选择不等同于普通比较通过。
+
+选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)须对最终图片／记录提交完整比较 **306 项**，关闭图片更新，要求完整选择、实际比较、命令成功及其他结果为零。产品、测试、配置、工作流与原生捕获辅助代码须与完整候选逐字节一致。普通比较、原生检查与预览发布的实际结果，以该固定提交对应的 CI 记录为准；选图本身不代表普通比较通过。
+
 ## 操作引导、预设与独立指南页：338ee0ad
 
 源码 [`338ee0ad`](https://github.com/SeaLoong/Sensa/commit/338ee0add1600401582610195b23f34271b9180b)，[候选运行 42179712565](https://github.com/SeaLoong/Sensa/actions/runs/42179712565/attempts/1)，attempt 1：

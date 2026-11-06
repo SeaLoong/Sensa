@@ -4,6 +4,25 @@
 
 Each result identifies its source, run and attempt. [Current CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml) · [Development and checks](development.en.md)
 
+## Segmented OSC navigation and Flow ownership: 15e15cf4
+
+Source [`15e15cf4`](https://github.com/SeaLoong/Sensa/commit/15e15cf47dcb5bd49083b1df1123e9aa143c3bf2), [candidate run 42200163244](https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1), attempt 1:
+
+| Check | Current record |
+| --- | --- |
+| Local Web / documentation and tool checks | **497 / 48 passed**; 19 Web unit cases added |
+| Targeted preflight | [52/52 passed](https://github.com/SeaLoong/Sensa/actions/runs/42198781679/attempts/1) on diagnostic derivative `eff33bcce`; this is not complete main-source execution |
+| Complete browser candidate | **306/306 clean passes**, 153 per viewport; one attempt each, zero retries and other outcomes |
+| Layout and interaction checks | **20 reports, 52 states and 92 passing checks** |
+| Image selection | All 26 changed originals opened; 14 selected (six app, eight site), 12 raster-only candidates retained. Selected methods: 14 current observations, 146 exact-hash reuses and 12 retained prior images |
+| Documentation mirrors | All 38 have current capture proof and exact selected-baseline bytes; two changed, 36 unchanged |
+
+Four added browser cases cover both locales and viewports. Flow alone edits computations; OSC mappings own axis mapping and computed-result selection. Shared **Save changes** / **Restore changes** atomically handle computation and axis-mapping drafts. Output bindings save separately; computed sources use live results from saved computation definitions. Plan exports also contain saved configuration only.
+
+Per-image records retain capture source/run identities and the actual visible crop scope; a scoped image does not establish unseen fields. Connections use isolated simulations, with physical devices and Unity/VRChat clients checked separately. Original-image review and selection do not establish ordinary comparison success.
+
+After selection, [ordinary CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) must compare all **306 cases** for the final image/receipt commit with updates disabled, complete selection, actual comparison, command success and zero other outcomes. Product, test, configuration, workflow and native capture helpers must remain byte-identical to the complete candidate. The actual ordinary comparison, native checks and preview publication are recorded in that exact commit’s CI. Image selection alone does not establish comparison success.
+
 ## Guided setup, presets and guide pages: 338ee0ad
 
 Source [`338ee0ad`](https://github.com/SeaLoong/Sensa/commit/338ee0add1600401582610195b23f34271b9180b), [candidate run 42179712565](https://github.com/SeaLoong/Sensa/actions/runs/42179712565/attempts/1), attempt 1:

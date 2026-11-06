@@ -1,8 +1,28 @@
 # Screenshot review / 截图审阅
 
-The selected set contains **164 application baselines and eight site originals**. [Per-image evidence](../baseline-review.json) records each selected SHA256, candidate SHA256, capture, observation, selection reason and review chain.
+[Per-image evidence](../baseline-review.json) records selected and candidate hashes, capture identities, observations and selection reasons. [逐图记录](../baseline-review.json)保存所选与候选摘要、采集身份、观察和选择理由。
 
-当前包含 **164 张应用基线和 8 张站点原图**。[逐图记录](../baseline-review.json)保存所选与候选 SHA256、采集来源、具体观察、选择理由及审阅链。
+## OSC / Flow ownership and shared drafts / OSC 与流程职责及共享草稿
+
+[Candidate 42200163244, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1) captured source [`15e15cf4`](https://github.com/SeaLoong/Sensa/commit/15e15cf47dcb5bd49083b1df1123e9aa143c3bf2). **306/306 passed**, each once with zero retries or other outcomes. Layout evidence contains **20 reports, 52 states and 92 passing checks**. Ordinary comparison remains separate.
+
+[候选 42200163244，attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1)采集源码 [`15e15cf4`](https://github.com/SeaLoong/Sensa/commit/15e15cf47dcb5bd49083b1df1123e9aa143c3bf2)。**306/306 项通过**，每项单次执行，retry 与其他结果均为零。**20 份报告、52 个状态、92 项检查通过**。普通比较另行验证。
+
+All **26 changed originals were opened individually**. Root selected **14 intended changes: six application and eight site images**, and retained **12 unrelated raster-only candidates**. The 172-image set (164 app, eight site) uses 14 current observations, 146 exact-SHA256 prior-review reuses and 12 retained prior images. Crop and offscreen-field limits remain in each record.
+
+**26 张变化原图均逐张打开**。Root 选择 **14 张实际变化：6 张应用与 8 张站点图**，保留 **12 张无内容变化的栅格差异候选**。172 张图片（164 张应用、8 张站点）的所选方法为 14 张本轮观察、146 张精确 SHA256 复用与 12 张旧图保留；逐图记录保留裁图与屏幕外字段范围。
+
+All **38 documentation mirrors** have current passing-case capture proof and exact selected-baseline bytes: **two changed, 36 unchanged**. The catalog identifies source15e15/run42200163244/attempt1. Site originals show the earlier338 gallery present during capture; subsequent Pages verifies the updated gallery.
+
+**38 张文档镜像**均有本轮通过用例的采集证明，并与所选基线逐字节一致；**2 张更新、36 张未变**。目录身份为 15e15／42200163244／attempt1。站点原图展示采集时的338图库，更新后的图库由后续 Pages 核对。
+
+Four added browser cases cover segmented OSC navigation, the sole Flow computation editor, shared Save/Restore changes, and separate saved output-binding/plan scopes. The [52-case preflight](https://github.com/SeaLoong/Sensa/actions/runs/42198781679/attempts/1) is a diagnostic derivative. The [four-case routing supplement](https://github.com/SeaLoong/Sensa/actions/runs/42202535822/attempts/1) adds original-height320/390 reflow checks and whole-section observations; its height-only capture adjustment is disclosed. Neither replaces canonical selection or complete comparison.
+
+新增四项用例覆盖 OSC 分段导航、流程独占计算编辑、共享保存／恢复，以及输出连接与已保存方案的独立范围。[52 项预检](https://github.com/SeaLoong/Sensa/actions/runs/42198781679/attempts/1)使用诊断衍生源码；[四项输出摘要补充](https://github.com/SeaLoong/Sensa/actions/runs/42202535822/attempts/1)检查原视口高度下的320／390重排并观察完整区域，明确记录仅增加观察高度的采集方式。两者均不替代规范选图与完整比较。
+
+The [prior4c07 receipt](https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json) anchors exact-hash history. Final ordinary CI must compare all **306 cases**, with updates disabled and all original gates unchanged; native checks and preview publication follow that exact commit. The actual results are recorded in that image/receipt commit’s CI. Scoped images do not establish full accessibility, physical-device or Unity/VRChat-client conformance.
+
+[已有4c07记录](https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json)作为精确摘要历史的起点。最终普通 CI 须完整比较 **306 项**，关闭图片更新并保留原有全部门槛；原生检查和预览发布使用该固定提交。实际结果见本次图片／记录提交对应的 CI；局部图片不构成完整无障碍、实体设备或 Unity／VRChat 客户端符合性验收。
 
 ## Guided setup and scene presets / 操作引导与场景预设
 
@@ -78,10 +98,10 @@ All 38 documentation mirrors match their selected application baselines byte for
 
 ## Complete comparison / 完整比较
 
-After image selection, [ordinary CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) checks **all 302** cases for its exact pinned commit with updates disabled: `mode=comparison`, `selectionComplete=true`, `snapshotsCompared=true`, command success and zero other outcomes. Candidate capture and ordinary comparison have separate evidence. Product, test, configuration, workflow and native capture helpers must stay byte-identical to the full candidate; the selected-image commit's report identifies its final source and run. [Verification records](../../../docs/e2e-status.en.md)
+After image selection, [ordinary CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) checks **all 306** cases for its exact pinned commit with updates disabled: `mode=comparison`, `selectionComplete=true`, `snapshotsCompared=true`, command success and zero other outcomes. Candidate capture and ordinary comparison have separate evidence. Product, test, configuration, workflow and native capture helpers must stay byte-identical to the full candidate; the selected-image commit's report identifies its final source and run. [Verification records](../../../docs/e2e-status.en.md)
 
-选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)对固定提交执行完整 **302 项**，关闭图片更新，要求 `mode=comparison`、完整选择、实际比较、命令成功及其他结果为零。候选采集和普通比较分别记录；产品、测试、配置、工作流与原生捕获辅助代码须与完整候选逐字节一致，最终源码／运行以图片提交的报告为准。[验证记录](../../../docs/e2e-status.md)
+选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)对固定提交执行完整 **306 项**，关闭图片更新，要求 `mode=comparison`、完整选择、实际比较、命令成功及其他结果为零。候选采集和普通比较分别记录；产品、测试、配置、工作流与原生捕获辅助代码须与完整候选逐字节一致，最终源码／运行以图片提交的报告为准。[验证记录](../../../docs/e2e-status.md)
 
-Captures use pinned Playwright, desktop 1280×900, narrow 390×844 and separate 320 CSS px reflow checks. Device connections use isolated simulations. Physical hardware and Unity-client acceptance have their own records. [Review procedure](../../../docs/e2e.md) · [Prior receipt](https://github.com/SeaLoong/Sensa/blob/3ce0616332af0958bbe4828a9970c7ef62625153/tests/e2e/baseline-review.json)
+Captures use pinned Playwright, desktop 1280×900, narrow 390×844 and separate 320 CSS px reflow checks. Device connections use isolated simulations. Physical hardware and Unity-client acceptance have their own records. [Review procedure](../../../docs/e2e.md) · [Prior receipt](https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json)
 
-采集使用固定 Playwright，覆盖桌面 1280×900、窄屏 390×844 及独立的 320 CSS px 重排检查。设备连接采用隔离模拟；实体硬件和 Unity 客户端另行验收。[审阅流程](../../../docs/e2e.md) · [上轮记录](https://github.com/SeaLoong/Sensa/blob/3ce0616332af0958bbe4828a9970c7ef62625153/tests/e2e/baseline-review.json)
+采集使用固定 Playwright，覆盖桌面 1280×900、窄屏 390×844 及独立的 320 CSS px 重排检查。设备连接采用隔离模拟；实体硬件和 Unity 客户端另行验收。[审阅流程](../../../docs/e2e.md) · [上轮记录](https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json)
