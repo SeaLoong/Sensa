@@ -380,6 +380,7 @@ test('@site standalone Pages language, document navigation and independent geome
   await expect(page).toHaveURL(new URL('en/docs/features.html', base).href);
   await expect(page.getByRole('heading', { level: 1, name: 'Feature reference', exact: true })).toBeVisible();
   await page.locator('article a[href*="parameter-geometry.html"]').click();
+  await expect(page).toHaveURL(new URL('parameter-geometry.html', base).href);
   await expect(page.locator('#scene')).toBeVisible();
   await page.locator('#scene').selectOption('sensa-sps');
   await expect(page.locator('#scene-title')).toHaveText('SPS four-anchor tracking');

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
-import { buildPages, mapDocumentHeadings } from '../../scripts/build-pages.mjs';
+import { buildPages, localPublishedToolLink, mapDocumentHeadings } from '../../scripts/build-pages.mjs';
 import { documentDiagramAssets } from '../../scripts/site-diagrams.mjs';
 import { overviewTaskLinks } from '../e2e/site-overview-contracts.js';
 
@@ -16,6 +16,14 @@ test('public guides build into bilingual routes with resolvable local links and 
   try {
     const manifest = await buildPages({ output, commit: 'site-unit-fixture' });
     assert.equal(manifest.commit, 'site-unit-fixture');
+    for (const locale of ['en', 'zh-CN']) {
+      const route = locale + '/docs/features.html';
+      for (const [published, target] of [['parameter-geometry.html', 'parameter-geometry.html'], ['websensa/', 'websensa/index.html'], ['websensa/index.html', 'websensa/index.html']]) {
+        const local = localPublishedToolLink('https://sealoong.github.io/Sensa/' + published + '?input=explorer#controls', route);
+        assert.equal(local, '../../' + target + '?input=explorer#controls', 'Shared tool query and fragment survive local publishing');
+      }
+    }
+    assert.equal(localPublishedToolLink('https://example.org/Sensa/parameter-geometry.html?input=explorer#controls', 'en/docs/features.html'), null, 'Unrelated origins remain external');
     assert.equal(Object.hasOwn(manifest.assets, 'download.html'), false, 'Downloads link directly to GitHub');
     assert.equal(manifest.routes.includes('download.html'), false);
     await assert.rejects(fs.stat(path.join(output, 'download.html')), { code: 'ENOENT' });
@@ -80,6 +88,8 @@ test('public guides build into bilingual routes with resolvable local links and 
       }
       for (const match of html.matchAll(/(?:href|src|srcset)="([^"]+)"/g)) {
         const url = new URL(match[1].replaceAll('&amp;', '&'), 'https://example.test/Sensa/' + route);
+        assert.equal(url.hostname === 'sealoong.github.io' && url.pathname === '/Sensa/parameter-geometry.html', false,
+          'Published explorer links stay on the tested/offline site origin: ' + route);
         if (url.origin === 'https://example.test' || url.origin === 'https://sealoong.github.io')
           assert.equal(url.searchParams.has('lang'), false, 'Language-free navigation: ' + route);
         if (url.origin !== 'https://example.test') continue;
@@ -137,6 +147,11 @@ test('public guides build into bilingual routes with resolvable local links and 
           assert.ok(article.includes('<strong>' + label + '</strong>：'), 'First-run device/source labels render as emphasis: ' + label);
       const installReference = await fs.readFile(path.join(output, locale + '/docs/features.html'), 'utf8');
       const installArticle = installReference.match(/<article>([\s\S]*?)<\/article>/)[1];
+      const explorerLink = installArticle.match(/<a href="([^"]*parameter-geometry\.html[^"]*)">/);
+      assert.ok(explorerLink, 'Feature reference links to the shared explorer: ' + locale);
+      const explorerUrl = new URL(decodeAttribute(explorerLink[1]), 'https://example.test/Sensa/' + locale + '/docs/features.html');
+      assert.equal(explorerUrl.origin, 'https://example.test', 'Explorer inherits the document session on the same origin');
+      assert.equal(explorerUrl.pathname, '/Sensa/parameter-geometry.html');
       assert.match(installArticle, /<a href="https:\/\/github\.com\/SeaLoong\/Sensa\/releases\/latest">/, 'The install reference offers a direct download without JavaScript');
       assert.doesNotMatch(installArticle, /data-download=/, 'The install reference keeps an ordinary release link');
       const referenceAnchor = locale === 'en' ? 'configuration-and-development' : '配置与开发';

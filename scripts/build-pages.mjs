@@ -29,6 +29,13 @@ export function mapDocumentHeadings(outline, translated) {
   return Object.fromEntries(outline.map((heading, index) => [heading.id, translated[index].id]));
 }
 
+export function localPublishedToolLink(url, route) {
+  const match = /^https:\/\/sealoong\.github\.io\/Sensa\/(websensa\/(?:index\.html)?|parameter-geometry\.html)([?#].*)?$/.exec(url);
+  if (!match) return null;
+  const target = match[1].startsWith('websensa/') ? 'websensa/index.html' : 'parameter-geometry.html';
+  return relative(route, target) + (match[2] || '');
+}
+
 /** One template also produces explicit-language entry pages that work without JS. */
 function localizedHomepage(html, locale) {
   const english = locale === 'en';
@@ -218,8 +225,8 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
       return render.renderToken(tokens, index, options);
     };
     const rewrite = async (url, image = false) => {
-      const webSensa = /^https:\/\/sealoong\.github\.io\/Sensa\/websensa\/(?:index\.html)?([?#].*)?$/.exec(url);
-      if (webSensa) return relative(document.route, 'websensa/index.html') + (webSensa[1] || '');
+      const sharedTool = localPublishedToolLink(url, document.route);
+      if (sharedTool) return sharedTool;
       // Only current, public Markdown is local. Pinned research/source references stay external.
       // 仅当前公开Markdown转站内；固定修订的研究与源码链接保留外链。
       const github = /^https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/main\/([^?#]+\.md)(\?[^#]*)?(#.*)?$/.exec(url);
