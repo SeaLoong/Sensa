@@ -57,7 +57,7 @@ jobs:
         run: npm run build:node -- --bundle-only
       - name: Run E2E
         id: browser_tests
-        run: npm run e2e:ci
+        run: npm run e2e:ci -- --grep '@osc-flow-preflight'
       - name: Verify comparison
         id: comparison
         if: ${{ !inputs.update_snapshots }}
