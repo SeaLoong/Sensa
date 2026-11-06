@@ -4,6 +4,26 @@
 
 每项结果对应明确的源码、运行与 attempt。[当前 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml) · [开发与检查](development.md)
 
+## 操作引导、预设与独立指南页：338ee0ad
+
+源码 [`338ee0ad`](https://github.com/SeaLoong/Sensa/commit/338ee0add1600401582610195b23f34271b9180b)，[候选运行 42179712565](https://github.com/SeaLoong/Sensa/actions/runs/42179712565/attempts/1)，attempt 1：
+
+| 检查 | 记录结果 |
+| --- | --- |
+| Web／Node／Python 单元 | **478／1607／455 项通过** |
+| 完整浏览器候选 | **302/302 项通过**，桌面与窄屏各 151 项，逐项单次执行，retry 与其他结果均为零 |
+| 布局与操作检查 | **20 份报告、52 个状态、92 项检查通过** |
+| 选图与文档镜像 | 接受 **54 张应用图与 8 张站点原图**；**38 张镜像**均有本轮采集证明，其中 13 张更新字节 |
+| 产品 Pages 预检 | [54/54 项通过并部署](https://github.com/SeaLoong/Sensa/actions/runs/42178694959/attempts/1)；24 次线上响应与受测产物一致 |
+
+新增 28 项浏览器用例，覆盖向导进度与续接、明确配置设备、预设草稿与独立保存、WebSensa 能力选择，以及关闭 JavaScript 后的真实双语导航。使用指南与设备连接分别拥有独立页面，场景快捷入口打开相应的工作台控制。
+
+**62 张变化原图均逐张打开审阅**。172 张图片的记录包含 **62 张本轮原图观察与 110 张已有审阅的精确 SHA256 复用**。 [逐图记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)保留采集源码／运行身份与可见裁图范围。
+
+34 条 axe 未完成规则实例另有范围明确的人工复查记录，不构成完整无障碍符合性验收。连接使用隔离模拟；实体设备、Unity 与 VRChat 客户端分别验收。Pages 预检早于选图后的图库更新。
+
+选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)必须对最终图片／记录源码完整比较 **302 项**，关闭图片更新，要求完整选择、实际比较、命令成功和其他结果为零。产品、测试、配置、工作流与原生捕获辅助代码须与完整候选逐字节一致。最终源码／运行，以及原生程序和发布结果，以该 CI 记录为准。
+
 ## 用途说明与上手交互：23443637
 
 源码 [`23443637`](https://github.com/SeaLoong/Sensa/commit/2344363779e028519feb318d807757dbdbb00ce2)，[候选运行 42131857671](https://github.com/SeaLoong/Sensa/actions/runs/42131857671/attempts/1)，attempt 1：

@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sourceCommit": "2344363779e028519feb318d807757dbdbb00ce2",
-  "runId": "42131857671",
+  "sourceCommit": "338ee0add1600401582610195b23f34271b9180b",
+  "runId": "42179712565",
   "attempt": "1",
   "scenes": [
     {
@@ -12,24 +12,24 @@
         "desktop": {
           "en": {
             "file": "desktop/english-manual.png",
-            "sha256": "c544bd99ecdcb488b9646be22dc18c89aecfa9e8c6629942419549fffb2cfc7a",
+            "sha256": "6146ddd708fad1d6d927e71395f53f98ae322213be30000d55e0479dfc117288",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "desktop/control-page.png",
-            "sha256": "aa18f519d92dfe6a2d0a4c082c64d36dcc28374839ca8a7e858fbe6a95450462",
+            "sha256": "06c4bb0fd9dbb0fd725e3219caf3ac26e63f1b51b9b5bb43956ce2d0965e0c15",
             "language": "zh-CN"
           }
         },
         "mobile": {
           "en": {
             "file": "mobile/english-manual.png",
-            "sha256": "345c077ab81c4b5c2f81ff055da74d9166e647b9a36a35a51ed5f0cc7bda7339",
+            "sha256": "d2c61beba58ad541dec2d96913790131ef1e372012bbc1503937a4b421f069dd",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "mobile/control-page.png",
-            "sha256": "69eb6cc73b0a3864798c4996e4994a607a03faaa5ef59b7b88116476d4668e71",
+            "sha256": "7857af8f225db666ff220d69ac8f9f7a36aaa12b92df75a5c0632c5eba94e2e3",
             "language": "zh-CN"
           }
         }
@@ -74,12 +74,12 @@
         "desktop": {
           "en": {
             "file": "desktop/english-script-loaded.png",
-            "sha256": "da083d5d01c93a9d4eca7c3ac87df1bd47e0787b7d63463a74127bd844f4e7d0",
+            "sha256": "dfaa8ba6b0ff14224effc22bfb1cee087b54964f59df3643bd518e930199b9f1",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "desktop/script-paused-keyframe.png",
-            "sha256": "6271cd7e6f4d963dd5514033247d63d2cff242ad3df55feae90f15f36bd282ff",
+            "sha256": "7cb278d199b112908f7c4d66d4a1830b225089d99e7cc91dfed234be13908378",
             "language": "zh-CN"
           }
         },
@@ -105,12 +105,12 @@
         "desktop": {
           "en": {
             "file": "desktop/computed-signal-editor-en-US.png",
-            "sha256": "b78fa1a9bad535d8d5f1208e3d5a1152cba1998e097bf995db5e6b5091aed67a",
+            "sha256": "c6e6c6601a3a2a182902726aea32e1908c1be0ab642f3740447c971c91c72de1",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "desktop/computed-signal-editor-zh-CN.png",
-            "sha256": "31adbe2a3a523d8cb7c2cd283e0735d15ea8cd12b24c93d1ba9492d77971d141",
+            "sha256": "4be51c929f7c6d5b4e3313327c1bf48c655ddb582f83fc20ec0b92460d20cbd5",
             "language": "zh-CN"
           }
         },
@@ -136,24 +136,24 @@
         "desktop": {
           "en": {
             "file": "desktop/combined-input-en-US.png",
-            "sha256": "23ad9e43fa476d57973b4856f62224f6a7e8703de1290ad2ea004f6648d339a6",
+            "sha256": "cc71f7dddabc27fa5632ed50d545476415df61f5848f18bf8769916ffff51f4d",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "desktop/combined-input-zh-CN.png",
-            "sha256": "a6f00392ed56d430ecddb23348590ea14f58ddeeb635b91f2ddb662356d2b1e3",
+            "sha256": "fa34f3fb9bf0e2402b5a1639096cec6a8eab38338e63e3b3ee96980b2799ec41",
             "language": "zh-CN"
           }
         },
         "mobile": {
           "en": {
             "file": "mobile/combined-input-en-US.png",
-            "sha256": "0f0be30baa928e07664d390af505c8fe85635a45bb9e134b8d7a822fabad81a3",
+            "sha256": "38b8992c6173c322ea19a5adaa6756bbceb2e59b164db7ab274b6c6feeac6872",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "mobile/combined-input-zh-CN.png",
-            "sha256": "d7cdee6d2250c77b9aadd072a42aefcb4f2e2a0afee250e7462799ced35d4b10",
+            "sha256": "bd01e04104f2f532bcf3a5c836c660e8ca4ecf8d6c032f2656766fa7afa3deb0",
             "language": "zh-CN"
           }
         }
@@ -163,7 +163,7 @@
   "additionalImages": [
     {
       "file": "desktop/recording-controls.png",
-      "sha256": "8ea679988b7234fd90d2a5bf5db50446fb8d4b3adaf225915371f7988272b964",
+      "sha256": "50e189298b6508abf675d569467aa889234b6bacf78e0c309ac0058fe03cf8cd",
       "language": "zh-CN"
     },
     {

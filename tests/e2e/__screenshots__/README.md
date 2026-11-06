@@ -4,6 +4,24 @@ The selected set contains **164 application baselines and eight site originals**
 
 当前包含 **164 张应用基线和 8 张站点原图**。[逐图记录](../baseline-review.json)保存所选与候选 SHA256、采集来源、具体观察、选择理由及审阅链。
 
+## Guided setup and scene presets / 操作引导与场景预设
+
+[Candidate 42179712565, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/42179712565/attempts/1) captured source [`338ee0ad`](https://github.com/SeaLoong/Sensa/commit/338ee0add1600401582610195b23f34271b9180b). **302/302 passed**, each once with zero retries or other outcomes. The full `all` suite used `candidate` mode with `snapshotsCompared=false`. Layout evidence contains **20 reports, 52 states and 92 passing checks**. Candidate capture and ordinary comparison have separate evidence.
+
+[候选 42179712565，attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/42179712565/attempts/1)采集源码 [`338ee0ad`](https://github.com/SeaLoong/Sensa/commit/338ee0add1600401582610195b23f34271b9180b)。**302/302 项通过**，每项单次执行，retry 和其他结果均为零；完整 `all` 套件使用 `candidate` 模式，`snapshotsCompared=false`。**20 份报告、52 个状态、92 项检查通过**。候选采集与普通比较分别记录。
+
+Root selected all **62 changed originals: 54 application and eight site images**. The 172-file receipt contains **62 current original-opened observations and 110 exact-SHA256 prior-review reuses**. Each file retains its exact selected and candidate hashes, actual capture source/run, observation method and selection reason.
+
+本轮选择全部 **62 张变化原图：54 张应用图与 8 张站点图**。172 张图片的记录包含 **62 张本轮原图观察与 110 张已有审阅的精确 SHA256 复用**。逐图保留所选与候选摘要、真实采集源码／运行、观察方法及选择理由。
+
+All **38 documentation mirrors** match current passing-case PNG attachments and selected baselines byte for byte: **13 changed and 25 unchanged**. Their catalog identifies source `338ee0ad`, run `42179712565`, attempt `1`.
+
+**38 张文档镜像**均有本轮通过用例的 PNG 附件证明，并逐字节对应所选基线；**13 张更新，25 张未变**。目录记录源码 `338ee0ad`、运行 `42179712565`、attempt `1`。
+
+The 28 added cases cover the first-run guide, real mapping and device-profile presets, browser capabilities and no-JavaScript page navigation. Scoped captures retain source/run identities and visible crop scope; per-file notes identify focus-outline or crop limits. The 34 axe incomplete rule instances have a separate scoped manual review; no complete accessibility conformance is claimed. [Pages preflight](https://github.com/SeaLoong/Sensa/actions/runs/42178694959/attempts/1) passed 54/54 with 24 verified live responses before this gallery update. Device connections use isolated simulations; physical hardware and Unity/VRChat-client behavior are checked separately.
+
+新增 28 项用例覆盖首次使用向导、真实映射与设备动作预设、浏览器能力，以及无 JavaScript 页面导航。局部裁图保留源码／运行身份与可见范围，逐图说明焦点外圈或裁边限制。34 条 axe 未完成规则实例另有范围明确的人工复查记录，不构成完整无障碍符合性验收。[Pages 预检](https://github.com/SeaLoong/Sensa/actions/runs/42178694959/attempts/1)在本轮图库更新前通过 54/54 项，并核对 24 次线上响应。设备连接使用隔离模拟，实体硬件与 Unity／VRChat 客户端行为分别检查。
+
 ## Simpler setup capture and selection / 上手交互采集与选择
 
 [Candidate 42131857671, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/42131857671/attempts/1) captured source [`23443637`](https://github.com/SeaLoong/Sensa/commit/2344363779e028519feb318d807757dbdbb00ce2): **274/274 passed**, each once with retry zero and every other outcome zero. The complete candidate has `snapshotsCompared=false`.
@@ -60,9 +78,9 @@ All 38 documentation mirrors match their selected application baselines byte for
 
 ## Complete comparison / 完整比较
 
-After image selection, [ordinary CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) checks **all 274** cases for its exact pinned commit with updates disabled: `mode=comparison`, `selectionComplete=true`, `snapshotsCompared=true`, command success and zero other outcomes. Candidate capture and ordinary comparison have separate evidence; the selected-image commit's report identifies its execution result. [Verification records](../../../docs/e2e-status.en.md)
+After image selection, [ordinary CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) checks **all 302** cases for its exact pinned commit with updates disabled: `mode=comparison`, `selectionComplete=true`, `snapshotsCompared=true`, command success and zero other outcomes. Candidate capture and ordinary comparison have separate evidence. Product, test, configuration, workflow and native capture helpers must stay byte-identical to the full candidate; the selected-image commit's report identifies its final source and run. [Verification records](../../../docs/e2e-status.en.md)
 
-选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)对固定提交执行完整 **274 项**，关闭图片更新，要求 `mode=comparison`、完整选择、实际比较、命令成功及其他结果为零。候选采集和普通比较分别记录，图片提交的执行结果以对应报告为准。[验证记录](../../../docs/e2e-status.md)
+选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)对固定提交执行完整 **302 项**，关闭图片更新，要求 `mode=comparison`、完整选择、实际比较、命令成功及其他结果为零。候选采集和普通比较分别记录；产品、测试、配置、工作流与原生捕获辅助代码须与完整候选逐字节一致，最终源码／运行以图片提交的报告为准。[验证记录](../../../docs/e2e-status.md)
 
 Captures use pinned Playwright, desktop 1280×900, narrow 390×844 and separate 320 CSS px reflow checks. Device connections use isolated simulations. Physical hardware and Unity-client acceptance have their own records. [Review procedure](../../../docs/e2e.md) · [Prior receipt](https://github.com/SeaLoong/Sensa/blob/3ce0616332af0958bbe4828a9970c7ef62625153/tests/e2e/baseline-review.json)
 

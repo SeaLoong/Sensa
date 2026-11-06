@@ -4,6 +4,26 @@
 
 Each result identifies its source, run and attempt. [Current CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml) · [Development and checks](development.en.md)
 
+## Guided setup, presets and guide pages: 338ee0ad
+
+Source [`338ee0ad`](https://github.com/SeaLoong/Sensa/commit/338ee0add1600401582610195b23f34271b9180b), [candidate run 42179712565](https://github.com/SeaLoong/Sensa/actions/runs/42179712565/attempts/1), attempt 1:
+
+| Check | Recorded result |
+| --- | --- |
+| Web / Node / Python units | **478 / 1607 / 455 passed** |
+| Complete browser candidate | **302/302 passed**, 151 per viewport, each once with zero retries or other outcomes |
+| Layout and interaction checks | **20 reports, 52 states and 92 passing checks** |
+| Image selection and documentation mirrors | Selected **54 application and eight site originals**; all **38 mirrors** have current capture proof, with 13 changed byte sequences |
+| Product Pages preflight | [54/54 passed and deployed](https://github.com/SeaLoong/Sensa/actions/runs/42178694959/attempts/1); 24 live responses matched the tested artifact |
+
+The 28 added browser cases cover guide progress and resumption, explicit device setup, preset drafts with a separate save, WebSensa capability choices, and real localized navigation with JavaScript disabled. Guides and Devices are independent pages; scene shortcuts lead to the relevant workbench controls.
+
+All **62 changed originals were individually opened**. The 172-file receipt records **62 current original-opened observations and 110 exact-SHA256 prior-review reuses**. [Per-image records](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json) retain capture source/run identities and visible crop scope.
+
+The 34 axe incomplete rule instances have a separate scoped manual review; no complete accessibility conformance is claimed. Connections use isolated simulations; physical devices, Unity and VRChat-client operation have separate acceptance. The Pages preflight precedes the selected-image gallery update.
+
+After selection, [ordinary CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) must compare all **302 cases** for the final image/receipt source, with updates disabled, complete selection, actual comparison, command success and zero other outcomes. Product, test, configuration, workflow and native capture helpers must remain byte-identical to the complete candidate. The final source/run and native/publication results are identified by that CI record.
+
 ## Clearer purpose and simpler setup: 23443637
 
 Source [`23443637`](https://github.com/SeaLoong/Sensa/commit/2344363779e028519feb318d807757dbdbb00ce2), [candidate run 42131857671](https://github.com/SeaLoong/Sensa/actions/runs/42131857671/attempts/1), attempt 1:
