@@ -52,7 +52,7 @@
     "esbuild": "0.28.2",
     "eslint": "10.14.0",
     "markdown-it": "15.0.3",
-    "oxlint": "1.90.0",
+    "oxlint": "1.92.0",
     "postject": "1.0.0-alpha.6",
     "typescript": "7.0.2"
   },
