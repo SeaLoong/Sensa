@@ -48,7 +48,7 @@
     "@types/w3c-web-serial": "1.0.9",
     "@types/web-bluetooth": "0.0.22",
     "@types/ws": "8.18.2",
-    "electron": "45.2.1",
+    "electron": "45.2.3",
     "esbuild": "0.28.2",
     "eslint": "10.14.0",
     "markdown-it": "15.0.3",
