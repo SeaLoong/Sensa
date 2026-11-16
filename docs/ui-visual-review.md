@@ -13,7 +13,7 @@
 - 文档中的 40 个截图引用对应 38 个唯一文件，均核对本次采集附件、源码与 SHA-256，并同步镜像。
 - 本次续接额外打开桌面输入、桌面轴映射和中文窄屏计算编辑器原图复查。输入页不再混入输出卡片；映射页保留统一保存区；窄屏计算字段按列排列，视口下方内容需要滚动。
 
-逐图观察、选取来源与摘要见 [baseline-review.json](../tests/e2e/baseline-review.json)，文档采集证明见 [catalog-capture-review.json](../tests/e2e/catalog-capture-review.json)。旧站点原图仍是历史证据，不作为本次页面验收。
+逐图观察、选取来源与摘要见 [baseline-review.json](https://github.com/SeaLoong/Sensa/blob/8a029cb8bc2624b25ed28274022c2fbb63a0a814/tests/e2e/baseline-review.json)，文档采集证明见 [catalog-capture-review.json](https://github.com/SeaLoong/Sensa/blob/8a029cb8bc2624b25ed28274022c2fbb63a0a814/tests/e2e/catalog-capture-review.json)。旧站点原图仍是历史证据，不作为本次页面验收。
 
 ## 引导后续修复
 

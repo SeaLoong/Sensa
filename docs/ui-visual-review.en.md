@@ -13,7 +13,7 @@ This review covers the separate Input, Mapping & transforms, Axis profiles and O
 - The 40 documentation screenshot references represent 38 unique files. Current capture attachments, source identity and SHA-256 were checked before refreshing the mirrors.
 - This continuation additionally opened the desktop Input, desktop axis-mapping and Chinese narrow computation-editor originals. Outputs are separate from Input, mappings retain a shared save area, and narrow computation fields stack vertically. Content beyond the captured viewport requires scrolling.
 
-Per-image observations, selection provenance and digests are in [baseline-review.json](../tests/e2e/baseline-review.json); documentation capture proof is in [catalog-capture-review.json](../tests/e2e/catalog-capture-review.json). Retained site originals are historical evidence, not acceptance of the current site.
+Per-image observations, selection provenance and digests are in [baseline-review.json](https://github.com/SeaLoong/Sensa/blob/8a029cb8bc2624b25ed28274022c2fbb63a0a814/tests/e2e/baseline-review.json); documentation capture proof is in [catalog-capture-review.json](https://github.com/SeaLoong/Sensa/blob/8a029cb8bc2624b25ed28274022c2fbb63a0a814/tests/e2e/catalog-capture-review.json). Retained site originals are historical evidence, not acceptance of the current site.
 
 ## Guide follow-up
 
