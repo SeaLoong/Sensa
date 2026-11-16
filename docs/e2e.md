@@ -58,7 +58,7 @@ funscript 录制用例检查默认格式、L0／R0 独立轨道、换算后的 0
 
 工作流开始时固定最新 `main` 的提交，使用该源码运行完整应用与站点用例。全部通过后，待审 PR 同时提供应用基线候选和八张站点原图。PR 中的图片链接固定到候选提交，可直接在 GitHub 逐张打开；每次采集都记录源码、Actions 运行及 attempt，并核对站点构建清单与图片摘要。
 
-站点原图保存在 `tests/e2e/__review__/site/{desktop,mobile}/`：`home-en-US.png`、`home-zh-CN.png`、`guide-en-US.png`、`guide-zh-CN.png`。它们用于人工检查页面布局、文字和阅读体验；应用基线位于 `tests/e2e/__screenshots__/`，由普通 CI 做截图比较。普通 CI 与 Pages 将站点原图留在本次报告附件中，只有手动 Update E2E 的候选导出会更新仓库中的八张原图。
+站点原图保存在 `tests/e2e/__review__/site/{desktop,mobile}/`：`home-en-US.png`、`home-zh-CN.png`、`guide-en-US.png`、`guide-zh-CN.png`。它们用于人工检查页面布局、文字和阅读体验；应用基线位于 `tests/e2e/__screenshots__/`，由普通 CI 做截图比较。普通 CI 与 Pages 将站点原图留在本次报告附件中，手动 Update E2E 的候选导出，或经过同样来源核对与逐图审阅的功能分支更新，可以刷新仓库中的八张原图。
 
 推送候选分支和创建待审 PR 使用仓库 Actions secret `SENSA_PAT`，PR 事件自动启动普通 CI。[工作流密钥](development.md#工作流使用哪些密钥)
 
@@ -70,6 +70,6 @@ funscript 录制用例检查默认格式、L0／R0 独立轨道、换算后的 0
 
 ## 人工和真实环境的边界
 
-按 [V1–V6](ui-quality.md)评估层级、字体、分组、配色、对齐和双语完整性。axe 与键盘检查覆盖可自动检测的项目，报告同时保留 incomplete 和未执行项，其余无障碍要求由人工审阅。历史接受范围见[视觉评审存档](ui-visual-review.md)。
+按 [V1–V6](ui-quality.md)评估层级、字体、分组、配色、对齐和双语完整性。axe 与键盘检查覆盖可自动检测的项目，报告同时保留 incomplete 和未执行项，其余无障碍要求由人工审阅。实际观察与历史记录入口见[当前视觉评审](ui-visual-review.md)。
 
 Unity 上传、真实 Contacts／OSC、HMD／桌面编码与机械停止另行验收，报告分别注明浏览器、模拟传输和真实环境的验证结果。

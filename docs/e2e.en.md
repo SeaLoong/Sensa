@@ -58,7 +58,7 @@ Run [`update-e2e.yml`](https://github.com/SeaLoong/Sensa/actions/workflows/updat
 
 The workflow pins latest `main` at its start and runs the full application and site suite against that source. After every case passes, the review PR includes application baseline candidates and eight site captures. Its image links point to the exact candidate commit and open directly on GitHub. Each capture records the source, Actions run and attempt, with the site build manifest and image hashes checked during export.
 
-Site captures live under `tests/e2e/__review__/site/{desktop,mobile}/`: `home-en-US.png`, `home-zh-CN.png`, `guide-en-US.png` and `guide-zh-CN.png`. Review them for layout, wording and readability. Application baselines live under `tests/e2e/__screenshots__/` and receive normal screenshot comparison in CI. Ordinary CI and Pages retain site captures as report attachments; only the manual Update E2E candidate export updates the eight repository images.
+Site captures live under `tests/e2e/__review__/site/{desktop,mobile}/`: `home-en-US.png`, `home-zh-CN.png`, `guide-en-US.png` and `guide-zh-CN.png`. Review them for layout, wording and readability. Application baselines live under `tests/e2e/__screenshots__/` and receive normal screenshot comparison in CI. Ordinary CI and Pages retain site captures as report attachments; the manual Update E2E export, or a feature-branch update with the same provenance checks and individual image review, can refresh the eight repository images.
 
 The repository Actions secret `SENSA_PAT` pushes the candidate branch and creates its review PR. The PR event automatically starts normal CI. [Workflow secrets](development.en.md#which-secrets-do-workflows-use)
 
@@ -70,6 +70,6 @@ For report artifacts alone, run `e2e.yml` manually with `update_snapshots=true` 
 
 ## Manual and real-environment boundaries
 
-Use [V1–V6](ui-quality.en.md) for hierarchy, type, grouping, color, alignment and bilingual completeness. Axe and keyboard checks cover automatically detectable requirements, with incomplete and unexecuted items retained in reports. Review remaining accessibility requirements manually. Historical acceptance is recorded in the [visual review archive](ui-visual-review.en.md).
+Use [V1–V6](ui-quality.en.md) for hierarchy, type, grouping, color, alignment and bilingual completeness. Axe and keyboard checks cover automatically detectable requirements, with incomplete and unexecuted items retained in reports. Review remaining accessibility requirements manually. Current observations and a fixed link to historical acceptance are recorded in the [current visual review](ui-visual-review.en.md).
 
 Unity uploads, actual Contacts/OSC, HMD/desktop encoding and physical stops receive separate acceptance checks. Reports identify browser, mock-transport and real-environment results separately.

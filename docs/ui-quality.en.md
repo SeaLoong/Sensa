@@ -41,7 +41,7 @@ Record pass/problem/not assessed per criterion, together with commit, language, 
 | V5 Alignment/details | Shared keylines/baselines, content-appropriate field widths, centered icons and consistent borders/padding |
 | V6 Bilingual/narrow | Stable hierarchy, natural wrapping, complete action order and wide tables scrolling within their own regions |
 
-Inspect Control, mappings, outputs, expanded settings, dialogs, long names/paths, errors/stops, empty/loading states and keyboard focus. Spatial graphics also need origins, axes, units, detection radii and drag markers. Place labels beside openings/tips and connect displaced labels to their actual points. Anchor colors stay consistent between graphics and readings. Default/reset/narrow views fit their targets; deliberate zoom may crop. Target dragging moves within the selected plane, while orbit changes the camera. Check invalid states and SVG fallback as well.
+Inspect Input, mappings and transforms, axis profiles, outputs, expanded settings, dialogs, long names/paths, errors/stops, empty/loading states and keyboard focus. Spatial graphics also need origins, axes, units, detection radii and drag markers. Place labels beside openings/tips and connect displaced labels to their actual points. Anchor colors stay consistent between graphics and readings. Default/reset/narrow views fit their targets; deliberate zoom may crop. Target dragging moves within the selected plane, while orbit changes the camera. Check invalid states and SVG fallback as well.
 
 Classify issues as blocking (main state/action obscured or misleading), major (substantial reading/hierarchy harm), or detail (local inconsistency). Retain each pending issue’s impact, cause and progress.
 

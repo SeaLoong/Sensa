@@ -4,7 +4,7 @@
 
 [Open WebSensa](https://sealoong.github.io/Sensa/websensa/) to control an OSR/TCode device or connect through Intiface, using sliders or a `.funscript`. It runs in your browser without installing Sensa. For live **VRChat/SPS/OGB**, use the [desktop first run](quick-start.en.md).
 
-Use **Start setup guide** to choose manual control or funscript playback, then follow device connection, input preparation and review. **Save and exit** and **Resume setup** let you return to it. [Full first-run steps](quick-start.en.md)
+Use **Start setup guide** to choose manual control or funscript playback, then prepare input, choose mappings or transforms, calibrate an axis profile, connect a device and review. **Save and exit** and **Resume setup** let you return to it. [Full first-run steps](quick-start.en.md)
 
 To route a website or player to OSR, use **Sensa Desktop** [protocol inputs](protocol-inputs.en.md) and forward the received controls to your device. [Compare device connections](devices.en.md)
 

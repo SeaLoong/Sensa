@@ -947,8 +947,6 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
 .guided-tour__card .onboarding-panel { display: flex; flex-direction: column; min-height: 0; padding: 0; gap: 0; border: 0; }
 .guided-tour__card .onboarding-panel__content { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 18px; }
 .guided-tour__card .onboarding-panel__footer { flex-shrink: 0; padding: 10px 18px; }
-.guided-tour__card .workspace-header { gap: 8px; }
-.guided-tour__card .workspace-header__title { font-size: 18px; }
 .guided-tour__card .guided-steps { display: flex; gap: 4px; flex-wrap: wrap; }
 .guided-tour__card .guided-step { flex: 1 1 26%; }
 .guided-tour__card .guided-step > .button { font-size: 12px; padding: 6px; min-height: 32px; }

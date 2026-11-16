@@ -11,7 +11,7 @@
 | 模板 ID | 用途 | 默认输出 |
 | --- | --- | --- |
 | `ogb-depth` | SPS2/SPS3 配对估算、SPS1 或 Plug 深浅趋势 | Depth → L0 |
-| `ogb-depth-touch` | 同时准备 SPS 深度与触碰强度两条映射 | Depth → L0 ＋ V0 |
+| `ogb-depth-touch` | 同时准备 SPS 深度与触碰强度两条映射 | Depth → L0；Touch → V0 |
 | `ogb-touch` | Touch／Frot 或独立 VFH Touch Zone | V0 |
 | `contact-position` | Contact 直接位置；按米校准所选轴 | SensaPoint Z → Depth／L0 |
 | `contact-speed` | Contact 相对速率；按 m/s 校准强度 | SensaPoint Speed → V0 |

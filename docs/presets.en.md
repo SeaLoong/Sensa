@@ -11,7 +11,7 @@ A mapping preset fills common paths and motion roles so you can build a mapping 
 | Template ID | Purpose | Default destination |
 | --- | --- | --- |
 | `ogb-depth` | SPS2/SPS3 paired estimate, SPS1 or Plug depth trend | Depth → L0 |
-| `ogb-depth-touch` | Prepare SPS depth and touch-strength mappings together | Depth → L0 + V0 |
+| `ogb-depth-touch` | Prepare SPS depth and touch-strength mappings together | Depth → L0; Touch → V0 |
 | `ogb-touch` | Touch/Frot or standalone VFH Touch Zone | V0 |
 | `contact-position` | Contact direct position; calibrate the selected axis in metres | SensaPoint Z → Depth / L0 |
 | `contact-speed` | Contact relative speed; calibrate strength in m/s | SensaPoint Speed → V0 |

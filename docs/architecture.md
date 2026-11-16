@@ -112,9 +112,13 @@ SPS 四点定位、Contact 直接定位与 Shader 捕获共用该入口，分别
 
 React 使用原生控件、对话框与语义标签，本地样式呈现 TDesign 风格。顶栏承载实际状态／许可，正文独立滚动；UI 草稿与已保存配置分开。
 
+输入、映射与变换、轴配置、输出和诊断分为独立工作区。映射与计算草稿跨页保留，共用明确的保存／恢复。引导在这些页面间导航，打开编辑器时暂停、关闭后恢复；完成操作只记录界面进度。
+
 | 文件 | 职责 |
 | --- | --- |
 | [RuntimeClient](https://github.com/SeaLoong/Sensa/blob/main/src/web/runtime-client.ts)／[bootstrap.tsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/bootstrap.tsx) | 挂载同一工作台，连接远程服务或浏览器本地应用 |
+| [GuidedTour.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/GuidedTour.jsx) / [tour-layout.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/tour-layout.js) | 可交互高亮、键盘路径与视口定位；引导进度属于界面状态，不启用设备 |
+| [transform-presets.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/transform-presets.js) | 独立可编辑的平滑、混合、迟滞与波形草稿 |
 | [configuration.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/configuration.js) | 草稿归一化、输出引用、冲突与保存 |
 | [input-workflows.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/input-workflows.js) | 手动／脚本意图与时码 |
 | [realtime-session.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/realtime-session.js) | 同源会话、关联、超时、断线拒绝与重连；重连后等待新的控制请求 |
