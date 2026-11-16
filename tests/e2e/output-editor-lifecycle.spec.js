@@ -109,6 +109,8 @@ test('Intiface scanning follows connection and pending command state / Intiface 
       expect(rig.wire.intiface.some(message => message.StartScanning || message.StopScanning)).toBe(false);
 
       await enable(page, ['Mock Intiface']);
+      await workspace(page, '输出');
+      await output.locator('summary').filter({ hasText: await text(page, '设备扫描') }).click();
       await expect(start).toBeEnabled();
       await expect(stop).toBeEnabled();
       for (const scan of [

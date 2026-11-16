@@ -58,11 +58,9 @@ async function addCalculation(page, name, operation) {
 }
 
 async function addOutput(page, rig, type, name) {
-  await workspace(page, '控制');
+  await workspace(page, '输出');
   const previous = new Set((await config(page, rig)).outputs.map(output => output.id));
-  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await page.getByTestId('output-type').selectOption(type);
-  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await page.getByTestId('add-output').click();
   const dialog = page.getByRole('dialog', { name: await text(page, '输出设置'), exact: true });
   await expect(dialog).toBeVisible();
@@ -238,8 +236,9 @@ for (const locale of ['zh-CN', 'en-US']) {
           await expect.poll(() => receiver.last('/ci/blend')).toEqual({ address: '/ci/blend', type: 'Int', value: 85 });
           await expect.poll(() => receiver.last('/ci/contact')).toEqual({ address: '/ci/contact', type: 'Bool', value: true });
           await expect.poll(async () => (await calculated(rig, 'Signal1'))?.value).toBeCloseTo(.85, 5);
-          await expect(outputCard(page, osc.id).getByTestId('signal-output-status')).toContainText('85');
           await checkpointViewport(page, 'combined-input-' + locale);
+          await workspace(page, '输出');
+          await expect(outputCard(page, osc.id).getByTestId('signal-output-status')).toContainText('85');
 
           await feed.set([['CI/Source', .7]]);
           await expect.poll(async () => (await calculated(rig, 'Signal1'))?.value).toBeCloseTo(.625, 5);
@@ -309,6 +308,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           const firstValidTime = rows.find(row => row.signalId === 'manual' && row.valid).timeMs;
           const listing = await page.request.get(rig.baseUrl + '/api/output/recordings').then(response => response.json());
           expect(listing.some(file => file.fileName === fileName && file.size > 0)).toBe(true);
+          await workspace(page, '输出');
           const recordingDownload = page.waitForEvent('download');
           await outputCard(page, recording.id).getByTestId('recording-download').click();
           const downloadedRecording = await recordingDownload;
@@ -445,6 +445,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           expect(files.filter(file => file.signalId === 'L0')).toHaveLength(1);
           expect(files.filter(file => file.signalId === 'R0').map(file => file.segment)).toEqual([1, 2]);
           expect(files.every(file => file.fileName.endsWith('.funscript'))).toBe(true);
+          await workspace(page, '输出');
           const scripts = new Map();
           for (const file of files) {
             // Select the file row by its own attribute; each clip has its own download.

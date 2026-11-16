@@ -44,7 +44,7 @@ Prepare your source in **Input**. Opening a tab does not apply its input mode:
 ## 4. Connect outputs, review and enable
 
 1. At the guide's device step, click **Connect or configure a device**, or open **Outputs** directly. Choose **Output type → Add output**.
-2. Configure the connection. For OSR/SR6/TCode, select serial or network settings and a saved axis profile. For Intiface, enter Central's WebSocket address and select the target with **Device and features → Matching device name**.
+2. Configure the connection. **OSR/SR6/TCode:** select serial or network settings and a saved axis profile. **Intiface:** enter Central's WebSocket address and select the target with **Device and features → Matching device name**.
 3. **Save output**, then **Enable** its card and confirm the connection. [Other output types](devices.en.md)
 4. Return to **Input** and click **Apply input mode** when needed. The final guide step shows actual readiness; **Finish tour** only records progress and does not enable input.
 5. Turn on **Input enabled** separately when ready. For a first manual movement, make a small adjustment and **Send once**; for a script, press **Play**. Inspect connection state and recent values in **Outputs**.
