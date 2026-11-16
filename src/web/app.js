@@ -2130,7 +2130,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   function renderRecording() {
     const recording = overview?.recording || {};
     return (
-      <Disclosure className="recording-panel" title={<>
+      <Disclosure className="recording-panel" defaultOpen={Boolean(recording.isActive || recording.frameCount)} title={<>
           {t('录制 L0 目标')}{' '}
           <Badge tone={recording.isActive ? 'warning' : 'default'}>
             {recording.isActive ? t('录制中') : recording.frameCount ? t('已停止') : t('待录制')}
@@ -2599,7 +2599,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             orientation={wideNavigation ? 'vertical' : 'horizontal'} variant="workspace"
             options={[
               { value: 'control', label: t('输入'), description: t('来源与运行'), icon: <WorkspaceIcon kind="control" /> },
-                            { value: 'pipeline', label: t('映射与变换'), description: t('轴映射与计算'), icon: <WorkspaceIcon kind="pipeline" /> },
+              { value: 'pipeline', label: t('映射与变换'), description: t('轴映射与计算'), icon: <WorkspaceIcon kind="pipeline" /> },
               { value: 'axes', label: t('轴配置'), description: t('行程与运动限制'), icon: <WorkspaceIcon kind="settings" /> },
               { value: 'outputs', label: t('输出'), description: t('设备与连接'), icon: <WorkspaceIcon kind="osc" /> },
               { value: 'settings', label: t('诊断'), description: t('运行日志'), icon: <WorkspaceIcon kind="settings" /> },
@@ -2799,11 +2799,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
               observations={overview?.poseTracking?.spsRoots || EMPTY_OSC_CATALOG} selectedSourceKey={selectedOscSourceKey}
               computedGraphDirty={computedGraphDirty} pathOptions={oscPathSuggestions} onComputedChange={setComputedDrafts}
               onMapCalculation={mapComputedSignal} computedView={computedView} onComputedViewChange={setComputedView}
-              config={config} outputs={outputs} overview={overview} outputAvailability={outputChoices.states}
-              online={online} busy={Boolean(busyKey)} onEditOutput={id => openOutputDialog(id, { focusBindings: true })}
-              onManageOutputs={() => navigateWorkflow('outputs')}
-              onSetCombinedInput={() => { setWorkspace('control'); selectInputTab('combined'); }}
-              onApplyPlan={applySignalPlan} emergencyAction={emergencyAction} />}
+              onSetCombinedInput={() => { setWorkspace('control'); selectInputTab('combined'); }} />}
               </div>
               <SignalPlanPanel config={config} onApply={applySignalPlan} disabled={!online || Boolean(busyKey)} emergencyAction={emergencyAction} />
             </Section>}
