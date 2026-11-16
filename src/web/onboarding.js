@@ -1,6 +1,6 @@
 import { t } from './i18n.js';
 
-export const ONBOARDING_STEPS = ['goal', 'device', 'input', 'ready'];
+export const ONBOARDING_STEPS = ['goal', 'input', 'mapping', 'axes', 'device', 'ready'];
 const GOALS = ['osc', 'script', 'manual', 'protocol'];
 const STATUSES = ['new', 'active', 'dismissed', 'complete'];
 

@@ -28,8 +28,8 @@ async function inspectWorkspaceShell(page) {
   const evidence = await page.evaluate(() => {
     const box = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; };
     return { header: box('.app-header'), navigation: box('.workspace-sidebar'), main: box('.workspace-scroll'),
-      status: box('.workspace-status'), workbench: box('.workbench-layout'),
-      inputColumn: box('.workbench-main'), deviceColumn: box('.workbench-aside'),
+      status: box('.workspace-status'), workbench: box('.input-workspace-layout'),
+      inputColumn: box('.workbench-main'), outputCards: document.querySelectorAll('.output-card').length,
       title: document.querySelector('.workspace-intro h2')?.textContent,
       targets: [...document.querySelectorAll('.workspace-nav [role=tab]')].map(element => { const r = element.getBoundingClientRect(); return { width: r.width, height: r.height }; }) };
   });
@@ -38,16 +38,9 @@ async function inspectWorkspaceShell(page) {
   if (wide) expect(evidence.navigation.right).toBeLessThanOrEqual(evidence.main.left + 1);
   else expect(evidence.navigation.bottom).toBeLessThanOrEqual(evidence.main.top + 1);
   expect(evidence.status.bottom).toBeLessThanOrEqual(evidence.workbench.top + 1);
-  if (wide) {
-    expect(evidence.inputColumn.right).toBeLessThanOrEqual(evidence.deviceColumn.left + 1);
-    expect(Math.abs(evidence.inputColumn.top - evidence.deviceColumn.top)).toBeLessThanOrEqual(1);
-    expect(evidence.deviceColumn.right - evidence.deviceColumn.left).toBeCloseTo(360, 0);
-  } else {
-    expect(evidence.inputColumn.bottom).toBeLessThanOrEqual(evidence.deviceColumn.top + 1);
-    expect(Math.abs(evidence.inputColumn.left - evidence.deviceColumn.left)).toBeLessThanOrEqual(1);
-    expect(Math.abs(evidence.inputColumn.right - evidence.deviceColumn.right)).toBeLessThanOrEqual(1);
-  }
-  expect(evidence.targets).toHaveLength(4);
+  expect(evidence.outputCards).toBe(0);
+  expect(evidence.inputColumn.right).toBeLessThanOrEqual(evidence.main.right + 1);
+  expect(evidence.targets).toHaveLength(5);
   for (const target of evidence.targets) { expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44); }
   return evidence;
 }
@@ -82,15 +75,18 @@ for (const locale of ['zh-CN', 'en-US']) {
       try {
         await expand(page, await label(page, '更多动作轴'));
         await expand(page, await label(page, '发送设置'));
+        await page.locator('#workspace-tabs-outputs').click();
         await expand(page, await label(page, '录制 L0 目标'));
         await report.audit('control-manual-expanded');
 
+        if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
         await card(page, 'Mock UDP').getByRole('button', { name: await label(page, '配置'), exact: true }).click();
         const output = page.getByRole('dialog', { name: await label(page, '输出设置'), exact: true });
         await expect(output).toBeVisible();
         await report.audit('output-settings-dialog');
         await output.getByRole('button', { name: await label(page, '取消'), exact: true }).click();
 
+        if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
         await card(page, 'Mock Intiface').getByRole('button', { name: await label(page, '配置'), exact: true }).click();
         const intiface = page.getByRole('dialog', { name: await label(page, '输出设置'), exact: true });
         await expect(intiface.getByLabel(await label(page, '振动来源'), { exact: true })).toHaveValue('V0');
@@ -138,7 +134,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await report.audit('ogb-control-settings');
         await activateOgb.uncheck();
 
-        await workspace(page, '设置');
+        await workspace(page, '诊断');
         const logs = page.locator('button[aria-controls="logs-panel"]');
         await expect(logs).toHaveAccessibleName(await label(page, '查看日志'));
         await logs.click();
@@ -223,53 +219,40 @@ for (const locale of ['zh-CN', 'en-US']) {
           await page.keyboard.press('End');
           const previousScrollTop = await main.evaluate(element => element.scrollTop);
           const navigation = page.getByRole('tablist', { name: await label(page, '主导航'), exact: true });
-          const control = navigation.getByRole('tab', { name: await label(page, '控制'), exact: true });
-          await control.focus();
-          await control.press('ArrowRight');
-          const osc = navigation.getByRole('tab', { name: 'OSC', exact: true });
-          await expect(osc).toBeFocused(); await expect(osc).toHaveAttribute('aria-selected', 'true');
-          await expect.poll(() => main.evaluate(element => element.scrollTop), { message: 'Workspace navigation returns to top / 工作区导航回到顶部' }).toBe(0);
-          const focus = await inspectFocusIndicator(osc);
-          const panel = page.locator('#' + await osc.getAttribute('aria-controls'));
-          await expect(panel).toHaveAttribute('aria-labelledby', await osc.getAttribute('id'));
-          await osc.press('ArrowRight');
-          const flow = navigation.getByRole('tab', { name: await label(page, '流程'), exact: true });
-          await expect(flow).toBeFocused(); await expect(flow).toHaveAttribute('aria-selected', 'true');
-          const flowFocus = await inspectFocusIndicator(flow);
-          const flowPanel = page.locator('#' + await flow.getAttribute('aria-controls'));
-          await expect(flowPanel).toHaveAttribute('aria-labelledby', await flow.getAttribute('id'));
-          await expect(flowPanel.getByTestId('computed-signals-editor')).toBeVisible();
-          await flow.press('ArrowRight');
-          const settings = navigation.getByRole('tab', { name: await label(page, '设置'), exact: true });
-          await expect(settings).toBeFocused(); await expect(settings).toHaveAttribute('aria-selected', 'true');
-          await settings.press('ArrowRight');
-          await expect(control).toBeFocused(); await expect(control).toHaveAttribute('aria-selected', 'true');
-          await control.press('ArrowLeft');
-          await expect(settings).toBeFocused(); await expect(settings).toHaveAttribute('aria-selected', 'true');
-          await settings.press('ArrowLeft');
-          await expect(flow).toBeFocused(); await expect(flow).toHaveAttribute('aria-selected', 'true');
-          await flow.press('ArrowLeft');
-          await expect(osc).toBeFocused(); await expect(osc).toHaveAttribute('aria-selected', 'true');
-          await osc.press('ArrowLeft');
-          await expect(control).toBeFocused(); await expect(control).toHaveAttribute('aria-selected', 'true');
-          await control.press('End');
-          await expect(settings).toBeFocused(); await expect(settings).toHaveAttribute('aria-selected', 'true');
-          await settings.press('Home');
-          await expect(control).toBeFocused(); await expect(control).toHaveAttribute('aria-selected', 'true');
+          const ids = ['control', 'pipeline', 'axes', 'outputs', 'settings'];
+          const control = page.locator('#workspace-tabs-control'); await control.focus();
+          let focus, flowFocus;
+          for (const id of [...ids.slice(1), 'control']) {
+            await page.keyboard.press('ArrowRight');
+            const tab = page.locator('#workspace-tabs-' + id);
+            await expect(tab).toBeFocused(); await expect(tab).toHaveAttribute('aria-selected', 'true');
+            await expect(page.locator('#workspace-tabs-panel')).toHaveAttribute('aria-labelledby', 'workspace-tabs-' + id);
+            await expect.poll(() => main.evaluate(element => element.scrollTop)).toBe(0);
+            if (id === 'pipeline') focus = await inspectFocusIndicator(tab);
+            if (id === 'axes') flowFocus = await inspectFocusIndicator(tab);
+          }
+          for (const id of [...ids.slice(1).reverse(), 'control']) {
+            await page.keyboard.press('ArrowLeft');
+            await expect(page.locator('#workspace-tabs-' + id)).toBeFocused();
+            await expect(page.locator('#workspace-tabs-' + id)).toHaveAttribute('aria-selected', 'true');
+          }
+          await control.press('End'); await expect(page.locator('#workspace-tabs-settings')).toBeFocused();
+          await page.keyboard.press('Home'); await expect(control).toBeFocused();
           if (await navigation.getAttribute('aria-orientation') === 'vertical') {
-            await control.press('ArrowDown'); await expect(osc).toBeFocused(); await expect(osc).toHaveAttribute('aria-selected', 'true');
-            await osc.press('ArrowUp'); await expect(control).toBeFocused(); await expect(control).toHaveAttribute('aria-selected', 'true');
+            await control.press('ArrowDown'); await expect(page.locator('#workspace-tabs-pipeline')).toBeFocused();
+            await page.keyboard.press('ArrowUp'); await expect(control).toBeFocused();
           }
           const after = await rig.overview();
           expect(after.input.mode).toBe(before.input.mode);
           expect(after.runtime.inputActive).toBe(false);
           expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(mutations);
           return { beforeMode: before.input.mode, afterMode: after.input.mode, focus, flowFocus, previousScrollTop,
-            tabOrder: ['control', 'osc', 'pipeline', 'settings'], forwardAndBackwardWrap: true, mutations,
+            tabOrder: ['control', 'pipeline', 'axes', 'outputs', 'settings'], forwardAndBackwardWrap: true, mutations,
             afterNavigationScrollTop: await main.evaluate(element => element.scrollTop) };
         });
 
         await report.check('native-dialog-focus-trap-escape-return / 原生对话框焦点圈定、Escape 与焦点恢复', async () => {
+          if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
           const trigger = card(page, 'Mock UDP').getByRole('button', { name: await label(page, '配置'), exact: true });
           await trigger.click();
           const dialog = page.getByRole('dialog', { name: await label(page, '输出设置'), exact: true });

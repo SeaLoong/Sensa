@@ -6,16 +6,17 @@ Use this map to find a control. [Guides](start.en.md) helps you choose a task; [
 
 | Open | Use it to |
 | --- | --- |
-| **Control** | Connect and manage devices, choose an input, move L0 or play a script |
-| **OSC** | Inspect VRChat parameters, choose presets and calibrate mappings |
-| **Flow** | Edit computed signals, connect their results to outputs and reuse saved plans |
-| **Settings** | Set device travel, protocol listeners and logs |
+| **Input** | Choose manual, script, OSC or protocol sources and inspect incoming parameters |
+| **Mapping & transforms** | Map inputs to axes, edit reusable calculations and import/export plans |
+| **Axis profiles** | Start from a device preset and calibrate travel, direction and speed |
+| **Output** | Connect devices, apps and recordings; edit output bindings |
+| **Diagnostics** | Inspect runtime logs |
 
 ## Guided setup and scene presets
 
-**Start setup guide** begins four steps: **Choose a scene → Connect device → Prepare input → Review setup**. Later, use **Guided setup** to reopen it. **Save progress, continue later** keeps your place; **Resume setup** continues. **Finish setup** records completion and returns to **Control** with your chosen input. Turn on **Input enabled** when ready.
+**Start setup guide** follows six steps: **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step opens its page, highlights the actual controls and dims the rest. You can operate the highlighted controls directly. Opening an editor pauses the tour until you close it. **Escape** or **Save progress, continue later** keeps your place. The emergency stop remains available in the tour. **Finish tour** records completion without enabling input or changing the configuration.
 
-**Scene presets** opens two groups. **VRChat / OSC mappings** prepares a mapping draft with **Append to mapping draft** or **Replace mapping draft**; review and **Save changes** in the editor. **Device axis profiles** offers **Device motion preset → Review and create an axis profile**; review and save the profile, then select it on your TCode output.
+**Scene presets** has three groups: **VRChat / OSC mappings**, **Transforms**, and **Device axis profiles**. Cards explain their purpose before you load an editable draft. Mapping presets include combined SPS depth/vibration; transform presets include manual smoothing, manual/script mixing, a threshold switch and a slow wave. Load and review a preset, then save explicitly. TCode outputs select their saved axis profile separately.
 
 Scene shortcuts open the controls for a task. Selecting a scene or a preset does not enable input.
 
@@ -65,7 +66,7 @@ Check reception and sender port first, then source selection, saved mapping, out
 
 ### Turn an input into motion (mapping)
 
-Open **Scene presets** to choose an OSC preset and load it into **OSC → Map**. You can also use the preset selector there. Select a parameter or computed result, calibrate its range/direction and **Save changes**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps) · [Template reference](presets.en.md)
+Open **Scene presets** to choose an OSC preset and load it into **Mapping & transforms → Axis mapping**. You can also use the preset selector there. Select a parameter or computed result, calibrate its range/direction and **Save changes**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps) · [Template reference](presets.en.md)
 
 ### Combine inputs first (computed signals)
 

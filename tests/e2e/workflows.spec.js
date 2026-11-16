@@ -17,11 +17,13 @@ test('unrelated saves preserve mapping and receiver drafts / 跨区域保存保�
   await expect(page.locator('.mapping-toolbar').getByText('未保存', { exact: true })).toBeVisible();
 
   await workspace(page, '控制');
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await card(page, 'Mock UDP').getByRole('button', { name: '配置', exact: true }).click();
   const output = page.getByRole('dialog', { name: '输出设置', exact: true });
   await output.getByRole('textbox', { name: '名称', exact: true }).fill('Workflow UDP');
   await output.getByRole('button', { name: '保存输出', exact: true }).click();
   await expect(output).not.toBeVisible();
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await expect(card(page, 'Workflow UDP')).toBeVisible();
   await oscWorkspace(page, '映射');
   await expect(path).toHaveValue(draftPath);
@@ -83,6 +85,7 @@ test.describe('vibration-only Intiface peer / 纯振动 Intiface 模拟端', () 
     await active(page, false);
 
     await mode(page, '手动');
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     await card(page, 'Mock Intiface').getByRole('button', { name: '配置', exact: true }).click();
     const output = page.getByRole('dialog', { name: '输出设置', exact: true });
     await output.getByLabel('振动来源', { exact: true }).selectOption('L0');

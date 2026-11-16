@@ -168,13 +168,13 @@ test('@site @webcompat WebSensa detects missing platform APIs and keeps accessib
     await expect(page.locator('html')).toHaveAttribute('lang', language === 'en' ? 'en-US' : 'zh-CN');
     const control = page.locator('#workspace-tabs-control');
     await control.focus(); await control.press('ArrowRight');
-    const osc = page.locator('#workspace-tabs-osc');
-    await expect(osc).toBeFocused(); await expect(osc).toHaveAttribute('aria-selected', 'true');
-    await osc.press('ArrowRight'); const flow = page.locator('#workspace-tabs-pipeline');
-    await expect(flow).toBeFocused(); await expect(flow).toHaveAttribute('aria-selected', 'true');
-    await flow.press('ArrowRight'); const settings = page.locator('#workspace-tabs-settings');
-    await expect(settings).toBeFocused(); await expect(settings).toHaveAttribute('aria-selected', 'true');
+    for (const id of ['pipeline', 'axes', 'outputs', 'settings']) {
+      const tab = page.locator('#workspace-tabs-' + id);
+      await expect(tab).toBeFocused(); await expect(tab).toHaveAttribute('aria-selected', 'true');
+      if (id !== 'settings') await tab.press('ArrowRight');
+    }
     await control.click();
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     const select = page.getByTestId('output-type');
     const availableLabel = language === 'en' ? 'Currently available' : '当前可用';
     const unavailableLabel = language === 'en' ? 'Currently unavailable' : '当前不可用';
@@ -204,6 +204,7 @@ test('@site @webcompat WebSensa detects missing platform APIs and keeps accessib
       pageFits: document.documentElement.scrollWidth <= innerWidth + 1 }));
     expect(features).toMatchObject({ webSocket: 'function', fetch: 'function', serial: 'undefined', bluetooth: 'undefined', midi: 'undefined', pageFits: true });
     await select.selectOption('SensaHttp');
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     await expect(page.getByTestId('add-output')).toBeEnabled();
     await expect(page.getByLabel('Language / 语言', { exact: true })).toBeVisible();
     const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
@@ -212,6 +213,7 @@ test('@site @webcompat WebSensa detects missing platform APIs and keeps accessib
     evidence.push({ language, features, outputGroups, axeViolations: axe.violations.length, keyboardTabs: true });
   }
   await open(page, '?lang=en&http-only=1'); await controlWorkspace(page);
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   const select = page.getByTestId('output-type');
   for (const type of ['Intiface', 'TCodeWebSocket', 'SensaWebSocket', 'WebSocketJson']) await expect(select.locator(`option[value="${type}"]`)).toBeDisabled();
   await expect(select.locator('option[value="SensaHttp"]')).toBeEnabled();

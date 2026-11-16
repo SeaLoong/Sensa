@@ -81,7 +81,7 @@ for (const locale of ['zh-CN', 'en-US']) {
     test.use({ locale });
     test('mounted endpoints survive edits while duplicate paths are explained before saving / 路径可保存恢复且重复路径阻止保存',
       { tag: ['@config', '@i18n'] }, async ({ page, rig }) => {
-        await configure(page, rig); await workspace(page, '设置');
+        await configure(page, rig); await workspace(page, '输入'); await page.locator('#input-tabs-protocol').click();
         const panel = page.getByTestId('protocol-inputs-panel');
         // Stable DOM order matches the saved configuration; the ID field remains immutable.
         const card = panel.getByTestId('protocol-input-card').nth(1);
@@ -95,7 +95,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect.poll(async () => (await config(page, rig)).protocolInputs.find(input => input.id === 'shared-json').path).toBe('/json-new');
         await expect.poll(async () => (await rig.overview()).protocolInputs.find(input => input.id === 'shared-json')?.address).toBe(`http://127.0.0.1:${port}/json-new`);
         expect((await rig.overview()).runtime.inputActive).toBe(false);
-        await page.reload(); await workspace(page, '设置');
+        await page.reload(); await workspace(page, '输入'); await page.locator('#input-tabs-protocol').click();
         await expect(page.getByTestId('protocol-input-card').nth(1).getByRole('textbox', { name: await text(page, '监听路径'), exact: true })).toHaveValue('/json-new');
       });
   });

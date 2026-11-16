@@ -71,7 +71,7 @@ for (const locale of ['zh-CN', 'en-US']) {
       await page.getByTestId('onboarding-goal-manual').click();
       await page.getByTestId('onboarding-next').click();
       await page.getByTestId('onboarding-step-ready').click();
-      await expect(page.getByTestId('onboarding-complete')).toBeDisabled();
+      await expect(page.getByTestId('onboarding-complete')).toBeEnabled();
       await page.getByTestId('onboarding-step-device').click();
       await page.getByTestId('onboarding-skip').click();
       expect(await page.evaluate(() => localStorage.getItem('sensa.web.configuration.v1'))).toBe(original);
@@ -87,7 +87,7 @@ for (const locale of ['zh-CN', 'en-US']) {
       let library = page.getByRole('dialog', { name: label('场景预设'), exact: true });
       await expect(library.getByRole('tab')).toHaveCount(1);
       await expect(library.locator('#scene-preset-tabs-osc')).toHaveCount(0);
-      await library.getByTestId('scene-axis-preset').selectOption('osr-first-run');
+      await library.getByTestId('scene-axis-preset-osr-first-run').click();
       await library.getByTestId('scene-axis-review').click();
       let dialog = page.getByRole('dialog', { name: label('轴配置'), exact: true });
       await expect(dialog.getByRole('tabpanel').getByRole('spinbutton', { name: label('映射范围') + label('起点'), exact: true })).toHaveValue('400');
@@ -194,6 +194,7 @@ test('@site @transport WebSensa sends manual fanout and scripts to actual indepe
   await expect.poll(() => commands.some(item => item.type === 'tcode' && item.value === 'L0729\n')).toBe(true);
   await expect.poll(() => commands.some(item => item.type === 'json' && item.value.values?.L0 === .73)).toBe(true);
   await expect.poll(() => commands.some(item => item.type === 'http' && item.value.values?.L0 === .73)).toBe(true);
+  await page.locator('#workspace-tabs-outputs').click();
   await page.locator('.recording-panel summary').click();
   await page.getByRole('button', { name: 'Start recording', exact: true }).click();
   await manualMotion(page, 'L0', 810);

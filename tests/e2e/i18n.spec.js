@@ -98,6 +98,7 @@ test('English experimental calibration drives only after opt-in and stops on rel
   await oscWorkspace(page,'映射'); await page.getByRole('button',{name:await text(page,'保存更改'),exact:true}).click();
   await expect.poll(async () => (await rig.overview()).signals.length).toBe(1);
   await workspace(page,'控制'); await active(page); await feed.set(pointSamples(.1)); await outputValue(rig,'udp',500);
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await checkpoint(page,card(page,'Mock UDP').locator('.output-position-panel'),'english-output');
   await feed.set(pointSamples(.1,false)); await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
 });

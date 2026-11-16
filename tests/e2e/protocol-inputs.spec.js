@@ -36,7 +36,7 @@ async function handyApiFixture() {
 }
 
 async function addSource(page, rig, { type = 'Buttplug', port = 19400, name = 'Browser bridge' } = {}) {
-  await workspace(page, '设置');
+  await workspace(page, '输入'); await page.locator('#input-tabs-protocol').click();
   const panel = page.getByTestId('protocol-inputs-panel');
   await panel.getByRole('button', { name: await text(page, '添加协议来源'), exact: true }).click();
   const card = panel.getByTestId('protocol-input-card').last();
@@ -123,6 +123,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await workspace(page, '控制');
         await page.getByRole('combobox', { name: await text(page, '输出类型'), exact: true }).selectOption('Handy');
         await page.getByRole('button', { name: await text(page, '添加输出'), exact: true }).click();
+        if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
         const card = page.locator('.output-card').filter({ has: page.getByRole('heading', { name: 'The Handy 1', exact: true }) });
         const dialog = page.getByRole('dialog', { name: await text(page, '输出设置'), exact: true });
         await expect(dialog).toBeVisible();
@@ -289,6 +290,7 @@ test('independent protocol sources combine through computed bindings and stop wh
 
 test('Intiface advanced actuator mappings persist without arming the output / Intiface高级执行器映射保存不启用输出',
   { tag: ['@config', '@input'] }, async ({ page, rig }) => {
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     const card = page.locator('.output-card').filter({ has: page.getByRole('heading', { name: 'Mock Intiface', exact: true }) });
     await card.getByRole('button', { name: await text(page, '配置'), exact: true }).click();
     const dialog = page.getByRole('dialog', { name: await text(page, '输出设置'), exact: true });
@@ -317,6 +319,7 @@ for (const action of ['emergency', 'stop']) {
       try {
         await page.getByRole('combobox', { name: await text(page, '输出类型'), exact: true }).selectOption('Handy');
         await page.getByRole('button', { name: await text(page, '添加输出'), exact: true }).click();
+        if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
         const card = page.locator('.output-card').filter({ has: page.getByRole('heading', { name: 'The Handy 1', exact: true }) });
         const dialog = page.getByRole('dialog', { name: await text(page, '输出设置'), exact: true });
         await expect(dialog).toBeVisible();

@@ -21,6 +21,7 @@ test('mode changes and script replacement require explicit input enable / 切换
   await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(false);
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
   await expect(page.getByRole('switch',{name:'输入启用',exact:true})).not.toBeChecked();
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await expect(card(page,'Mock UDP').getByText('已请求停止',{exact:true})).toBeVisible();
 });
 
@@ -120,38 +121,21 @@ test('keyboard browsing, script A-B boundaries and Escape preserve control inten
   const navigation = page.getByRole('tablist',{name:'主导航',exact:true});
   const before = (await rig.overview()).input.mode;
   const mutations = rig.commands.filter(command => command.method !== 'GET').length;
-  await navigation.getByRole('tab',{name:'控制',exact:true}).press('ArrowRight');
-  await expect(navigation.getByRole('tab',{name:'OSC',exact:true})).toHaveAttribute('aria-selected','true');
-  await expect(page.getByRole('tablist',{name:'OSC 工作区',exact:true})).toBeVisible();
-  await navigation.getByRole('tab',{name:'OSC',exact:true}).press('ArrowRight');
-  const flow = navigation.getByRole('tab',{name:'流程',exact:true});
-  await expect(flow).toBeFocused();
-  await expect(flow).toHaveAttribute('aria-selected','true');
-  await expect(page.getByTestId('computed-signals-editor')).toBeVisible();
-  await flow.press('ArrowRight');
-  await expect(navigation.getByRole('tab',{name:'设置',exact:true})).toHaveAttribute('aria-selected','true');
-  await expect(navigation.getByRole('tab',{name:'设置',exact:true})).toBeFocused();
-  await navigation.getByRole('tab',{name:'设置',exact:true}).press('Home');
-  await expect(navigation.getByRole('tab',{name:'控制',exact:true})).toHaveAttribute('aria-selected','true');
-  await expect(navigation.getByRole('tab',{name:'控制',exact:true})).toBeFocused();
-  await navigation.getByRole('tab',{name:'控制',exact:true}).press('ArrowLeft');
-  await expect(navigation.getByRole('tab',{name:'设置',exact:true})).toBeFocused();
-  await expect(navigation.getByRole('tab',{name:'设置',exact:true})).toHaveAttribute('aria-selected','true');
-  await navigation.getByRole('tab',{name:'设置',exact:true}).press('ArrowLeft');
-  await expect(flow).toBeFocused();
-  await expect(flow).toHaveAttribute('aria-selected','true');
-  await flow.press('ArrowLeft');
-  await expect(navigation.getByRole('tab',{name:'OSC',exact:true})).toBeFocused();
-  await expect(navigation.getByRole('tab',{name:'OSC',exact:true})).toHaveAttribute('aria-selected','true');
-  await navigation.getByRole('tab',{name:'OSC',exact:true}).press('ArrowLeft');
-  await expect(navigation.getByRole('tab',{name:'控制',exact:true})).toBeFocused();
-  await expect(navigation.getByRole('tab',{name:'控制',exact:true})).toHaveAttribute('aria-selected','true');
-  await navigation.getByRole('tab',{name:'控制',exact:true}).press('End');
-  await expect(navigation.getByRole('tab',{name:'设置',exact:true})).toBeFocused();
-  await expect(navigation.getByRole('tab',{name:'设置',exact:true})).toHaveAttribute('aria-selected','true');
-  await navigation.getByRole('tab',{name:'设置',exact:true}).press('ArrowRight');
-  await expect(navigation.getByRole('tab',{name:'控制',exact:true})).toBeFocused();
-  await expect(navigation.getByRole('tab',{name:'控制',exact:true})).toHaveAttribute('aria-selected','true');
+  const ids = ['control', 'pipeline', 'axes', 'outputs', 'settings'];
+  await page.locator('#workspace-tabs-control').focus();
+  for (const id of [...ids.slice(1), 'control']) {
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('#workspace-tabs-' + id)).toBeFocused();
+    await expect(page.locator('#workspace-tabs-' + id)).toHaveAttribute('aria-selected', 'true');
+  }
+  for (const id of [...ids.slice(1).reverse(), 'control']) {
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.locator('#workspace-tabs-' + id)).toBeFocused();
+    await expect(page.locator('#workspace-tabs-' + id)).toHaveAttribute('aria-selected', 'true');
+  }
+  await page.keyboard.press('End'); await expect(page.locator('#workspace-tabs-settings')).toBeFocused();
+  await page.keyboard.press('Home'); await expect(page.locator('#workspace-tabs-control')).toBeFocused();
+  await expect(navigation.getByRole('tab')).toHaveCount(5);
   expect((await rig.overview()).input.mode).toBe(before);
   expect((await rig.overview()).runtime.inputActive).toBe(false);
   expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(mutations);
@@ -180,11 +164,13 @@ test('keyboard browsing, script A-B boundaries and Escape preserve control inten
   expect(rig.wire.udp.filter(line => /L0\d/.test(line))).toHaveLength(0);
 
   const saves = rig.commands.filter(command => command.path === '/api/config' && command.method === 'PUT').length;
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await card(page,'Mock UDP').getByRole('button',{name:'配置',exact:true}).click();
   const dialog = page.getByRole('dialog',{name:'输出设置',exact:true});
   const name = dialog.getByRole('textbox',{name:'名称',exact:true});
   await name.fill('Cancelled draft'); await name.press('Escape');
   await expect(dialog).toBeHidden();
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await expect(card(page,'Mock UDP')).toBeVisible();
   await expect(card(page,'Cancelled draft')).toHaveCount(0);
   expect(rig.commands.filter(command => command.path === '/api/config' && command.method === 'PUT')).toHaveLength(saves);

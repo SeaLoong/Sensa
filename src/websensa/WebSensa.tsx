@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import Workbench from '../web/app.js';
 import { createBrowserWorkbench } from './browser-runtime.ts';
+import type { WorkbenchWorkspace } from '../web/workbench-props.ts';
 import type { BrowserWorkbenchHost } from './browser-runtime.ts';
 
-export interface WebSensaProps { host?: BrowserWorkbenchHost; }
+export interface WebSensaProps { host?: BrowserWorkbenchHost; initialWorkspace?: WorkbenchWorkspace; }
 /** Browser and executable editions render the same workbench with different ports. */
-export default function WebSensa({ host: supplied }: WebSensaProps) {
+export default function WebSensa({ host: supplied, initialWorkspace }: WebSensaProps) {
   const [host] = useState(() => supplied ?? createBrowserWorkbench());
   useEffect(() => () => { if (!supplied) void host.client.dispose(); }, [host, supplied]);
-  return <Workbench client={host.client} platform={host.platform} initialSnapshot={host.initialSnapshot()} />;
+  return <Workbench client={host.client} platform={host.platform} initialSnapshot={host.initialSnapshot()} initialWorkspace={initialWorkspace ?? 'control'} />;
 }

@@ -38,7 +38,7 @@ In the guide, click **Open input settings** and prepare your chosen scene:
 
 - **Manual:** check L0, or V0 under **More motion axes** for an Intiface vibrator. In WebSensa, also enable V0 under **Motion axes**.
 - **Script:** click **Choose script** and load a `.funscript`. For a vibration-only Intiface device, set its output's **Vibration source** to **L0 · Depth to vibration**.
-- **VRChat / SPS:** receive OSC parameters, choose a mapping preset and click **Save changes** in **OSC → Map** after calibration. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps)
+- **VRChat / SPS:** receive OSC parameters, choose a mapping preset and click **Save changes** in **Mapping & transforms → Axis mapping** after calibration. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps)
 - **Website or software:** configure a protocol input and connect the upstream application. [Protocol input steps](protocol-inputs.en.md)
 
 Click **Apply input mode** if shown. Return to the guide, check the output and prepared input, then click **Finish setup**. Finishing records your progress and returns to **Control** with your chosen input. Turn on **Input enabled** separately when ready.

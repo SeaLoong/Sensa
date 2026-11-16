@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Button, Field } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { t, diagnostic, getLocale } from './i18n.js';
+import { transformPresets, createTransformPreset } from './transform-presets.js';
 import SignalSourceFields from './SignalSourceFields.jsx';
 import ComputedVectorGroup from './ComputedVectorGroup.jsx';
 import ComputedSpatialPresets from './ComputedSpatialPresets.jsx';
@@ -101,6 +102,14 @@ export default function ComputedSignalsPanel({ drafts = [], runtimeSignals = [],
     <section className="computed-signals stack" aria-label={t('计算信号')} data-testid="computed-signals-editor">
       <div className="computed-signals__heading"><h3>{t('计算信号')}</h3><Badge>{t('{0} 个计算', [drafts.length])}</Badge></div>
       <p className="caption muted">{t('为计算取一个名称，再选择运算和输入。保存后，这个结果就能用于输出连接、轴映射或下一步计算。')}</p>
+      <details className="transform-presets" open={drafts.length === 0 ? true : undefined}>
+        <summary>{t('常用变换预设')}</summary><div className="preset-cards">
+          {transformPresets().map(preset => <Button key={preset.id} className="preset-card" disabled={drafts.length >= COMPUTED_SIGNAL_LIMIT}
+            onClick={() => { const draft = createTransformPreset(preset.id, drafts); if (draft) { select(draft.id); onChange([...drafts, draft]); } }}>
+            <strong>{preset.name}</strong><span className="caption">{preset.description}</span>
+          </Button>)}
+        </div>
+      </details>
       {drafts.map(draft => <ComputedSignalCard key={draft.id} draft={draft} signals={drafts} runtime={runtimeById.get(draft.id)} graphDirty={graphDirty}
         selected={view.selectedId === draft.id} open={(view.expandedIds || []).includes(draft.id)} onToggle={open => setView(current => updateComputedView(current, draft.id, open))} pathOptions={pathOptions} pointOptions={pointOptions}
         onChange={patch => onChange(drafts.map(existing => existing.id === draft.id ? { ...existing, ...patch } : existing))}

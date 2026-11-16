@@ -10,7 +10,7 @@ export async function controlWorkspace(page) {
   await page.locator('#workspace-tabs-control').click();
 }
 export async function addWorkbenchOutput(page, type, endpoint, { name, deviceName, profile } = {}) {
-  await controlWorkspace(page);
+  await page.locator('#workspace-tabs-outputs').click();
   await page.getByTestId('output-type').selectOption(type);
   await page.getByTestId('add-output').click();
   const dialog = page.getByRole('dialog', { name: 'Output settings', exact: true });

@@ -26,7 +26,7 @@ test('profile lifecycle keeps one default and repairs output references without 
 
 test('all built-ins round-trip as independent drafts; custom presets preserve built-ins / 内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
   const source = initial(), builtIns = getOscMappingPresets(source);
-  assert.equal(builtIns.length, 5);
+  assert.equal(builtIns.length, 6);
   for (const preset of builtIns) {
     const dialog = buildPresetDialogDraft(source, preset.id);
     assert.equal(dialog.isNew, true); assert.notEqual(dialog.presetId, preset.id);
@@ -34,9 +34,9 @@ test('all built-ins round-trip as independent drafts; custom presets preserve bu
     const config = editConfiguration(source, { kind: 'preset-save', preset: { id: dialog.presetId, name: 'Custom', mappings: dialog.mappings } });
     const custom = getOscMappingPresets(config).find(p => p.id === dialog.presetId);
     assert.equal(computeSignalHash(buildSignalDrafts(custom.mappings)), draftSnapshot);
-    assert.equal(getOscMappingPresets(config).length, 6);
+    assert.equal(getOscMappingPresets(config).length, 7);
     const removed = editConfiguration(config, { kind: 'preset-remove', id: dialog.presetId });
-    assert.equal(getOscMappingPresets(removed).length, 5);
+    assert.equal(getOscMappingPresets(removed).length, 6);
     assert.throws(() => editConfiguration(source, { kind: 'preset-remove', id: preset.id }));
   }
 });

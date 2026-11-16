@@ -266,6 +266,9 @@ function createAxisProfilePresetMotion(presetId) {
     case 'l0-only':
       ignoreAxes(['l1', 'l2', 'r0', 'r1', 'r2', 'v0', 'v1', 'v2', 'a0', 'a1', 'a2']);
       return profile;
+    case 'v0-only':
+      ignoreAxes(['l0', 'l1', 'l2', 'r0', 'r1', 'r2', 'v1', 'v2', 'a0', 'a1', 'a2']);
+      return profile;
     case 'l0-pose-lock':
       ignoreAxes(['v0', 'v1', 'v2']);
       lockAxes(['l1', 'l2', 'r0', 'r1', 'r2', 'a0', 'a1', 'a2'], 0.5);
@@ -276,6 +279,7 @@ function createAxisProfilePresetMotion(presetId) {
 }
 
 const AXIS_PROFILE_PRESETS = localized(() => ([
+  { id: 'v0-only', name: t('轻量振动 · 仅 V0'), description: t('只启用 V0 强度轴，其余轴忽略；检查输出设备是否支持振动通道。') },
   {
     id: 'osr-first-run',
     name: t("OSR 首次测试 · L0 小行程"),

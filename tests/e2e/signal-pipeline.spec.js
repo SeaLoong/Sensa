@@ -60,7 +60,9 @@ async function addCalculation(page, name, operation) {
 async function addOutput(page, rig, type, name) {
   await workspace(page, '控制');
   const previous = new Set((await config(page, rig)).outputs.map(output => output.id));
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await page.getByTestId('output-type').selectOption(type);
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await page.getByTestId('add-output').click();
   const dialog = page.getByRole('dialog', { name: await text(page, '输出设置'), exact: true });
   await expect(dialog).toBeVisible();
@@ -107,7 +109,7 @@ async function saveOutput(page, rig, id) {
 }
 
 async function enableOutput(page, rig, id) {
-  await workspace(page, '控制');
+  await workspace(page, '输出');
   await (await button(page, outputCard(page, id), '启用')).click();
   await expect.poll(async () => (await outputState(rig, id))?.connected).toBe(true);
 }

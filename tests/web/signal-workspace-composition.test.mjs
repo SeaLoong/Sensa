@@ -14,7 +14,7 @@ const compiled = await build({
   stdin: { contents: `
     export {default as Toolbar} from './src/web/SignalDraftToolbar.jsx';
     export {default as Mappings} from './src/web/AxisMappingsPanel.jsx';
-    export {default as Pipeline,formatSavedBindingSource} from './src/web/SignalPipelineWorkspace.jsx';
+    export {default as Pipeline, OutputRoutingSummary as Routing,formatSavedBindingSource} from './src/web/SignalPipelineWorkspace.jsx';
     export {updateComputedView,pruneComputedView} from './src/web/ComputedSignalsPanel.jsx';
     export {default as OutputBindings} from './src/web/OutputBindings.jsx';
     export {setLocale,t} from './src/web/i18n.js';
@@ -26,7 +26,7 @@ const compiled = await build({
     builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
   } }],
 });
-const { Toolbar, Mappings, Pipeline, formatSavedBindingSource, updateComputedView, pruneComputedView, OutputBindings, setLocale, t, buildSignalDrafts, createOutputConfig,
+const { Toolbar, Mappings, Pipeline, Routing, formatSavedBindingSource, updateComputedView, pruneComputedView, OutputBindings, setLocale, t, buildSignalDrafts, createOutputConfig,
   buildOutputDialogDraft, editConfiguration, buildComputedDrafts } = await import('data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64'));
 const render = (Component, props) => renderToStaticMarkup(React.createElement(Component, props));
 const noop = () => {};
@@ -48,7 +48,7 @@ const mappingProps = overrides => ({ toolbar: React.createElement(Toolbar, { wor
   onUpdateMapping: noop, onRemoveMapping: noop, onAddMapping: noop, onClearMappings: noop, ...overrides });
 const pipelineProps = overrides => ({ toolbar: React.createElement(Toolbar, { workspace: 'pipeline', online: true }),
   onComputedChange: noop, onMapCalculation: noop, onComputedViewChange: noop, config: createDefaultConfiguration(),
-  onEditOutput: noop, onManageOutputs: noop, onSetCombinedInput: noop, onApplyPlan: noop, online: true, ...overrides });
+  onEditOutput: noop, onManageOutputs: noop, onSetCombinedInput: noop, onApplyPlan: noop, online: true, savedComputations: overrides?.config?.computedSignals || [], ...overrides });
 
 for (const locale of ['zh-CN', 'en-US']) {
   test('joint draft toolbar exposes separate mapping/computation state and one save scope in ' + locale, () => {
@@ -84,7 +84,7 @@ for (const locale of ['zh-CN', 'en-US']) {
     assert.equal((flow.match(/data-testid="computed-signal-card"/g) || []).length, 1);
     assert.match(flow, /data-testid="computed-signal-value">—<\/output>/);
     assert.doesNotMatch(flow, /class="mapping-row/);
-    assert.match(flow, /data-testid="flow-output-routing"/);
+    assert.doesNotMatch(flow, /data-testid="flow-output-routing"/);
   });
 }
 
@@ -171,7 +171,7 @@ test('Flow routing renders saved bindings and keeps unavailable, disabled and er
   setLocale('en-US');
   const fixture = routingFixture();
   const before = JSON.stringify(fixture.outputs);
-  const html = render(Pipeline, pipelineProps({ ...fixture, computedDrafts: [calculation('UnsavedGraph')], computedGraphDirty: true }));
+  const html = render(Routing, pipelineProps({ ...fixture, computedDrafts: [calculation('UnsavedGraph')], computedGraphDirty: true }));
   const article = id => {
     const result = html.match(new RegExp(`<article[^>]*data-output-id="${id}"[\\s\\S]*?<\\/article>`))?.[0];
     assert.ok(result, id); return result;
@@ -200,18 +200,16 @@ test('Flow routing renders saved bindings and keeps unavailable, disabled and er
 test('Flow route editing delegates only the saved output ID and is unavailable while offline or busy', () => {
   const fixture = routingFixture(), actions = [];
   const props = pipelineProps({ ...fixture, onEditOutput: id => actions.push(id), onManageOutputs: () => actions.push('manage') });
-  const tree = Pipeline(props);
-  const routing = elements(tree).find(element => element.props.outputs === fixture.outputs && element.props.onEditOutput === props.onEditOutput);
-  assert.ok(routing);
+
   // The route-summary component is pure; inspect its actual button callbacks without mounting a browser.
-  const summary = routing.type(routing.props);
+  const summary = Routing(props);
   const edits = elements(summary).filter(element => element.props['data-testid'] === 'edit-output-bindings');
   assert.equal(edits.length, fixture.outputs.length);
   assert.deepEqual(actions, []);
   edits[0].props.onClick(); edits[2].props.onClick();
   assert.deepEqual(actions, ['Ready OSC', 'Unavailable MIDI']);
   for (const patch of [{ online: false }, { busy: true }]) {
-    const html = render(Pipeline, { ...props, ...patch });
+    const html = render(Routing, { ...props, ...patch });
     const buttons = [...html.matchAll(/<button\b[^>]*data-testid="edit-output-bindings"[^>]*>/g)];
     assert.equal(buttons.length, fixture.outputs.length);
     assert.ok(buttons.every(button => button[0].includes('disabled=""')));
@@ -356,7 +354,7 @@ test('routing resolves names from the saved graph and keeps disabled outputs dis
   const config = savedConfiguration(); config.computedSignals[0].name = 'Persisted blend';
   const output = config.outputs[0];
   const draftGraph = buildComputedDrafts(config.computedSignals); draftGraph[0].name = 'Unsubmitted renamed graph';
-  const html = render(Pipeline, pipelineProps({ config, outputs: [output], computedDrafts: draftGraph, computedGraphDirty: true,
+  const html = render(Routing, pipelineProps({ config, outputs: [output], computedDrafts: draftGraph, computedGraphDirty: true,
     overview: { outputs: [{ id: output.id, connected: true, signalStatus: { status: 'Connected' } }] } }));
   const route = html.match(/<article[^>]*data-output-id="bound-output"[\s\S]*?<\/article>/)?.[0];
   assert.ok(route);

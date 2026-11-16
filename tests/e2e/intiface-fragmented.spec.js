@@ -14,6 +14,7 @@ test('large UTF-8 Intiface capabilities remain configurable and drive the select
     expect((await rig.overview()).runtime.inputActive).toBe(false);
     expect(rig.wire.intiface.some(message => message.OutputCmd)).toBe(false);
 
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     const output = card(page, 'Mock Intiface');
     await output.locator('summary').filter({ hasText: await text(page, '设备扫描') }).click();
     await output.getByRole('button', { name: await text(page, '开始扫描'), exact: true }).click();

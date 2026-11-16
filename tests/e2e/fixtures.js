@@ -105,9 +105,16 @@ export async function text(page, zh) {
 }
 export const card = (page, name) => page.locator('.output-card').filter({ has: page.getByRole('heading', { name, exact: true }) });
 export async function workspace(page, name) {
-  await page.getByRole('tablist', { name: await text(page, '主导航'), exact: true }).getByRole('tab', { name: await text(page, name), exact: true }).click();
+  const destination = { '控制': 'control', '输入': 'control', 'OSC': 'control', '流程': 'pipeline', '映射与变换': 'pipeline', '轴配置': 'axes', '输出': 'outputs', '设置': 'axes', '诊断': 'settings' }[name];
+  if (destination) await page.locator('#workspace-tabs-' + destination).click();
+  else await page.getByRole('tablist', { name: await text(page, '主导航'), exact: true }).getByRole('tab', { name: await text(page, name), exact: true }).click();
+  if (name === 'OSC') await page.locator('#input-tabs-osc').click();
+  if (name === '流程') await page.locator('#mapping-tabs-computations').click();
 }
 export async function oscWorkspace(page, name) {
+  if (name === '映射') {
+    await workspace(page, '映射与变换'); await page.locator('#mapping-tabs-mappings').click(); return;
+  }
   await workspace(page, 'OSC');
   await page.getByRole('tablist', { name: await text(page, 'OSC 工作区'), exact: true }).getByRole('tab', { name: await text(page, name), exact: true }).click();
 }
@@ -118,11 +125,12 @@ export async function expand(page, label) {
   return details;
 }
 export async function enable(page, names = ['Mock UDP', 'Mock TCP', 'Mock Serial', 'Mock Intiface']) {
-  await workspace(page, '控制');
+  await workspace(page, '输出');
   for (const name of names) {
     await card(page, name).getByRole('button', { name: await text(page, '启用'), exact: true }).click();
     await expect(card(page, name).locator('.output-identity').getByText(await text(page, '已连接'), { exact: true })).toBeVisible();
   }
+  await workspace(page, '输入');
 }
 export async function waitForInputMode(page, expectedMode) {
   await expect.poll(async () => {

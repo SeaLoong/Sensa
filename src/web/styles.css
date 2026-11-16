@@ -598,7 +598,7 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .header-actions { grid-area: actions; justify-content: flex-end; }
   .workspace-sidebar { display: block; padding: 0 16px; border-right: 0; border-bottom: 1px solid var(--border); overflow: visible; }
   .workspace-sidebar__label, .workspace-sidebar__help { display: none; }
-  .workspace-nav .tabs--workspace { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .workspace-nav .tabs--workspace { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
   .tabs--workspace [role="tab"] { justify-content: center; padding: 10px 8px; border-radius: 6px 6px 0 0; }
   .tabs--workspace small { display: none; }
   .workspace-nav__icon svg { width: 18px; height: 18px; }
@@ -959,3 +959,32 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .task-tile--selected, .task-tile[aria-pressed="true"], .guided-step--active > .button { outline: 2px solid Highlight; outline-offset: -2px; }
   .task-tile:focus-visible, .guided-step > .button:focus-visible { outline: 3px solid Highlight; outline-offset: 3px; }
 }
+
+/* One configuration stage per page; the tour points at its live controls. */
+.input-workspace-layout { display: block; min-width: 0; }
+.mapping-workspace > [role="tabpanel"] { min-width: 0; }
+.mapping-workspace .signal-pipeline-workspace { padding: 0; border: 0; box-shadow: none; }
+.guided-tour { position: fixed; inset: 0; z-index: 1000; pointer-events: none; }
+.guided-tour__shade { position: absolute; background: rgb(9 16 31 / 68%); pointer-events: auto; }
+.guided-tour__target { position: absolute; border: 2px solid var(--td-brand-color); border-radius: 10px; box-shadow: 0 0 0 3px rgb(255 255 255 / 75%); }
+.guided-tour__card { position: absolute; pointer-events: auto; overflow: auto; overscroll-behavior: contain; background: var(--surface); border-radius: 14px; box-shadow: 0 12px 48px rgb(0 0 0 / 30%); }
+.guided-tour__card .onboarding-panel { padding: 18px; gap: 12px; border: 0; }
+.guided-tour__card .workspace-header { gap: 8px; }
+.guided-tour__card .workspace-header__title { font-size: 18px; }
+.guided-tour__card .guided-steps { display: flex; gap: 4px; flex-wrap: wrap; }
+.guided-tour__card .guided-step { flex: 1 1 26%; }
+.guided-tour__card .guided-step > .button { font-size: 12px; padding: 6px; min-height: 32px; }
+.guided-tour__card .guided-step > .button span { display: none; }
+.guided-tour__card .onboarding-panel__body h3 { font-size: 16px; }
+.guided-tour__card .onboarding-panel__body p { font-size: 13px; }
+.guided-tour__emergency { display: flex; justify-content: flex-end; padding: 0 18px 12px; }
+.preset-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.preset-card { display: flex; flex-direction: column; align-items: flex-start; text-align: start; white-space: normal; padding: 16px; gap: 8px; }
+.preset-card[aria-pressed="true"] { border-color: var(--td-brand-color); background: var(--td-brand-color-light); }
+@media (max-width: 600px) {
+  .workspace-nav .tabs--workspace [role="tab"] { padding: 8px 3px; font-size: 12px; }
+  .guided-tour__card .onboarding-panel { padding: 12px; }
+}
+@media (forced-colors: active) { .guided-tour__target { border-color: Highlight; } .guided-tour__card { border: 2px solid CanvasText; } }
+
+.guided-tour__emergency { position: sticky; bottom: 0; padding-top: 8px; background: var(--surface); border-top: 1px solid var(--border); }
