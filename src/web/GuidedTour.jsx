@@ -17,7 +17,8 @@ export default function GuidedTour({ step, goal, suspended, onDismiss, emergency
     const update = () => {
       frame = 0;
       target = step === 'device' ? document.querySelector('.outputs-section .output-card') || document.querySelector(selector) : selector ? document.querySelector(selector) : null;
-      if (target?.tagName === 'DETAILS') target.open = true;
+      const disclosure = target?.closest('details');
+      if (disclosure) disclosure.open = true;
       if (target && !scrolled) {
         target.scrollIntoView({ block: 'center', behavior: 'instant' });
         scrolled = true;

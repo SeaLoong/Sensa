@@ -21,11 +21,18 @@ test('guide highlights the selected source controls and each separate configurat
   assert.equal(tourTarget('input', 'manual'), '.manual-primary');
   assert.equal(tourTarget('input', 'script'), '.script-player__header');
   assert.equal(tourTarget('mapping', 'osc'), '.preset-strip');
-  for (const goal of ['manual', 'script', 'protocol']) assert.equal(tourTarget('mapping', goal), '.transform-presets');
+  for (const goal of ['manual', 'script', 'protocol']) assert.equal(tourTarget('mapping', goal), '.transform-presets .preset-card:first-child');
   assert.match(tourTarget('axes'), /axis-profiles/);
   assert.match(tourTarget('device'), /outputs-section/);
   assert.equal(tourTarget('ready'), '.header-actions');
   assert.equal(tourTarget('goal'), null);
+});
+
+test('a tall target cannot squeeze the guide into a header and footer without readable instructions', () => {
+  const { card } = tourLayout({ left: 32, top: 240, right: 342, bottom: 620 },
+    { width: 390, height: 844 }, { width: 380, height: 420 });
+  assert.ok(card.maxHeight >= 320);
+  assert.ok(card.top + card.maxHeight <= 844);
 });
 
 test('every transform preset creates an independent valid draft and preserves existing configuration', () => {

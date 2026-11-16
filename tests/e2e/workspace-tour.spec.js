@@ -20,6 +20,11 @@ async function captureSpotlight(page, info, selector, name) {
     return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
   });
   expect(hit, 'Next is visible and clickable without scrolling the guide').toBe(true);
+  const targetHit = await target.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+  });
+  expect(targetHit, 'The guide leaves the highlighted control reachable').toBe(true);
   await info.attach(name, { body: await page.screenshot(), contentType: 'image/png' });
 }
 
@@ -67,7 +72,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
         await expect(page.locator('.transform-presets')).toHaveAttribute('open', '');
-        await captureSpotlight(page, info, '.transform-presets', 'spotlight-mapping-' + locale);
+        await captureSpotlight(page, info, '.transform-presets .preset-card:first-child', 'spotlight-mapping-' + locale);
         await page.getByTestId('onboarding-next').click();
         await expect(page.locator('#workspace-tabs-axes')).toHaveAttribute('aria-selected', 'true');
         await captureSpotlight(page, info, '.axis-profiles-section > .section__header', 'spotlight-axes-' + locale);

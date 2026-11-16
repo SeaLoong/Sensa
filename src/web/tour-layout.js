@@ -17,13 +17,16 @@ export function tourLayout(rect, viewport, card = { width: 360, height: 320 }) {
   else if (left >= width + gap * 2) { x = left - width - gap; y = Math.max(gap, Math.min(top, viewport.height - height - gap)); }
   else if (below >= height || below >= above) { y = bottom + gap; maxHeight = Math.max(0, below); }
   else { maxHeight = Math.max(0, above); y = Math.max(gap, top - Math.min(height, maxHeight) - gap); }
-  if (maxHeight < 160) { maxHeight = Math.min(300, viewport.height * 0.42); y = viewport.height - maxHeight - gap; }
+  const readableHeight = Math.min(height, 320, viewport.height - gap * 2);
+  if (maxHeight < readableHeight) { maxHeight = readableHeight; y = viewport.height - maxHeight - gap; }
   return { target, card: { left: x, top: y, width, maxHeight } };
 }
 
 export function tourTarget(step, goal) {
   if (step === 'input') return { manual: '.manual-primary', script: '.script-player__header', osc: '.osc-receiver-settings', protocol: '[data-testid="protocol-inputs-panel"]' }[goal] || '.input-toolbar';
-  if (step === 'mapping') return goal === 'osc' ? '.preset-strip' : '.transform-presets';
+  // Focus one actionable example: the full expanded grid is taller than the
+  // space shared by the target and its instructions on a narrow screen.
+  if (step === 'mapping') return goal === 'osc' ? '.preset-strip' : '.transform-presets .preset-card:first-child';
   return { input: '.input-toolbar', axes: '.axis-profiles-section > .section__header',
     device: '.outputs-section > .section__header', ready: '.header-actions' }[step] || null;
 }
