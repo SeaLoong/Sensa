@@ -146,7 +146,7 @@ test('OSC scalar steps, literal FT prefix filtering, parameter preview and gate 
   await checkpoint(page, page.locator('.table-scroll'), 'osc-parameters');
   await rig.send([['CI/Active',0]]);
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
-  await workspace(page, '控制'); await checkpoint(page, page.locator('.input-section'), 'osc-gate-stopped');
+  await workspace(page, '控制'); await checkpointViewport(page, 'osc-gate-stopped');
 });
 
 test('PB calibration replaces the previous gate, opts in explicitly and persists', { tag: ['@osc','@config','@visual'] }, async ({ page, rig }) => {

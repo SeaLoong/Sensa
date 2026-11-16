@@ -9,7 +9,7 @@
 
 **Control OSR and other interactive devices from VRChat/SPS, funscripts or manual sliders.**
 
-Sensa turns VRChat contact parameters into device movement or vibration. You can also play a `.funscript` or move a slider to control a device yourself. The first-run guide helps you choose a goal, connect a device and prepare your input.
+Sensa turns VRChat contact parameters into device movement or vibration. You can also play a `.funscript` or move a slider to control a device yourself. Input, Mapping & transforms, Axis profiles and Outputs have separate pages. The step-by-step guide highlights real controls and dims the rest of the page; scene presets prepare editable mappings, transforms and device profiles.
 
 ## Build the flow you need
 

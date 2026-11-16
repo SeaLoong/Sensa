@@ -10,9 +10,9 @@ Drive an OSR or another interactive device from VRChat/SPS, funscripts or manual
 
 **Start setup guide** takes you through **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step highlights real controls and dims the rest of the page. Opening an editor suspends the guide until you close it. Save your progress and return with **Resume setup**, or reopen it through **Guided setup**. After **Finish tour**, turn on **Input enabled** when ready.
 
-**Scene presets** prepares common VRChat/SPS mapping drafts and TCode axis profiles. Review a mapping draft and **Save changes** before use. For a device-motion preset, review and save the new axis profile, then select it on the output. Choose ranges that match your actual device. A [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) can reuse saved configuration, including inputs and outputs.
+**Scene presets** groups VRChat/SPS mappings, common transforms and device axis profiles. Smoothing, blending, threshold switching and slow oscillation load editable drafts. Review a mapping draft and **Save changes** before use. For a device-motion preset, review and save the new axis profile, then select it on the output. Choose ranges that match your actual device. A [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) can reuse saved configuration, including inputs and outputs.
 
-[First-run steps](quick-start.en.md) · [Mapping templates](presets.en.md) · [Workbench map](guide.en.md)
+[First-run steps](quick-start.en.md) · [Scene presets](presets.en.md) · [Workbench map](guide.en.md)
 
 ## Choose an edition
 
