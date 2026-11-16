@@ -102,4 +102,43 @@ for (const locale of ['zh-CN', 'en-US']) {
           target, highlight, navigationMutations: 0, draftSurvivedNavigation: true, inputActive: (await rig.overview()).runtime.inputActive }), contentType: 'application/json' });
       });
   });
+
+  test.describe('Repair unfinished setup ' + locale, () => {
+    test.use({ locale, scenario: 'first-run' });
+    test('review offers direct repair steps without changing runtime state',
+      { tag: ['@onboarding', '@config', '@i18n'] }, async ({ page, rig }, info) => {
+        const before = await page.request.get(rig.baseUrl + '/api/config').then(response => response.json());
+        const mutations = rig.commands.filter(command => command.method !== 'GET').length;
+        await page.getByTestId('onboarding-start').click();
+        await page.getByTestId('onboarding-goal-script').click();
+        const review = async () => {
+          await page.locator('.onboarding-jump > summary').click();
+          await page.getByTestId('onboarding-step-ready').click();
+          await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'ready');
+        };
+        await review();
+        for (const id of ['onboarding-review-input', 'onboarding-review-device', 'onboarding-complete']) {
+          const control = page.getByTestId(id);
+          await expect(control).toBeVisible();
+          expect(await control.evaluate(element => {
+            const rect = element.getBoundingClientRect();
+            return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+          }), id + ' is reachable without scrolling').toBe(true);
+        }
+        await info.attach('spotlight-review-missing-' + locale, { body: await page.screenshot(), contentType: 'image/png' });
+        await page.getByTestId('onboarding-review-input').focus();
+        await page.keyboard.press('Enter');
+        await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'input');
+        await expect(page.locator('#input-tabs-script')).toHaveAttribute('aria-selected', 'true');
+        await review();
+        await page.getByTestId('onboarding-review-device').click();
+        await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'device');
+        await expect(page.locator('#workspace-tabs-outputs')).toHaveAttribute('aria-selected', 'true');
+        await review(); await page.getByTestId('onboarding-complete').click();
+        await expect(page.getByTestId('guided-tour')).toHaveCount(0);
+        await expect(page.getByRole('switch', { name: await text(page, '输入启用'), exact: true })).not.toBeChecked();
+        expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(mutations);
+        expect(await page.request.get(rig.baseUrl + '/api/config').then(response => response.json())).toEqual(before);
+      });
+  });
 }
