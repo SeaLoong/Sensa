@@ -98,14 +98,14 @@ for (const locale of ['zh-CN', 'en-US']) {
           await step(page, 'goal');
           await expect(page.getByTestId('onboarding-next')).toBeDisabled();
           await page.getByTestId('onboarding-goal-manual').click();
-          await page.getByTestId('onboarding-step-input').click();
+          await jumpToStep(page, 'input');
           await step(page, 'input');
           await expect(page.getByTestId('tour-highlight')).toBeVisible();
-          await page.getByTestId('onboarding-step-device').click();
+          await jumpToStep(page, 'device');
           await step(page, 'device');
-          await page.getByTestId('onboarding-step-ready').click();
+          await jumpToStep(page, 'ready');
           await expect(page.getByTestId('onboarding-complete')).toBeEnabled();
-          await page.getByTestId('onboarding-step-device').click();
+          await jumpToStep(page, 'device');
           await page.getByTestId('onboarding-connect-device').click();
           await expect(page.getByTestId('output-type')).toBeFocused();
           await unchanged(page, rig, initial);
@@ -130,12 +130,12 @@ for (const locale of ['zh-CN', 'en-US']) {
           await card(page, deviceName).getByRole('button', { name: await text(page, '启用'), exact: true }).click();
           await expect(card(page, deviceName).locator('.output-identity')).toContainText(await text(page, '已连接'));
           const connected = await passiveSnapshot(page, rig);
-          await page.getByTestId('onboarding-step-input').click();
+          await jumpToStep(page, 'input');
           await step(page, 'input');
           await page.getByTestId('onboarding-prepare-input').click();
           await expect(page.locator('#input-tabs-manual')).toBeFocused();
           await expect(page.getByTestId('onboarding-apply-input')).toHaveCount(0);
-          await page.getByTestId('onboarding-step-ready').click();
+          await jumpToStep(page, 'ready');
           await step(page, 'ready');
           await expect(page.getByTestId('onboarding-complete')).toBeEnabled();
           await unchanged(page, rig, connected);
@@ -163,9 +163,9 @@ for (const locale of ['zh-CN', 'en-US']) {
         const initial = await passiveSnapshot(page, rig);
         await page.getByTestId('onboarding-start').click();
         for (const goal of ['osc', 'script', 'manual', 'protocol']) {
-          await page.getByTestId('onboarding-step-goal').click();
+          await jumpToStep(page, 'goal');
           await page.getByTestId('onboarding-goal-' + goal).click();
-          await page.getByTestId('onboarding-step-input').click();
+          await jumpToStep(page, 'input');
           await page.getByTestId('onboarding-prepare-input').click();
           if (goal === 'osc') {
             await expect(page.locator('#workspace-tabs-control')).toHaveAttribute('aria-selected', 'true');
@@ -176,12 +176,12 @@ for (const locale of ['zh-CN', 'en-US']) {
           } else await expect(page.locator('#input-tabs-' + goal)).toBeFocused();
           expect((await rig.overview()).input.mode).toBe('manual');
           await unchanged(page, rig, initial);
-          await page.getByTestId('onboarding-step-ready').click();
+          await jumpToStep(page, 'ready');
           await expect(page.getByTestId('onboarding-complete')).toBeEnabled();
         }
-        await page.getByTestId('onboarding-step-goal').click();
+        await jumpToStep(page, 'goal');
         await page.getByTestId('onboarding-goal-script').click();
-        await page.getByTestId('onboarding-step-input').click();
+        await jumpToStep(page, 'input');
         await page.getByTestId('onboarding-prepare-input').click();
         await expect(page.getByTestId('onboarding-apply-input')).toBeEnabled();
         await unchanged(page, rig, initial);
@@ -311,4 +311,9 @@ for (const locale of ['zh-CN', 'en-US']) {
           inputActive: (await rig.overview()).runtime.inputActive });
       });
   });
+}
+
+async function jumpToStep(page, step) {
+  await page.locator('.onboarding-jump > summary').click();
+  await page.getByTestId('onboarding-step-' + step).click();
 }

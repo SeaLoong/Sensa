@@ -1,5 +1,5 @@
 import React from 'react';
-import { Badge, Button, TaskTile, WorkspaceHeader } from './ui.tsx';
+import { Badge, Button, TaskTile } from './ui.tsx';
 import { ONBOARDING_STEPS, onboardingScenes } from './onboarding.js';
 import { t } from './i18n.js';
 
@@ -15,14 +15,10 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
   const canFinish = availableOutputs > 0 && inputPrepared;
   return <section className="onboarding-panel" data-testid="onboarding-panel" aria-label={t('设备设置向导')} tabIndex={-1}>
     <div className="onboarding-panel__content">
-    <WorkspaceHeader title={t('设备设置向导')} eyebrow={t('第 {0} 步，共 {1} 步', [current + 1, ONBOARDING_STEPS.length])}
-      actions={<Button variant="text" data-testid="onboarding-skip" onClick={() => onChange({ type: 'dismiss' })}>{t('保存进度，稍后继续')}</Button>} />
-    <ol className="guided-steps" aria-label={t('首次设置步骤')}>
-      {ONBOARDING_STEPS.map((step, index) => <li key={step} className={`guided-step${index === current ? ' guided-step--active' : index < current ? ' guided-step--completed' : ''}`}>
-        <Button data-testid={`onboarding-step-${step}`} aria-current={step === activeStep ? 'step' : undefined}
-          disabled={index > 0 && !scene} onClick={() => go(step)}><span>{index + 1}</span>{labels[index]}</Button>
-      </li>)}
-    </ol>
+    <header className="onboarding-panel__header">
+      <span className="muted">{t('第 {0} 步，共 {1} 步', [current + 1, ONBOARDING_STEPS.length])}</span>
+      <Button variant="text" data-testid="onboarding-skip" onClick={() => onChange({ type: 'dismiss' })}>{t('保存并退出')}</Button>
+    </header>
     <div className="onboarding-panel__body">
       {activeStep === 'goal' && <div className="task-tiles">
         {scenes.map(item => <TaskTile key={item.id} title={item.title} description={item.description} selected={state.goal === item.id}
@@ -63,6 +59,15 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
         <p>{inputActive ? t('输入已启用，继续通过顶部开关控制。') : t('检查高亮的输入启用开关。完成引导不会启用输入，准备好后由你打开。')}</p>
       </div>}
     </div>
+    <details key={activeStep} className="onboarding-jump">
+      <summary>{t('跳转步骤')}</summary>
+    <ol className="guided-steps" aria-label={t('首次设置步骤')}>
+      {ONBOARDING_STEPS.map((step, index) => <li key={step} className={`guided-step${index === current ? ' guided-step--active' : index < current ? ' guided-step--completed' : ''}`}>
+        <Button data-testid={`onboarding-step-${step}`} aria-current={step === activeStep ? 'step' : undefined}
+          disabled={index > 0 && !scene} onClick={() => go(step)}><span>{index + 1}</span>{labels[index]}</Button>
+      </li>)}
+    </ol>
+    </details>
     </div>
     <footer className="onboarding-panel__footer actions">
       {current > 0 && <Button data-testid="onboarding-back" onClick={() => go(ONBOARDING_STEPS[current - 1])}>{t('上一步')}</Button>}

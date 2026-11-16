@@ -14,7 +14,7 @@ Current Desktop/CLI builds are also available in [development previews](https://
 
 Click **Start setup guide**. Choose the scene you want, such as **VRChat / SPS control**, **Play a funscript** or **Manual device control**, then continue. WebSensa shows the scenes supported by the browser host.
 
-The guide stays available as **Guided setup**. **Save progress, continue later** keeps your place; **Resume setup** returns to it. Scene shortcuts open the relevant controls directly.
+The guide stays available as **Guided setup**. **Save and exit** keeps your place; **Resume setup** returns to it. Scene shortcuts open the relevant controls directly.
 
 ![Manual controls in Sensa](screenshots/desktop/english-manual.png)
 
@@ -22,7 +22,7 @@ The guide stays available as **Guided setup**. **Save progress, continue later**
 
 ## 2. Prepare input in the highlighted controls
 
-The guide follows **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step opens the relevant page, highlights real controls and dims the rest. You can interact with the highlighted controls. Longer instructions scroll separately, keeping **Back / Next** and emergency stop available. Opening an editor suspends the guide; closing it resumes the guide. Press **Escape** to save progress and leave.
+The guide follows **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step opens the relevant page, highlights real controls and dims the rest. You can interact with the highlighted controls. Use **Jump to step** to reveal the step list. Longer instructions scroll separately, keeping **Back / Next** and emergency stop available. Opening an editor suspends the guide; closing it resumes the guide. Press **Escape** to save progress and leave.
 
 Prepare your source in **Input**. Opening a tab does not apply its input mode:
 

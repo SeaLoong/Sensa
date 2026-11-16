@@ -28,6 +28,8 @@ for (const locale of ['zh-CN', 'en-US']) {
     setLocale(locale);
     const html = render(Onboarding, { ...defaultProps, state: { ...defaultProps.state, step: 'device' } });
     assert.match(html, /data-testid="onboarding-panel"[^>]*tabindex="-1"/);
+    assert.match(html, /<details className="onboarding-jump">|<details class="onboarding-jump">/);
+    assert.ok(html.indexOf('onboarding-panel__body') < html.indexOf('onboarding-jump'));
     assert.equal((html.match(/data-testid="onboarding-step-/g) || []).length, 6);
     assert.match(html, /data-testid="onboarding-step-device" aria-current="step"/);
     assert.doesNotMatch(html.match(/<button[^>]*data-testid="onboarding-next"[^>]*>/)?.[0], /disabled=/);

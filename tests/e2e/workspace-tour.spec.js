@@ -7,6 +7,13 @@ async function captureSpotlight(page, info, selector, name) {
     return Boolean(source && focus && Math.abs(focus.x - Math.max(4, source.x - 6)) < 1
       && Math.abs(focus.y - Math.max(4, source.y - 6)) < 1 && focus.width >= Math.min(source.width, page.viewportSize().width - 8));
   }).toBe(true);
+  const body = page.locator('.onboarding-panel__body');
+  const bodyVisible = await body.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    const scroller = element.closest('.onboarding-panel__content').getBoundingClientRect();
+    return Math.min(rect.bottom, scroller.bottom) - Math.max(rect.top, scroller.top);
+  });
+  expect(bodyVisible, 'Current step instructions have readable space without opening navigation').toBeGreaterThan(70);
   const next = page.getByTestId('onboarding-next');
   const hit = await next.evaluate(element => {
     const rect = element.getBoundingClientRect();
@@ -53,7 +60,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
         await captureSpotlight(page, info, '.preset-strip', 'spotlight-mapping-' + locale);
-        await page.getByTestId('onboarding-step-axes').click();
+        await page.getByTestId('onboarding-next').click();
         await expect(page.locator('#workspace-tabs-axes')).toHaveAttribute('aria-selected', 'true');
         await captureSpotlight(page, info, '.axis-profiles-section > .section__header', 'spotlight-axes-' + locale);
         await page.getByTestId('onboarding-panel').getByRole('button', { name: await text(page, '选择设备动作预设'), exact: true }).click();
@@ -61,6 +68,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.getByTestId('guided-tour')).toHaveCount(0);
         await page.getByRole('dialog', { name: await text(page, '场景预设'), exact: true }).getByRole('button', { name: await text(page, '关闭预设'), exact: true }).click();
         await expect(page.getByTestId('guided-tour')).toBeVisible();
+        await page.locator('.onboarding-jump > summary').click();
         await page.getByTestId('onboarding-step-ready').click();
         await page.getByTestId('onboarding-complete').click();
         await expect(page.getByRole('switch', { name: await text(page, '输入启用'), exact: true })).not.toBeChecked();

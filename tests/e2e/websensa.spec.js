@@ -70,15 +70,15 @@ for (const locale of ['zh-CN', 'en-US']) {
       await expect(page.getByTestId('onboarding-goal-protocol')).toHaveCount(0);
       await page.getByTestId('onboarding-goal-manual').click();
       await page.getByTestId('onboarding-next').click();
-      await page.getByTestId('onboarding-step-ready').click();
+      await jumpToStep(page, 'ready');
       await expect(page.getByTestId('onboarding-complete')).toBeEnabled();
-      await page.getByTestId('onboarding-step-device').click();
+      await jumpToStep(page, 'device');
       await page.getByTestId('onboarding-skip').click();
       expect(await page.evaluate(() => localStorage.getItem('sensa.web.configuration.v1'))).toBe(original);
       await page.reload();
       await page.getByTestId('onboarding-resume').click();
       await expect(page.getByTestId('onboarding-step-device')).toHaveAttribute('aria-current', 'step');
-      await page.getByTestId('onboarding-step-input').click();
+      await jumpToStep(page, 'input');
       await page.getByTestId('onboarding-prepare-input').click();
       await expect(page.locator('#input-tabs-manual')).toBeFocused();
       await expect(page.getByTestId('onboarding-apply-input')).toHaveCount(0);
@@ -286,3 +286,8 @@ test('@site @input WebSensa receives explicitly paired explorer frames without a
   await info.attach('websensa-explorer-lifecycle.json', { body: JSON.stringify({ origin: new URL(base).origin, explicitPairing: true, automaticActivation: false, expiryStopped: true, explicitStop: true }), contentType: 'application/json' });
   await popup.close();
 });
+
+async function jumpToStep(page, step) {
+  await page.locator('.onboarding-jump > summary').click();
+  await page.getByTestId('onboarding-step-' + step).click();
+}

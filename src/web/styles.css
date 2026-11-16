@@ -848,6 +848,10 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
 .guided-step--active > .button > span { border-color: var(--accent); color: #fff; background: var(--accent); }
 .guided-step--completed > .button > span { border-color: var(--success-text); color: var(--success-text); background: var(--td-success-color-light); }
 .onboarding-invitation .guided-step { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.onboarding-panel__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.onboarding-panel__header .muted { font-size: 12px; }
+.onboarding-jump > summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.onboarding-jump .guided-steps { margin-top: 8px; }
 .onboarding-panel__body { min-width: 0; padding-top: 4px; }
 .onboarding-panel__body > .stack { gap: 12px; }
 .onboarding-panel__body p { max-width: 76ch; overflow-wrap: anywhere; }

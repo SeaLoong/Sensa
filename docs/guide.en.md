@@ -14,7 +14,7 @@ Use this map to find a control. [Guides](start.en.md) helps you choose a task; [
 
 ## Guided setup and scene presets
 
-**Start setup guide** follows six steps: **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step opens its page, highlights the actual controls and dims the rest. You can operate the highlighted controls directly. Opening an editor pauses the tour until you close it. **Escape** or **Save progress, continue later** keeps your place. The emergency stop remains available in the tour. **Finish tour** records completion without enabling input or changing the configuration.
+**Start setup guide** follows six steps: **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step opens its page, highlights the actual controls and dims the rest. You can operate the highlighted controls directly. Opening an editor pauses the tour until you close it. **Escape** or **Save and exit** keeps your place. The emergency stop remains available in the tour. **Finish tour** records completion without enabling input or changing the configuration.
 
 **Scene presets** has three groups: **VRChat / OSC mappings**, **Transforms**, and **Device axis profiles**. Cards explain their purpose before you load an editable draft. Mapping presets include combined SPS depth/vibration; transform presets include manual smoothing, manual/script mixing, a threshold switch and a slow wave. Load and review a preset, then save explicitly. TCode outputs select their saved axis profile separately.
 

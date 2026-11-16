@@ -4,7 +4,7 @@
 
 [打开 WebSensa](https://sealoong.github.io/Sensa/websensa/)，通过滑条或 `.funscript` 控制 OSR／TCode 设备，或通过 Intiface 连接其他互动设备。它直接在浏览器运行，无需安装 Sensa。使用实时 **VRChat／SPS／OGB** 时，请按[桌面版首次使用](quick-start.md)操作。
 
-通过**开始设置向导**选择手动控制或 funscript 播放，再跟随设备连接、输入准备与检查步骤。可以**保存进度，稍后继续**，之后通过**继续设置**返回。[完整首次使用步骤](quick-start.md)
+通过**开始设置向导**选择手动控制或 funscript 播放，再跟随设备连接、输入准备与检查步骤。可以**保存并退出**，之后通过**继续设置**返回。[完整首次使用步骤](quick-start.md)
 
 网站或播放器联动 OSR 时，使用 **Sensa 桌面版**的[协议输入](protocol-inputs.md)，将收到的控制转发给设备。[比较设备连接](devices.md)
 
