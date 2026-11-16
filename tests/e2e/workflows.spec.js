@@ -94,6 +94,7 @@ test.describe('vibration-only Intiface peer / 纯振动 Intiface 模拟端', () 
     await expect(output).not.toBeVisible();
     await expect.poll(selectedAxis).toBe('L0');
     expect((await rig.overview()).runtime.inputActive).toBe(false);
+    await workspace(page, '输入');
     await page.getByRole('spinbutton', { name: 'L0 主轴数值', exact: true }).fill('500');
     await page.getByRole('button', { name: '发送一次', exact: true }).click();
     await expect(page.getByText(await text(page, '手动目标已更新'), { exact: true })).toBeVisible();

@@ -200,6 +200,7 @@ test('@site @transport WebSensa sends manual fanout and scripts to actual indepe
   await manualMotion(page, 'L0', 810);
   await expect.poll(() => commands.some(item => item.type === 'http' && item.value.values?.L0 === .81)).toBe(true);
   const downloadEvent = page.waitForEvent('download');
+  await page.locator('#workspace-tabs-outputs').click();
   await page.getByRole('button', { name: 'Stop recording and export', exact: true }).click();
   const download = await downloadEvent;
   expect(download.suggestedFilename()).toMatch(/\.funscript$/);
@@ -246,6 +247,7 @@ test('@site @transport WebSensa multiplexes two Intiface devices through one act
   await expect.poll(() => commands.some(item => item.command === 'ScalarCmd' && item.body.DeviceIndex === 1 && item.body.Scalars[0].Scalar === .38)).toBe(true);
   await inputActivation(page).uncheck();
   await expect.poll(() => new Set(commands.filter(item => item.command === 'StopDeviceCmd').map(item => item.body.DeviceIndex)).size).toBe(2);
+  await page.locator('#workspace-tabs-outputs').click();
   await position.getByRole('button', { name: 'Remove', exact: true }).click();
   await expect(page.locator('.output-card')).toHaveCount(1);
   await expect(vibration.locator('.output-identity').getByText('Connected', { exact: true })).toBeVisible();

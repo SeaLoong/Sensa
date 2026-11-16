@@ -18,6 +18,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.getByTestId('onboarding-goal-manual').click(); await page.getByTestId('onboarding-next').click();
         await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'input');
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
+        await info.attach('spotlight-input-' + locale, { body: await page.screenshot(), contentType: 'image/png' });
         const target = await page.locator('.manual-primary').boundingBox();
         const highlight = await page.getByTestId('tour-highlight').boundingBox();
         expect(highlight.x).toBeLessThanOrEqual(target.x); expect(highlight.y).toBeLessThanOrEqual(target.y);
@@ -31,8 +32,10 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.getByTestId('onboarding-step-mapping').click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
+        await info.attach('spotlight-mapping-' + locale, { body: await page.screenshot(), contentType: 'image/png' });
         await page.getByTestId('onboarding-step-axes').click();
         await expect(page.locator('#workspace-tabs-axes')).toHaveAttribute('aria-selected', 'true');
+        await info.attach('spotlight-axes-' + locale, { body: await page.screenshot(), contentType: 'image/png' });
         await page.getByTestId('onboarding-panel').getByRole('button', { name: await text(page, '选择设备动作预设'), exact: true }).click();
         await expect(page.getByTestId('scene-presets-dialog')).toBeVisible();
         await expect(page.getByTestId('guided-tour')).toHaveCount(0);

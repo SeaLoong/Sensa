@@ -3,6 +3,7 @@ import { createUiQualityReport, inspectBasicTargets, inspectFocusIndicator, insp
 
 const auditStates = [
   'control-manual-expanded',
+  'outputs-recording-expanded',
   'output-settings-dialog',
   'intiface-settings-dialog',
   'control-script-loaded',
@@ -75,9 +76,10 @@ for (const locale of ['zh-CN', 'en-US']) {
       try {
         await expand(page, await label(page, '更多动作轴'));
         await expand(page, await label(page, '发送设置'));
+        await report.audit('control-manual-expanded');
         await page.locator('#workspace-tabs-outputs').click();
         await expand(page, await label(page, '录制 L0 目标'));
-        await report.audit('control-manual-expanded');
+        await report.audit('outputs-recording-expanded');
 
         if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
         await card(page, 'Mock UDP').getByRole('button', { name: await label(page, '配置'), exact: true }).click();
@@ -95,6 +97,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await report.audit('intiface-settings-dialog');
         await intiface.getByRole('button', { name: await label(page, '取消'), exact: true }).click();
 
+        await workspace(page, '输入');
         await page.getByRole('tablist', { name: await label(page, '输入方式'), exact: true })
           .getByRole('tab', { name: await label(page, '脚本'), exact: true }).click();
         await page.locator('input[type=file]').setInputFiles({
@@ -144,6 +147,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.locator('#logs-panel')).toBeVisible();
         await report.audit('settings-logs-expanded');
 
+        await workspace(page, '轴配置');
         await page.getByRole('button', { name: await label(page, '修改配置'), exact: true }).click();
         const profile = page.getByRole('dialog', { name: await label(page, '轴配置'), exact: true });
         await expect(profile).toBeVisible();
@@ -170,7 +174,6 @@ for (const locale of ['zh-CN', 'en-US']) {
         const layout = info.project.name === 'desktop' ? 'columns' : 'stacked';
         await report.check('workspace-navigation-layout / 工作区导航与正文布局', () => inspectWorkspaceShell(page));
         await report.check('manual-alignment / 主轴对齐', () => inspectManualAlignment(page, layout));
-        await report.check('output-row-alignment / 输出对应列', () => inspectOutputAlignment(page, 'stacked'));
         await report.check('skip-link-focus-and-target / 跳过导航的焦点与目标', async () => {
           const skip = page.getByRole('link', { name: await label(page, '跳到主要内容'), exact: true });
           await page.keyboard.press('Tab');
@@ -210,6 +213,10 @@ for (const locale of ['zh-CN', 'en-US']) {
 
         await expand(page, await label(page, '更多动作轴'));
         await report.check('manual-more-axes-alignment / 更多动作轴对齐', () => inspectMoreAxesAlignment(page, layout));
+
+        await workspace(page, '输出');
+        await report.check('output-row-alignment / 输出对应列', () => inspectOutputAlignment(page, layout));
+        await workspace(page, '输入');
 
         await report.check('tabs-keyboard-and-control-boundary / 页签键盘与控制边界', async () => {
           const before = await rig.overview();

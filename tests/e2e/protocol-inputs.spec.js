@@ -120,7 +120,7 @@ for (const locale of ['zh-CN', 'en-US']) {
 
     test('vendor API configuration retains private options and keeps output disabled / 厂商API配置保留私有选项且输出保持关闭',
       { tag: ['@config', '@i18n'] }, async ({ page, rig }) => {
-        await workspace(page, '控制');
+        await workspace(page, '输出');
         await page.getByRole('combobox', { name: await text(page, '输出类型'), exact: true }).selectOption('Handy');
         await page.getByRole('button', { name: await text(page, '添加输出'), exact: true }).click();
         if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
@@ -317,6 +317,7 @@ for (const action of ['emergency', 'stop']) {
     { tag: ['@config', '@input', '@transport'] }, async ({ page, rig }, info) => {
       const fixture = await handyApiFixture();
       try {
+        await workspace(page, '输出');
         await page.getByRole('combobox', { name: await text(page, '输出类型'), exact: true }).selectOption('Handy');
         await page.getByRole('button', { name: await text(page, '添加输出'), exact: true }).click();
         if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();

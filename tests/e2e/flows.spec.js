@@ -59,6 +59,7 @@ test('manual controls reach every transport, record, stop and never auto-resume'
   expect(activeScript.actions.length).toBeGreaterThan(0);
   await expect.poll(async () => (await rig.overview()).recording.isActive).toBe(false);
 
+  await workspace(page, '输入');
   const continuous = page.getByRole('checkbox', { name: '连续发送', exact: true });
   await continuous.check();
   const manualStopCount = rig.intifaceState.stopCount;
@@ -197,7 +198,7 @@ test.describe('modern OGB SPS', () => {
     await rig.send([[root,.77],[tip,.96]]); await outputValue(rig, 'udp', 400);
     await rig.send([[root,.89],[tip,1]]); await outputValue(rig, 'udp', 480);
     if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
-    await workspace(page, '控制'); await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'sps-depth');
+    await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'sps-depth');
     await rig.send([[root,1-Math.hypot(.12,.06)+.01]]); await outputValue(rig, 'udp', 466); await active(page, false);
   });
 });
