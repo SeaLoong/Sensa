@@ -40,13 +40,12 @@ for (const locale of ['zh-CN', 'en-US']) {
           expect((await rig.overview()).input.mode).toBe('manual');
 
           await chooser.getByTestId('setup-task-osc').click();
-          await expect(page.locator('#workspace-tabs-osc')).toHaveAttribute('aria-selected', 'true');
-          await expect(page.locator('#osc-tabs-setup')).toHaveAttribute('aria-selected', 'true');
-          await expect(page.locator('.preset-strip')).toBeInViewport();
-          expect(await page.locator('.preset-strip').evaluate(region => region.contains(document.activeElement))).toBe(true);
+          await expect(page.locator('#workspace-tabs-control')).toHaveAttribute('aria-selected', 'true');
+          await expect(page.locator('#input-tabs-osc')).toHaveAttribute('aria-selected', 'true');
+          await expect(page.locator('#input-tabs-osc')).toBeFocused();
           await workspace(page, '控制');
           await chooser.getByTestId('setup-task-protocol').click();
-          await expect(page.locator('#workspace-tabs-settings')).toHaveAttribute('aria-selected', 'true');
+          await expect(page.locator('#workspace-tabs-control')).toHaveAttribute('aria-selected', 'true');
           const protocol = page.getByTestId('protocol-inputs-panel');
           await expect(protocol).toBeInViewport();
           expect(await protocol.evaluate(region => region.contains(document.activeElement))).toBe(true);
@@ -57,6 +56,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           await expect(page.getByRole('slider', { name: await text(page, 'L0 主轴'), exact: true })).toBeVisible();
           await chooser.getByTestId('setup-connect-device').click();
           await expect(page.getByTestId('output-type')).toBeFocused();
+          if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
           await expect(page.getByTestId('add-output')).toBeInViewport();
           await unchanged(page, rig, config, mutations);
           await info.attach('first-run-task-navigation.json', { body: JSON.stringify({ locale,
@@ -76,8 +76,9 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.getByRole('button', { name: await text(page, '应用输入方式'), exact: true })).toBeVisible();
         expect((await rig.overview()).input.mode).toBe('manual');
         await requireSceneLaunchpad(page);
-        await page.getByTestId('setup-connect-device').click();
-        await expect(page.getByTestId('output-type')).toBeFocused();
+        await workspace(page, '输出');
+        await expect(page.locator('#workspace-tabs-outputs')).toBeFocused();
+        if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
         await expect(card(page, 'Mock UDP').getByRole('button', { name: await text(page, '启用'), exact: true })).toBeEnabled();
         await unchanged(page, rig, config, mutations);
         await info.attach('scene-shortcut-navigation.json', { body: JSON.stringify({ locale, keyboardActivated: true,

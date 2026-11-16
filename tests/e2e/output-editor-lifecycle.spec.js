@@ -56,7 +56,7 @@ test('delayed output saves preserve edits, reopened drafts and another output ed
   { tag: ['@config', '@quality'] }, async ({ page, rig }, info) => {
     const responses = await holdCommandResponses(page), evidence = [];
     try {
-      await workspace(page, '控制');
+      await workspace(page, '输出');
       for (const action of ['edit-current', 'reopen-same', 'open-other']) {
         const submittedName = `Saved UDP ${action}`, draftName = `Unsaved draft ${action}`;
         await page.locator('[data-output-id="udp"]').getByRole('button', { name: await text(page, '配置'), exact: true }).click();
@@ -99,7 +99,7 @@ test('Intiface scanning follows connection and pending command state / Intiface 
   { tag: ['@config', '@transport', '@quality'] }, async ({ page, rig }, info) => {
     const responses = await holdCommandResponses(page);
     try {
-      await workspace(page, '控制');
+      await workspace(page, '输出');
       const output = page.locator('[data-output-id="intiface"]');
       await output.locator('summary').filter({ hasText: await text(page, '设备扫描') }).click();
       const start = output.getByRole('button', { name: await text(page, '开始扫描'), exact: true });
@@ -109,6 +109,8 @@ test('Intiface scanning follows connection and pending command state / Intiface 
       expect(rig.wire.intiface.some(message => message.StartScanning || message.StopScanning)).toBe(false);
 
       await enable(page, ['Mock Intiface']);
+      await workspace(page, '输出');
+      await output.locator('summary').filter({ hasText: await text(page, '设备扫描') }).click();
       await expect(start).toBeEnabled();
       await expect(stop).toBeEnabled();
       for (const scan of [

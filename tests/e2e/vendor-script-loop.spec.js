@@ -46,7 +46,7 @@ for (const [kind, apiVersion] of [['Handy', 2], ['Handy', 3], ['Autoblow', 2], [
               axis: kind === 'VacuGlide' ? 'V0' : 'L0', scriptUrl: 'https://example.com/fixture.csv' } },
         ] } });
         expect(saved.ok(), await saved.text()).toBe(true);
-        await page.reload(); await workspace(page, '控制'); await enable(page, ['Loop fixture']);
+        await page.reload(); await workspace(page, '控制'); await enable(page, ['Loop fixture']); await workspace(page, '输出');
         const controls = page.locator('.output-card[data-output-id="loop-device"]').getByTestId('vendor-script-controls');
         await controls.locator('summary').click();
         const loop = controls.getByRole('checkbox', { name: await text(page, '循环播放同步脚本'), exact: true });

@@ -18,7 +18,7 @@ flowchart LR
 
 ## Establish a small complete flow
 
-1. In **Settings → Protocol inputs**, add **Buttplug / Intiface**. Use host `127.0.0.1`, port `12400`, path `/` and a Position feature on `L0`.
+1. In **Input → Protocol**, add **Buttplug / Intiface**. Use host `127.0.0.1`, port `12400`, path `/` and a Position feature on `L0`.
 2. Save and enable its listener.
 3. Add a TCode output for OSR, choose its serial port/axis profile, save and connect.
 4. In the website/player, enter `ws://127.0.0.1:12400` as the Intiface address and select the Sensa device.

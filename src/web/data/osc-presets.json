@@ -24,6 +24,23 @@
     ]
   },
   {
+    "id": "ogb-depth-touch",
+    "name": "OGB / SPS · 深度与振动",
+    "description": "深度控制 L0，Touch / Frot 控制 V0。按设备能力保留需要的轴，并分别校准。",
+    "mappings": [
+      {
+        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers",
+        "sourceMode": "OgbDepth",
+        "role": "Depth"
+      },
+      {
+        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others",
+        "role": "V0",
+        "sourceMode": "OgbTouch"
+      }
+    ]
+  },
+  {
     "id": "contact-position",
     "name": "Contact · 位置（SDK Beta）",
     "description": "专用 Contact 直接定位：将 Root 换成实际对象，选择位置轴并校准两个端点，单位为米。",

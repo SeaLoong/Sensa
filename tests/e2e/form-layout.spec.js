@@ -34,8 +34,9 @@ for (const locale of ['zh-CN', 'en-US']) {
 
     test('endpoint fields stay aligned and long drafts save or cancel through visible actions / 连接字段对齐且长草稿可保存或取消',
       { tag: ['@config', '@quality'] }, async ({ page, rig }, info) => {
-        await workspace(page, '控制');
+        await workspace(page, '输出');
         const before = (await configuration(page, rig)).outputs.find(output => output.id === 'udp');
+        if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
         const trigger = card(page, 'Mock UDP').getByRole('button', { name: await text(page, '配置'), exact: true });
         await trigger.click();
         const dialog = page.getByRole('dialog', { name: await text(page, '输出设置'), exact: true });
@@ -77,6 +78,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect.poll(async () => (await configuration(page, rig)).outputs.find(output => output.id === 'udp')?.name).toBe(longName);
         const saved = (await configuration(page, rig)).outputs.find(output => output.id === 'udp');
         expect(saved).toMatchObject({ name: longName, host: '127.0.0.2', port: 24681, enabled: false });
+        if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
         const output = card(page, longName), identity = await rectangle(output.locator('.output-identity'));
         const heading = output.getByRole('heading', { name: longName, exact: true });
         const headingText = await heading.evaluate(element => {
@@ -91,8 +93,9 @@ for (const locale of ['zh-CN', 'en-US']) {
 
     test('long dialogs scroll content while header, footer and keyboard actions stay accessible / 长弹窗滚动正文且标题操作与键盘可达',
       { tag: ['@config', '@quality'] }, async ({ page, rig }, info) => {
-        await workspace(page, '控制');
+        await workspace(page, '输出');
         const before = (await configuration(page, rig)).outputs.find(output => output.id === 'intiface');
+        if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
         await card(page, 'Mock Intiface').getByRole('button', { name: await text(page, '配置'), exact: true }).click();
         const dialog = page.getByRole('dialog', { name: await text(page, '输出设置'), exact: true });
         const mappings = dialog.getByTestId('intiface-feature-mappings');

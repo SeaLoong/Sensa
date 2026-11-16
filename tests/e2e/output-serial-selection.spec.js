@@ -86,7 +86,9 @@ async function installMockSerial(page, { authorized = ['first', 'chosen'], defer
 async function newSerialOutput(page) {
   await openWorkbench(page, base + '/Sensa/websensa/?lang=en');
   await controlWorkspace(page);
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await page.getByTestId('output-type').selectOption('TCodeSerial');
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await page.getByTestId('add-output').click();
   const dialog = page.getByRole('dialog', { name: 'Output settings', exact: true });
   await expect(dialog).toBeVisible();
@@ -109,6 +111,7 @@ test('WebSensa serial picker saves and writes to the chosen non-first port / 串
     await dialog.getByLabel('Name', { exact: true }).fill('Chosen serial target');
     await dialog.getByRole('button', { name: 'Save output', exact: true }).click();
     await expect(dialog).not.toBeVisible();
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     const card = page.locator('.output-card').filter({ has: page.getByRole('heading', { name: 'Chosen serial target', exact: true }) });
     await expect(card.getByTestId('serial-target')).toContainText(chosenId);
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('sensa.web.configuration.v1')).outputs);
@@ -140,6 +143,7 @@ test('a pending browser serial picker cannot change a reopened draft for the sam
     await expect.poll(() => page.evaluate(() => typeof globalThis.websensaSerialFixture.completeSelection)).toBe('function');
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(dialog).not.toBeVisible();
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     await page.locator('.output-card').getByRole('button', { name: 'Configure', exact: true }).click();
     await expect(dialog).toBeVisible();
     await dialog.getByLabel('Name', { exact: true }).fill('Fresh serial draft');

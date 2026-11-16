@@ -109,7 +109,8 @@ import { controlReadiness, outputRoutingScope } from './control-workflow.js';
 import OscParameterReference from './OscParameterReference.jsx';
 import OutputBindings, { OutputSignalStatus, RecordingReplayControls } from './OutputBindings.jsx';
 import AxisMappingsPanel from './AxisMappingsPanel.jsx';
-import SignalPipelineWorkspace from './SignalPipelineWorkspace.jsx';
+import SignalPipelineWorkspace, { OutputRoutingSummary } from './SignalPipelineWorkspace.jsx';
+import SignalPlanPanel from './SignalPlanPanel.jsx';
 import SignalDraftToolbar from './SignalDraftToolbar.jsx';
 import { pruneComputedView } from './ComputedSignalsPanel.jsx';
 import { isSignalOutputType } from './signal-outputs.js';
@@ -123,7 +124,9 @@ import { intifaceFeatureErrors } from './intiface-feature-routing.js';
 import GettingStarted from './GettingStarted.jsx';
 import ManualControls from './ManualControls.jsx';
 import Onboarding from './Onboarding.jsx';
+import GuidedTour from './GuidedTour.jsx';
 import ScenePresets from './ScenePresets.jsx';
+import { createTransformPreset } from './transform-presets.js';
 import { guideInputPrepared, loadOnboarding, onboardingReducer, onboardingScenes, saveOnboarding } from './onboarding.js';
 
 const EMPTY_OSC_CATALOG = Object.freeze([]);
@@ -171,7 +174,7 @@ function buildInitialAppState(snapshot) {
 
 // Rendering and drafts are shared; the injected client owns the host connection.
 /** @param {import('./workbench-props.ts').WorkbenchProps} props */
-export default function Workbench({ client: realtime, platform = {}, initialSnapshot }) {
+export default function Workbench({ client: realtime, platform = {}, initialSnapshot, initialWorkspace = 'control' }) {
   useEffect(() => realtime.kind === 'remote' ? attachPagePresence() : undefined, [realtime]);
   const apiRequest = (path, options) => realtime.request(path, options);
   const locale = React.useSyncExternalStore(subscribeLocale, getLocale, getLocale);
@@ -207,8 +210,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const [pinnedPaths, setPinnedPaths] = useState(() => readPinnedPaths());
   const [parameterDetail, setParameterDetail] = useState(null);
   const [oscPreviewSearch, setOscPreviewSearch] = useState('');
-  const [workspace, setWorkspace] = useState('control');
-  const [oscWorkspaceTab, setOscWorkspaceTab] = useState('setup');
+  const [workspace, setWorkspace] = useState(initialWorkspace);
+  const [mappingTab, setMappingTab] = useState('mappings');
+  const [oscWorkspaceTab, setOscWorkspaceTab] = useState('parameters');
   const [newOutputType, setNewOutputType] = useState(platform.outputTypes?.[0] || 'TCodeSerial');
   const [helpOpen, setHelpOpen] = useState(false);
   const [previewSourceTab, setPreviewSourceTab] = useState('all');
@@ -656,7 +660,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
         }),
       ),
     );
-    setOscWorkspaceTab('setup');
+    setWorkspace('pipeline'); setMappingTab('mappings');
     notify(t('已替换映射草稿；实验空间输入需单独允许。'), 'info');
   }
 
@@ -698,7 +702,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   function usePointRig(point, calibrated = null) {
     setSelectedOscPreset('');
-    setOscWorkspaceTab('setup');
+    setWorkspace('pipeline'); setMappingTab('mappings');
     setSignalDrafts([
       makeSignalDraft(
         calibrated || {
@@ -1649,7 +1653,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const oscSources = Array.isArray(overview?.osc?.sources) ? overview.osc.sources : EMPTY_OSC_CATALOG;
   const selectedOscSourceKey = overview?.osc?.selectedSourceKey || '';
   const hasMultipleOscSources = oscSources.length > 1;
-  const catalogVisibility = oscCatalogVisibility(workspace, oscWorkspaceTab, Boolean(presetDialog));
+  const catalogVisibility = oscCatalogVisibility(workspace === 'control' && selectedInputTab === 'osc' ? 'osc' : workspace, oscWorkspaceTab, Boolean(presetDialog));
   const parameterBrowserVisible = catalogVisibility.parameterBrowserVisible;
   const mappingEditorVisible = catalogVisibility.mappingEditorVisible || workspace === 'pipeline' || Boolean(dialog);
   const mappingPreviewEntries = useMemo(() => mappingEditorVisible
@@ -1803,7 +1807,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   function changeGuide(action) {
     setOnboarding(previous => onboardingReducer(previous, action));
-    if (action.type === 'step') setNavigationTarget('[data-testid="onboarding-panel"]');
+
     if (action.type === 'dismiss') setNavigationTarget(workspace === 'control' ? '[data-testid="onboarding-resume"]' : '[data-testid="workspace-start-guide"]');
     if (action.type === 'complete') {
       const goal = onboardingScenes(platform).some(scene => scene.id === onboarding.goal) ? onboarding.goal : actualInputMode;
@@ -1818,13 +1822,22 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     setScenePresets(previous => ({ ...previous, open: false }));
     setWorkspace('control');
     setOnboarding(previous => onboardingReducer(previous, { type: 'start' }));
-    setNavigationTarget('[data-testid="onboarding-panel"]');
+
   }
+
+  useEffect(() => {
+    if (onboarding.status !== 'active') return;
+    if (onboarding.step === 'input') navigateWorkflow(onboarding.goal === 'protocol' ? 'protocol-settings' : onboarding.goal || 'manual');
+    if (onboarding.step === 'mapping') navigateWorkflow(onboarding.goal === 'osc' ? 'osc-mappings' : 'pipeline');
+    if (onboarding.step === 'axes') { setWorkspace('axes'); setNavigationTarget('.axis-profiles-section'); }
+    if (onboarding.step === 'device') navigateWorkflow('outputs');
+    if (onboarding.step === 'ready' || onboarding.step === 'goal') setWorkspace('control');
+  }, [onboarding.status, onboarding.step, onboarding.goal]);
 
   function openScenePresets(group = 'osc') {
     setHelpOpen(false);
     const supportsOsc = platform.supportsListeners !== false && (!platform.inputModes || platform.inputModes.includes('osc'));
-    setScenePresets({ open: true, group: supportsOsc ? group : 'profile' });
+    setScenePresets({ open: true, group: group === 'osc' && !supportsOsc ? 'profile' : group });
     if (!selectedOscPreset) setSelectedOscPreset(getOscMappingPresets(config)[0]?.id || '');
   }
 
@@ -1836,7 +1849,17 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   function useSceneOscPreset(mode) {
     applyOscPreset(mode);
     setScenePresets(previous => ({ ...previous, open: false }));
-    navigateWorkflow('osc');
+    navigateWorkflow('osc-mappings');
+  }
+
+  function useTransformPreset(id) {
+    const draft = createTransformPreset(id, computedDrafts);
+    if (!draft) { notify(t('计算信号已达到数量上限。'), 'warning'); return; }
+    setComputedDrafts(previous => [...previous, draft]);
+    setComputedView({ selectedId: draft.id, expandedIds: [draft.id] });
+    setScenePresets(previous => ({ ...previous, open: false }));
+    navigateWorkflow('pipeline');
+    notify(t('已载入计算草稿，检查来源后保存。'), 'info');
   }
 
   function reviewSceneAxisPreset(presetId) {
@@ -1851,24 +1874,28 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   function navigateWorkflow(destination) {
     setHelpOpen(false);
-    if (['manual', 'script'].includes(destination)) {
+    if (['manual', 'script', 'osc', 'combined'].includes(destination)) {
       setWorkspace('control');
       selectInputTab(destination);
       setNavigationTarget(`#input-tabs-${destination}`);
     } else if (destination === 'protocol-settings') {
-      setWorkspace('settings');
+      setWorkspace('control');
+      selectInputTab('protocol');
       setNavigationTarget('[data-testid="protocol-inputs-panel"]');
+    } else if (destination === 'osc-mappings') {
+      setWorkspace('pipeline'); setMappingTab('mappings');
+      setNavigationTarget('.preset-strip');
     } else if (destination === 'pipeline') {
-      setWorkspace('pipeline');
+      setWorkspace('pipeline'); setMappingTab('computations');
       setNavigationTarget(computedView.expandedIds.includes(computedView.selectedId)
         && computedDrafts.some(signal => signal.id === computedView.selectedId)
         ? `[data-signal-id="${computedView.selectedId}"] summary` : '.computed-signals');
     } else if (destination === 'outputs' || destination === 'recording') {
-      setWorkspace('control');
+      setWorkspace('outputs');
       setNavigationTarget(destination === 'recording' ? '.recording-panel' : '.outputs-section');
     } else {
-      setWorkspace('osc');
-      setOscWorkspaceTab(['osc-diagnostics', 'sensa-sps'].includes(destination) ? 'experimental' : 'setup');
+      setWorkspace('control'); selectInputTab('osc');
+      setOscWorkspaceTab(['osc-diagnostics', 'sensa-sps'].includes(destination) ? 'experimental' : 'parameters');
       if (destination === 'osc') selectInputTab('osc');
       setNavigationTarget(destination === 'osc-settings' ? '.osc-receiver-settings'
         : destination === 'sensa-sps' ? '#sensa-spatial-root' : destination === 'osc-diagnostics' ? '#osc-tabs-experimental' : '.preset-strip');
@@ -1887,7 +1914,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     target?.focus({ preventScroll: true });
     (region.classList.contains('recording-panel') ? region : region.closest('.input-section') || region).scrollIntoView({ block: 'start', behavior: 'instant' });
     setNavigationTarget(null);
-  }, [navigationTarget, workspace, oscWorkspaceTab, helpOpen, onboarding.status, onboarding.step]);
+  }, [navigationTarget, workspace, mappingTab, selectedInputTab, oscWorkspaceTab, helpOpen, onboarding.status, onboarding.step]);
 
   useEffect(() => {
     if (!dialog?.focusBindings) return;
@@ -2103,7 +2130,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   function renderRecording() {
     const recording = overview?.recording || {};
     return (
-      <Disclosure className="recording-panel" title={<>
+      <Disclosure className="recording-panel" defaultOpen={Boolean(recording.isActive || recording.frameCount)} title={<>
           {t('录制 L0 目标')}{' '}
           <Badge tone={recording.isActive ? 'warning' : 'default'}>
             {recording.isActive ? t('录制中') : recording.frameCount ? t('已停止') : t('待录制')}
@@ -2260,14 +2287,14 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   function mapComputedSignal(signal) {
     const draft = makeSignalDraft({ sourceMode: 'Computed', oscPath: signal.id });
     setSignalDrafts(previous => [...previous, draft]);
-    setWorkspace('osc');
-    setOscWorkspaceTab('setup');
+    setWorkspace('pipeline');
+    setMappingTab('mappings');
     setNavigationTarget('[data-mapping-draft-id="' + draft._draftId + '"]');
     notify(t('已添加计算信号的轴映射，请调整目标轴与量程后保存。'), 'info');
   }
 
   function renderMappings() {
-    return <AxisMappingsPanel toolbar={renderSignalDraftToolbar('osc')} signalDrafts={signalDrafts} computedDrafts={computedDrafts}
+    return <AxisMappingsPanel signalDrafts={signalDrafts} computedDrafts={computedDrafts}
       oscMappingPresets={oscMappingPresets} selectedOscPreset={selectedOscPreset}
       selectedOscPresetConfig={selectedOscPresetConfig} busy={Boolean(busyKey)} onSelectPreset={setSelectedOscPreset}
       onApplyPreset={applyOscPreset} onOpenPreset={openPresetDialog} onDeletePreset={deleteSelectedPreset}
@@ -2321,7 +2348,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           filterKey={JSON.stringify([oscPreviewSearch, previewSourceTab, previewCategory, showFaceTracking])}
           onTogglePinned={togglePinned}
           onInspect={entry => { clearErrorNotification(); setParameterDetail(entry); }}
-          onMap={entry => setOscWorkspaceTab(mapPreviewParameter(entry) || 'setup')} />
+          onMap={entry => { const tab = mapPreviewParameter(entry); if (tab) setOscWorkspaceTab(tab); else navigateWorkflow('osc-mappings'); }} />
       </div>
     );
   }
@@ -2522,10 +2549,11 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     );
 
   const workspaceIntroduction = {
-    control: { title: t('设备控制台'), number: '01' },
-    osc: { title: t('读懂收到的每个参数'), description: t('查看 OSC 实时数据，为需要的参数设置映射，或把定位结果转换为动作。'), number: '02' },
-    pipeline: { title: t('把输入变成需要的结果'), description: t('组合多个来源，设置计算，再将结果发送到设备、应用或录制文件。'), number: '03' },
-    settings: { title: t('调好设备，查看运行情况'), description: t('保存常用的轴范围与运动设置，通过日志了解连接、输入和输出的运行状态。'), number: '04' },
+    control: { title: t('输入'), description: t('选择信号来源，准备好后应用输入方式。'), number: '01' },
+    pipeline: { title: t('映射与变换'), description: t('先选择映射或计算，再按需展开细节。'), number: '02' },
+    axes: { title: t('轴配置'), description: t('选择设备预设，再校准行程、方向与速度。'), number: '03' },
+    outputs: { title: t('输出'), description: t('连接设备、应用或录制，选择要发送的结果。'), number: '04' },
+    settings: { title: t('诊断'), description: t('查看运行日志，排查连接和信号问题。'), number: '05' },
   }[workspace];
 
   return (
@@ -2570,10 +2598,11 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           <Tabs id="workspace-tabs" label={t('主导航')} value={workspace} onChange={setWorkspace}
             orientation={wideNavigation ? 'vertical' : 'horizontal'} variant="workspace"
             options={[
-              { value: 'control', label: t('控制'), description: t('输入与运行'), icon: <WorkspaceIcon kind="control" /> },
-              { value: 'osc', label: 'OSC', description: t('参数与映射'), icon: <WorkspaceIcon kind="osc" /> },
-              { value: 'pipeline', label: t('流程'), description: t('计算与连接'), icon: <WorkspaceIcon kind="pipeline" /> },
-              { value: 'settings', label: t('设置'), description: t('轴配置与日志'), icon: <WorkspaceIcon kind="settings" /> },
+              { value: 'control', label: t('输入'), description: t('来源与运行'), icon: <WorkspaceIcon kind="control" /> },
+              { value: 'pipeline', label: t('映射与变换'), description: t('轴映射与计算'), icon: <WorkspaceIcon kind="pipeline" /> },
+              { value: 'axes', label: t('轴配置'), description: t('行程与运动限制'), icon: <WorkspaceIcon kind="settings" /> },
+              { value: 'outputs', label: t('输出'), description: t('设备与连接'), icon: <WorkspaceIcon kind="osc" /> },
+              { value: 'settings', label: t('诊断'), description: t('运行日志'), icon: <WorkspaceIcon kind="settings" /> },
             ]} />
         </nav>
         <div className="workspace-sidebar__help"><span>{t('从想做的事情开始')}</span><a href={docUrl('docs/quick-start.md')} target="_blank" rel="noreferrer">{t('快速上手')} <span aria-hidden="true">↗</span></a><a href={docUrl('docs/guide.md')} target="_blank" rel="noreferrer">{t('完整使用指南')} <span aria-hidden="true">↗</span></a></div>
@@ -2586,14 +2615,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             aria-labelledby={`workspace-tabs-${workspace}`}
             className={`workspace-panel workspace-panel--${workspace}`}
           >
-            {onboarding.status === 'active' ? <Onboarding state={onboarding} platform={platform}
-              outputCount={outputs.length} availableOutputs={availableOutputCount} inputPrepared={guidePrepared}
-              actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
-              onChange={changeGuide} onNavigate={navigateWorkflow} onOpenPresets={openScenePresets}
-              onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />
-              : <header className="workspace-intro"><span className="workspace-intro__number" aria-hidden="true">{workspaceIntroduction.number}</span><div><h2>{workspaceIntroduction.title}</h2>{workspaceIntroduction.description && <p>{workspaceIntroduction.description}</p>}</div>
-                  {workspace !== 'control' && <div className="actions workspace-header__actions"><Button data-testid="workspace-open-presets" onClick={() => openScenePresets()}>{t('场景预设')}</Button><Button data-testid="workspace-start-guide" onClick={startGuide}>{t('操作引导')}</Button></div>}
-                </header>}
+            <header className="workspace-intro"><span className="workspace-intro__number" aria-hidden="true">{workspaceIntroduction.number}</span><div><h2>{workspaceIntroduction.title}</h2>{workspaceIntroduction.description && <p>{workspaceIntroduction.description}</p>}</div>
+                  {workspace !== 'control' && <div className="actions workspace-header__actions"><Button data-testid="workspace-open-presets" onClick={() => openScenePresets(workspace === 'axes' ? 'profile' : mappingTab === 'computations' ? 'transform' : 'osc')}>{t('场景预设')}</Button><Button data-testid="workspace-start-guide" onClick={startGuide}>{t('操作引导')}</Button></div>}
+                </header>
             {!online && workspace !== 'control' && (
               <Notice tone="warning" role="status">
                 {t('连接已断开。恢复连接后，请重新执行需要的操作。')}
@@ -2620,7 +2644,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                     outputStates={overview?.outputs || []} mappings={config?.signals || []}
                     mappingDirty={hasUnsavedMappings} listening={Boolean(overview?.osc?.listening)} protocolInputs={overview?.protocolInputs || []} onNavigate={navigateWorkflow} />
                 </div>
-                <div className="workbench-layout">
+                <div className="input-workspace-layout">
                 <div className="workbench-main">
                 <Section
                   title={t('输入')}
@@ -2634,7 +2658,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                       variant="segmented"
                       value={selectedInputTab}
                       onChange={selectInputTab}
-                      options={INPUT_MODES().filter(item => (!platform.inputModes || platform.inputModes.includes(item.value)) && (item.value !== 'protocol' || config?.protocolInputs?.length || selectedInputTab === 'protocol'))}
+                      options={INPUT_MODES().filter(item => !platform.inputModes || platform.inputModes.includes(item.value))}
                     />
                     {hasPendingInputMode && <Button
                       tone="primary" disabled={modeBusy || !online}
@@ -2664,54 +2688,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                         </div>
                       </div>
                     )}
-                    {selectedInputTab === 'osc' && (
-                      <div className="stack">
-                        <div className="actions">
-                          <Badge tone={overview?.osc?.listening ? 'success' : 'default'}>
-                            {overview?.osc?.listening ? t('监听中') : t('未监听')}
-                          </Badge>
-                          <span className="muted">{t('{0} 条映射', [config?.signals?.length || 0])}</span>
-                          <Button onClick={() => setWorkspace('osc')}>{t('编辑 OSC')}</Button>
-                        </div>
-                      </div>
-                    )}
-                    {selectedInputTab === 'script' && renderScriptPlayer()}
-                    {selectedInputTab === 'protocol' && (platform.supportsListeners === false ? renderBrowserInputs() : <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []}
-                      online={online} saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} />)}
-                    {selectedInputTab === 'combined' && <div className="stack" data-testid="combined-inputs">
-                      <p>{config?.protocolInputs?.length ? t('同时使用 OSC、协议、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。') : t('同时使用 OSC、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。')}</p>
-                      <div className="actions"><Badge tone={overview?.osc?.listening ? 'success' : 'default'}>{overview?.osc?.listening ? t('OSC 监听中') : t('OSC 未监听')}</Badge>
-                        <Button onClick={() => setWorkspace('pipeline')}>{t('编辑信号流程')}</Button></div>
-                      <Disclosure title={t('手动来源')}><div className="stack">
-                        <ManualControls draft={manualDraft} onChange={handleManualSliderChange}
-                          selectedAxes={platform.manualAxes ? manualAxes : undefined} />
-                        <div className="actions"><Button onClick={applyManualOnce} disabled={!online || actualInputMode !== 'combined' || Boolean(busyKey)}>{t('更新手动来源')}</Button>
-                          <Toggle label={t('连续更新')} checked={manualContinuous} onChange={setManualContinuous} disabled={!online || actualInputMode !== 'combined'} /></div>
-                        <p className="caption muted">{t('滑条的 0–999 在信号流程中转换为 0–1。')}</p>
-                      </div></Disclosure>
-                      <Disclosure title={t('脚本来源')} open={combinedScriptOpen} onToggle={event => setCombinedScriptOpen(event.currentTarget.open)}>{renderScriptPlayer()}</Disclosure>
-                      {config?.protocolInputs?.length > 0 && <Disclosure title={t('协议来源')}>
-                        <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []} online={online}
-                          saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} /></Disclosure>}
-                    </div>}
-
-                  </div>
-                  {renderRecording()}
-                </Section>
-                </div>
-                <aside className="workbench-aside" aria-label={t('设备与连接')}>
-                  <div className="device-summary" data-testid="device-summary">
-                    <strong>{onboardingScenes(platform).find(scene => scene.id === onboarding.goal)?.title || formatMode(actualInputMode)}</strong>
-                    <span>{t('可用输出 {0}/{1}', [availableOutputCount, outputs.length])}</span>
-                    <Button variant="text" data-testid={outputs.length > 0 ? 'setup-connect-device' : 'manage-output-devices'} onClick={() => navigateWorkflow('outputs')}>{t('管理设备')}</Button>
-                  </div>
-                  {renderOutputs()}
-                </aside>
-                </div>
-
-              </>
-            )}
-            {workspace === 'osc' && (
+            {selectedInputTab === 'osc' && (
               <Section
                 title="OSC"
                 actions={
@@ -2731,7 +2708,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   value={oscWorkspaceTab}
                   onChange={setOscWorkspaceTab}
                   options={[
-                    { value: 'setup', label: t('映射') },
+
                     { value: 'parameters', label: t('参数') },
                     { value: 'experimental', label: t('实验诊断') },
                   ]}
@@ -2742,7 +2719,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   aria-labelledby={`osc-tabs-${oscWorkspaceTab}`}
                   className="stack osc-workspace"
                 >
-                  {oscWorkspaceTab === 'setup' && renderMappings()}
+
                   {oscWorkspaceTab === 'parameters' && renderParameters()}
                   {oscWorkspaceTab === 'experimental' && (
                     <>
@@ -2779,29 +2756,70 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                       </details>
                     </>
                   )}
-                  {renderOscSettings()}
+                  <Button onClick={() => navigateWorkflow('osc-mappings')}>{t('前往轴映射')}</Button>{renderOscSettings()}
                 </div>
               </Section>
             )}
-            {workspace === 'pipeline' && <SignalPipelineWorkspace toolbar={renderSignalDraftToolbar('pipeline')}
+                    {selectedInputTab === 'script' && renderScriptPlayer()}
+                    {selectedInputTab === 'protocol' && (platform.supportsListeners === false ? renderBrowserInputs() : <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []}
+                      online={online} saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} />)}
+                    {selectedInputTab === 'combined' && <div className="stack" data-testid="combined-inputs">
+                      <p>{config?.protocolInputs?.length ? t('同时使用 OSC、协议、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。') : t('同时使用 OSC、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。')}</p>
+                      <div className="actions"><Badge tone={overview?.osc?.listening ? 'success' : 'default'}>{overview?.osc?.listening ? t('OSC 监听中') : t('OSC 未监听')}</Badge>
+                        <Button onClick={() => setWorkspace('pipeline')}>{t('编辑信号流程')}</Button></div>
+                      <Disclosure title={t('手动来源')}><div className="stack">
+                        <ManualControls draft={manualDraft} onChange={handleManualSliderChange}
+                          selectedAxes={platform.manualAxes ? manualAxes : undefined} />
+                        <div className="actions"><Button onClick={applyManualOnce} disabled={!online || actualInputMode !== 'combined' || Boolean(busyKey)}>{t('更新手动来源')}</Button>
+                          <Toggle label={t('连续更新')} checked={manualContinuous} onChange={setManualContinuous} disabled={!online || actualInputMode !== 'combined'} /></div>
+                        <p className="caption muted">{t('滑条的 0–999 在信号流程中转换为 0–1。')}</p>
+                      </div></Disclosure>
+                      <Disclosure title={t('脚本来源')} open={combinedScriptOpen} onToggle={event => setCombinedScriptOpen(event.currentTarget.open)}>{renderScriptPlayer()}</Disclosure>
+                      {config?.protocolInputs?.length > 0 && <Disclosure title={t('协议来源')}>
+                        <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []} online={online}
+                          saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} /></Disclosure>}
+                    </div>}
+
+                  </div>
+                </Section>
+                </div>
+
+                </div>
+
+              </>
+            )}
+            {workspace === 'pipeline' && <section className="section mapping-workspace" aria-label={t('映射与变换')}>
+              <Tabs id="mapping-tabs" label={t('映射与变换')} value={mappingTab} onChange={setMappingTab}
+                options={[{ value: 'mappings', label: t('轴映射') }, { value: 'computations', label: t('计算信号') }]} />
+              {renderSignalDraftToolbar(mappingTab === 'mappings' ? 'osc' : 'pipeline')}
+              <div id="mapping-tabs-panel" role="tabpanel" aria-labelledby={`mapping-tabs-${mappingTab}`}>
+                {mappingTab === 'mappings' && renderMappings()}
+            {mappingTab === 'computations' && <SignalPipelineWorkspace
               computedDrafts={computedDrafts} runtimeSignals={overview?.computedSignals || EMPTY_OSC_CATALOG}
               observations={overview?.poseTracking?.spsRoots || EMPTY_OSC_CATALOG} selectedSourceKey={selectedOscSourceKey}
               computedGraphDirty={computedGraphDirty} pathOptions={oscPathSuggestions} onComputedChange={setComputedDrafts}
               onMapCalculation={mapComputedSignal} computedView={computedView} onComputedViewChange={setComputedView}
-              config={config} outputs={outputs} overview={overview} outputAvailability={outputChoices.states}
-              online={online} busy={Boolean(busyKey)} onEditOutput={id => openOutputDialog(id, { focusBindings: true })}
-              onManageOutputs={() => navigateWorkflow('outputs')}
-              onSetCombinedInput={() => { setWorkspace('control'); selectInputTab('combined'); }}
-              onApplyPlan={applySignalPlan} emergencyAction={emergencyAction} />}
-            {workspace === 'settings' && (
+              onSetCombinedInput={() => { setWorkspace('control'); selectInputTab('combined'); }} />}
+              </div>
+              <SignalPlanPanel config={config} onApply={applySignalPlan} disabled={!online || Boolean(busyKey)} emergencyAction={emergencyAction} />
+            </section>}
+            {workspace === 'outputs' && <>{renderOutputs()}
+              <details className="section"><summary>{t('输出连接')}</summary>
+                <OutputRoutingSummary outputs={outputs} overview={overview} savedComputations={config?.computedSignals || []}
+                  outputAvailability={outputChoices.states} online={online} busy={Boolean(busyKey)}
+                  onEditOutput={id => openOutputDialog(id, { focusBindings: true })} onManageOutputs={() => navigateWorkflow('outputs')} />
+              </details>
+              {renderRecording()}
+            </>}
+            {workspace === 'axes' && (
               <>
-                <Section
+                <Section className="axis-profiles-section"
                   title={t('轴配置')}
                   description={t('为设备保存行程、方向和速度设置，同一套配置可供多个 TCode 输出使用。')}
                   actions={
-                    <Button onClick={openNewProfileDialog} disabled={!online}>
+                    <><Button onClick={() => openScenePresets('profile')}>{t('设备动作预设')}</Button><Button onClick={openNewProfileDialog} disabled={!online}>
                       {t('新增轴配置')}
-                    </Button>
+                    </Button></>
                   }
                 >
                   <div className="profile-list">
@@ -2830,6 +2848,10 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                     ))}
                   </div>
                 </Section>
+              </>
+            )}
+            {workspace === 'settings' && (
+              <>
                 <Section className="log-section" title={t('日志')} description={t('按级别、分类或轴筛选消息，快速找到连接和数值变化的原因。')}
                   actions={<Button variant="text" aria-expanded={logDetailsOpen} aria-controls="logs-panel" onClick={() => setLogDetailsOpen(previous => !previous)}>{t(logDetailsOpen ? '收起日志' : '查看日志')}</Button>}>
                   <div id="logs-panel" hidden={!logDetailsOpen}>
@@ -2899,15 +2921,20 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                     </div>}
                   </div>
                 </Section>
-                <Section title={t('协议输入')} description={t('接收网站、应用、虚拟串口或蓝牙协议桥的控制。')}>
-                  {platform.supportsListeners === false ? renderBrowserInputs() : <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []} online={online}
-                    saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} />}
-                </Section>
+
               </>
             )}
           </div>
         </div>
       </main>
+      {onboarding.status === 'active' && <GuidedTour step={onboarding.step} goal={onboarding.goal}
+        suspended={Boolean(dialog || profileDialog || presetDialog || scenePresets.open || helpOpen || parameterDetail || confirmClearMappings)}
+        onDismiss={() => changeGuide({ type: 'dismiss' })} emergencyAction={emergencyAction}>
+        <Onboarding state={onboarding} platform={platform} outputCount={outputs.length} availableOutputs={availableOutputCount}
+          inputPrepared={guidePrepared} actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
+          onChange={changeGuide} onNavigate={navigateWorkflow} onOpenPresets={openScenePresets}
+          onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />
+      </GuidedTour>}
       <Modal
         emergencyAction={emergencyAction}
         open={Boolean(dialog)}
@@ -3209,7 +3236,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
               onClick={() => {
                 const tab = mapPreviewParameter(visibleParameterDetail.entry);
                 setParameterDetail(null);
-                setOscWorkspaceTab(tab || 'setup');
+                if (tab === 'experimental' || tab === 'parameters') { setWorkspace('control'); selectInputTab('osc'); setOscWorkspaceTab(tab); }
+                else { setWorkspace('pipeline'); setMappingTab('mappings'); }
               }}
             >
               {t('添加映射草稿')}
@@ -3239,7 +3267,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
         supportsOsc={platform.supportsListeners !== false && (!platform.inputModes || platform.inputModes.includes('osc'))} oscPresets={oscMappingPresets}
         axisPresets={AXIS_PROFILE_PRESETS()} oscPresetId={selectedOscPreset} onOscPresetChange={setSelectedOscPreset}
         onUseOscPreset={useSceneOscPreset} onReviewAxisPreset={reviewSceneAxisPreset}
-        onClose={() => setScenePresets(previous => ({ ...previous, open: false }))}
+        onUseTransformPreset={useTransformPreset} onClose={() => setScenePresets(previous => ({ ...previous, open: false }))}
         emergencyAction={emergencyAction} error={modalError} disabled={!config || Boolean(busyKey)} />
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} onNavigate={navigateWorkflow}
         onStartGuide={startGuide} onOpenPresets={openScenePresets}

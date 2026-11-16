@@ -21,7 +21,7 @@ export default function AxisMappingsPanel({ toolbar, signalDrafts = [], computed
     </div>
     {toolbar}
     <div className="computed-signals-bridge actions">
-      <Button data-testid="edit-computations" variant="text" onClick={onOpenComputations}>{t('在流程中编辑计算信号')}</Button>
+      <Button data-testid="edit-computations" variant="text" onClick={onOpenComputations}>{t('计算信号')}</Button>
     </div>
     <details className="inline-details">
       <summary>{t('管理预设')}</summary>

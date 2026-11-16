@@ -112,9 +112,13 @@ A read-only SDK checkpoint diagnoses remaining authors after the audited Fury pr
 
 React uses native controls, dialogs and semantic labels, with local styles presenting the TDesign appearance. The header carries actual state/permission while content scrolls separately. Drafts differ from saved configuration.
 
+Input, Mapping & transforms, Axis profiles, Outputs and Diagnostics have separate workspaces. Mapping and calculation drafts survive page changes and share explicit Save/Restore. The tour navigates these pages, suspends while an editor is open and resumes afterwards; completion only records presentation progress.
+
 | File | Responsibility |
 | --- | --- |
 | [RuntimeClient](https://github.com/SeaLoong/Sensa/blob/main/src/web/runtime-client.ts) / [bootstrap.tsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/bootstrap.tsx) | Mount one workbench with a remote service client or a browser-local facade |
+| [GuidedTour.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/GuidedTour.jsx) / [tour-layout.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/tour-layout.js) | Interactive spotlight, keyboard routing and viewport placement; progress is presentation state, not device activation |
+| [transform-presets.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/transform-presets.js) | Independent editable smoothing, mixing, hysteresis and waveform drafts |
 | [configuration.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/configuration.js) | Normalize drafts, output references, conflicts and saves |
 | [input-workflows.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/input-workflows.js) | Manual/script intentions and timecodes |
 | [realtime-session.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/realtime-session.js) | Same-origin session, correlation, timeout, disconnect rejection and reconnect; await new control requests after reconnection |

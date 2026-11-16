@@ -20,7 +20,7 @@ Sources were checked on **2026-10-19** and are reviewed again when adopting late
 
 ## Current design constraints
 
-The workbench uses light-gray surroundings, single-level white surfaces, flat output/mapping rows and **24 px** major gaps. The header and independently scrolling content share edges. Main navigation sits on the left on desktop and at the top on narrow screens. OSC uses line tabs, with segmented selection for input modes. Current mode and input activation remain visible; settings expand as needed, with stop always available.
+The workbench uses light-gray surroundings, single-level white surfaces, flat output/mapping rows and **24 px** major gaps. The header and independently scrolling content share edges. Main navigation sits on the left on desktop and at the top on narrow screens. Main navigation separates Input, Mapping & transforms, Axis profiles, Outputs and Diagnostics. Workspace sections use line tabs, with segmented selection for input modes. Current mode and input activation remain visible; settings expand as needed, with stop always available.
 
 Body text and ordinary controls use **14/22 px**, captions **12/20 px**. Ordinary buttons and inputs are **36 px** tall, with **40 px** large buttons. Component radii are **8 px**, dialogs **12 px**, and the brand color **#0052d9**. Text and essential control boundaries use sufficient contrast, decorative dividers stay light, and danger colors indicate actual states needing attention. The [official theme](https://github.com/Tencent/tdesign-common/tree/d9734f64af0e863f70e7f2c839a15278ca3d6867/style/web/theme) and [office layout](https://github.com/Tencent/tdesign/blob/522dcfd95b1ec5077a4d7c3fc5ff2bd1bd6cc3d0/docs/design/offices_zh-CN.md) inform these choices, adapted to Sensa’s tasks.
 
@@ -41,7 +41,7 @@ Record pass/problem/not assessed per criterion, together with commit, language, 
 | V5 Alignment/details | Shared keylines/baselines, content-appropriate field widths, centered icons and consistent borders/padding |
 | V6 Bilingual/narrow | Stable hierarchy, natural wrapping, complete action order and wide tables scrolling within their own regions |
 
-Inspect Control, mappings, outputs, expanded settings, dialogs, long names/paths, errors/stops, empty/loading states and keyboard focus. Spatial graphics also need origins, axes, units, detection radii and drag markers. Place labels beside openings/tips and connect displaced labels to their actual points. Anchor colors stay consistent between graphics and readings. Default/reset/narrow views fit their targets; deliberate zoom may crop. Target dragging moves within the selected plane, while orbit changes the camera. Check invalid states and SVG fallback as well.
+Inspect Input, mappings and transforms, axis profiles, outputs, expanded settings, dialogs, long names/paths, errors/stops, empty/loading states and keyboard focus. Spatial graphics also need origins, axes, units, detection radii and drag markers. Place labels beside openings/tips and connect displaced labels to their actual points. Anchor colors stay consistent between graphics and readings. Default/reset/narrow views fit their targets; deliberate zoom may crop. Target dragging moves within the selected plane, while orbit changes the camera. Check invalid states and SVG fallback as well.
 
 Classify issues as blocking (main state/action obscured or misleading), major (substantial reading/hierarchy harm), or detail (local inconsistency). Retain each pending issue’s impact, cause and progress.
 

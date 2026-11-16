@@ -9,21 +9,28 @@ test('manual controls reach every transport, record, stop and never auto-resume'
   await checkpointViewport(page, 'control-page');
   await checkpoint(page, page.locator('.manual-workspace'), 'manual-ready');
   await active(page);
+  await page.locator('#workspace-tabs-outputs').click();
   await expand(page, '录制 L0 目标');
   await page.getByRole('button', { name: '开始录制', exact: true }).click();
+  if (await page.locator('#workspace-tabs-control').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-control').click();
   await page.getByRole('slider', { name: 'L0 主轴', exact: true }).press('End');
   await page.getByRole('button', { name: '发送一次', exact: true }).click();
   for (const transport of ['udp','tcp','serial']) await outputValue(rig, transport, 600);
   await expect.poll(() => rig.wire.intiface.some(m => m.OutputCmd?.Command?.HwPositionWithDuration)).toBe(true);
   await expect.poll(() => rig.wire.intiface.some(m => m.OutputCmd?.Command?.Vibrate?.Value === 0)).toBe(true);
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'manual-output');
+  if (await page.locator('#workspace-tabs-control').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-control').click();
   await page.getByRole('spinbutton', { name: 'L0 主轴数值', exact: true }).fill('500');
   await page.getByRole('button', { name: '发送一次', exact: true }).click();
   await outputValue(rig, 'udp', 500);
+  if (await page.locator('#workspace-tabs-control').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-control').click();
   await page.getByRole('slider', { name: 'L0 主轴', exact: true }).press('Home');
   await page.getByRole('button', { name: '发送一次', exact: true }).click(); await outputValue(rig, 'udp', 400);
+  await page.locator('#workspace-tabs-outputs').click();
   await page.getByRole('button', { name: '停止录制', exact: true }).click();
   const downloaded = page.waitForEvent('download');
+  await page.locator('#workspace-tabs-outputs').click();
   await page.getByRole('button', { name: '导出录制', exact: true }).click();
   const script = JSON.parse(await readFile(await (await downloaded).path(), 'utf8'));
   await test.info().attach('recorded.funscript', { body: JSON.stringify(script, null, 2), contentType: 'application/json' });
@@ -40,16 +47,19 @@ test('manual controls reach every transport, record, stop and never auto-resume'
   await rerecord.getByRole('button', { name: '重新录制', exact: true }).click();
   await expect(rerecord).not.toBeVisible();
   await expect.poll(async () => (await rig.overview()).recording).toMatchObject({ isActive: true, frameCount: 0 });
+  if (await page.locator('#workspace-tabs-control').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-control').click();
   await page.getByRole('spinbutton', { name: 'L0 主轴数值', exact: true }).fill('500');
   await page.getByRole('button', { name: '发送一次', exact: true }).click();
   await outputValue(rig, 'udp', 500);
   await expect.poll(async () => (await rig.overview()).recording.frameCount).toBeGreaterThan(0);
   const activeDownload = page.waitForEvent('download');
+  await page.locator('#workspace-tabs-outputs').click();
   await page.getByRole('button', { name: '停止录制并导出', exact: true }).click();
   const activeScript = JSON.parse(await readFile(await (await activeDownload).path(), 'utf8'));
   expect(activeScript.actions.length).toBeGreaterThan(0);
   await expect.poll(async () => (await rig.overview()).recording.isActive).toBe(false);
 
+  await workspace(page, '输入');
   const continuous = page.getByRole('checkbox', { name: '连续发送', exact: true });
   await continuous.check();
   const manualStopCount = rig.intifaceState.stopCount;
@@ -61,6 +71,7 @@ test('manual controls reach every transport, record, stop and never auto-resume'
   await expect.poll(() => rig.intifaceState.stopCount).toBeGreaterThan(manualStopCount);
   const stoppedAt = Date.now(), motionCount = rig.wire.udp.filter(line => /L0\d/.test(line)).length;
   const manualRequests = rig.commands.filter(command => command.method === 'PUT' && command.path === '/api/input/manual').length;
+  if (await page.locator('#workspace-tabs-control').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-control').click();
   await page.getByRole('spinbutton', { name: 'L0 主轴数值', exact: true }).fill('650');
   // Observe beyond the actual one-second UDP refresh interval after revoking manual input.
   // 撤销手动输入后覆盖真实的一秒 UDP 刷新周期，确认编辑和旧目标都不会续发。
@@ -83,7 +94,9 @@ test('manual controls reach every transport, record, stop and never auto-resume'
   expect(stop?.Id).toEqual(expect.any(Number));
   expect(stop.DeviceIndex).toBeUndefined(); expect(stop.FeatureIndex).toBeUndefined(); expect(stop.Outputs).not.toBe(false);
   expect(rig.intifaceState.stopped).toBe(true);
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await expect(card(page, 'Mock Intiface').getByText('已请求停止', { exact: true })).toBeVisible();
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'emergency-output');
   const count = rig.wire.udp.length;
   await page.getByRole('button', { name: '解除急停', exact: true }).click();
@@ -133,7 +146,7 @@ test('OSC scalar steps, literal FT prefix filtering, parameter preview and gate 
   await checkpoint(page, page.locator('.table-scroll'), 'osc-parameters');
   await rig.send([['CI/Active',0]]);
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
-  await workspace(page, '控制'); await checkpoint(page, page.locator('.input-section'), 'osc-gate-stopped');
+  await workspace(page, '控制'); await checkpointViewport(page, 'osc-gate-stopped');
 });
 
 test('PB calibration replaces the previous gate, opts in explicitly and persists', { tag: ['@osc','@config','@visual'] }, async ({ page, rig }) => {
@@ -163,6 +176,7 @@ test('PB calibration replaces the previous gate, opts in explicitly and persists
   await expect(page.getByRole('switch', { name: '输入启用', exact: true })).not.toBeChecked();
   await page.reload(); await expect(page.getByRole('button', { name: '帮助', exact: true })).toBeVisible();
   await mode(page, 'OSC'); await active(page); await feed.set(pointSamples(.1)); await outputValue(rig, 'udp', 500);
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'pb-midpoint');
   await feed.set(pointSamples(.1, false)); await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
 });
@@ -183,7 +197,8 @@ test.describe('modern OGB SPS', () => {
     const root = 'OGB/Orf/Test/PenOthersNewRoot', tip = 'OGB/Orf/Test/PenOthersNewTip';
     await rig.send([[root,.77],[tip,.96]]); await outputValue(rig, 'udp', 400);
     await rig.send([[root,.89],[tip,1]]); await outputValue(rig, 'udp', 480);
-    await workspace(page, '控制'); await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'sps-depth');
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
+    await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'sps-depth');
     await rig.send([[root,1-Math.hypot(.12,.06)+.01]]); await outputValue(rig, 'udp', 466); await active(page, false);
   });
 });
@@ -237,10 +252,12 @@ test('help, output editing, conflicts and profile dialog remain usable', { tag: 
   await expect(page.locator('.recording-panel > summary')).toBeFocused();
   expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(beforeBrowse);
   expect((await rig.overview()).runtime.inputActive).toBe(false);
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await card(page, 'Mock UDP').getByRole('button', { name:'配置', exact:true }).click();
   await checkpoint(page, page.getByRole('dialog'), 'udp-settings');
   await page.getByRole('textbox', { name:'名称', exact:true }).fill('Mock UDP edited');
   await page.getByRole('button', { name:'保存输出', exact:true }).click();
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await expect(card(page, 'Mock UDP edited')).toBeVisible();
   await page.getByLabel('输出类型', { exact:true }).selectOption('TCodeUdp');
   await page.getByRole('button', { name:'添加输出', exact:true }).click();
@@ -248,7 +265,9 @@ test('help, output editing, conflicts and profile dialog remain usable', { tag: 
   await expect(page.getByRole('button', { name:'保存输出', exact:true })).toBeDisabled();
   await checkpoint(page, page.getByRole('dialog'), 'output-conflict');
   await page.getByRole('button', { name:'取消', exact:true }).click();
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   const added = page.locator('.output-card').filter({ hasNotText:'Mock' }); await expect(added).toHaveCount(1);
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await added.getByRole('button', { name:'移除', exact:true }).click(); await expect(page.locator('.output-card')).toHaveCount(4);
   await workspace(page, '设置'); await checkpointViewport(page, 'settings-page');
   await page.getByRole('button', { name:'修改配置', exact:true }).click();
@@ -275,7 +294,7 @@ test('paired pose is diagnostic by default, explicit opt-in drives, missing land
   await feed.set(poseSamples().map(([path,value]) => [path,path.endsWith('/Tip/A0') ? 0 : value]));
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
   await expect.poll(async () => (await rig.overview()).runtime.poseBlocked).toBe(true);
-  await workspace(page, '控制'); await checkpoint(page, page.locator('.input-section'), 'pose-landmark-lost');
+  await workspace(page, '控制'); await checkpointViewport(page, 'pose-landmark-lost');
 });
 
 test.describe('OSCQuery and Hub', () => {
@@ -332,10 +351,12 @@ test('API session boundary and disabled input cannot command mocks', { tag:['@tr
   expect((await fetch(rig.baseUrl + '/api/config', { headers:{Cookie:session.headers.get('set-cookie').split(';')[0],Origin:'http://untrusted.invalid'} })).status).toBe(403);
   await enable(page, ['Mock UDP']);
   const before = rig.wire.udp.filter(line => /L0\d/.test(line)).length;
+  if (await page.locator('#workspace-tabs-control').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-control').click();
   await page.getByRole('slider', { name:'L0 主轴', exact:true }).press('End');
   await page.getByRole('button', { name:'发送一次', exact:true }).click();
   await expect(page.getByText(await text(page, '手动目标已更新'), { exact:true })).toBeVisible();
   expect((await rig.overview()).runtime.inputActive).toBe(false);
   expect(rig.wire.udp.filter(line => /L0\d/.test(line)).length).toBe(before);
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'disabled-input');
 });

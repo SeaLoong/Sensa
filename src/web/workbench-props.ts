@@ -2,7 +2,7 @@ import type { JsonObject, JsonValue, RuntimeClient } from './runtime-client.ts';
 import type { MotionAxis } from '../core/runtime/model.ts';
 import type { AppConfig } from '../core/runtime/model.ts';
 
-export type WorkbenchWorkspace = 'control' | 'osc' | 'pipeline' | 'settings';
+export type WorkbenchWorkspace = 'control' | 'pipeline' | 'axes' | 'outputs' | 'settings';
 export type WorkbenchInputMode = 'manual' | 'osc' | 'script' | 'protocol' | 'combined';
 /** Hosts supply capabilities; the shared renderer does not guess from their names. */
 export interface WorkbenchPlatform {
@@ -19,6 +19,7 @@ export interface WorkbenchProps {
   client: RuntimeClient;
   platform?: WorkbenchPlatform;
   initialSnapshot?: WorkbenchInitialSnapshot;
+  initialWorkspace?: WorkbenchWorkspace;
 }
 /** A host can render its already available state without a duplicate initial fetch. */
 export interface WorkbenchInitialSnapshot {

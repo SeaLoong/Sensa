@@ -74,8 +74,9 @@ test('WebSensa drives two BLE device families with independent wire sequences an
     await installMockBluetooth(page);
     await openWorkbench(page, rig.baseUrl + '/websensa/?lang=en');
     await addBluetoothOutput(page, 'lovense-single', 'Lovense CI');
-    await expect(page.getByText('Lovense CI', { exact: true })).toBeVisible();
+    await expect(page.locator('.output-card').getByRole('heading', { name: 'Lovense CI', exact: true })).toBeVisible();
     await addBluetoothOutput(page, 'youou-vx001', 'Youou CI');
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     await expect(page.locator('.output-card')).toHaveCount(2);
     // Saving another output may stop an already connected device. Preparing
     // connections must never produce a nonzero target before input is enabled.
@@ -103,6 +104,7 @@ test('WebSensa drives two BLE device families with independent wire sequences an
     expect(first.every(packet => ['Vibrate:20;', 'Vibrate:0;'].includes(new TextDecoder().decode(Uint8Array.from(packet))))).toBe(true);
     checkYouou(second);
     for (const name of ['Lovense CI', 'Youou CI']) {
+      if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
       await page.locator('.output-card').filter({ has: page.getByText(name, { exact: true }) })
         .getByRole('button', { name: 'Remove', exact: true }).click();
     }
@@ -120,16 +122,20 @@ test('WebSensa prevents competing outputs for one selected Bluetooth device / Âê
     await installMockBluetooth(page, { sameDevice: true });
     await openWorkbench(page, rig.baseUrl + '/websensa/?lang=en');
     const first = await addBluetoothOutput(page, 'youou-vx001', 'First device');
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     await expect(page.locator('.output-card')).toHaveCount(1);
     // The second configuration may be saved, but it cannot acquire an owned GATT
     // device. Verify the real connection and owner rather than deleting the draft.
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     await page.getByTestId('output-type').selectOption('Bluetooth');
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     await page.getByTestId('add-output').click();
     const dialog = page.getByRole('dialog', { name: 'Output settings', exact: true });
     await dialog.getByLabel('Name', { exact: true }).fill('Duplicate device');
     await dialog.getByLabel('Bluetooth protocol', { exact: true }).selectOption('youou-vx001');
     await dialog.getByRole('button', { name: 'Save output', exact: true }).click();
     await expect(dialog).not.toBeVisible();
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     const duplicate = page.locator('.output-card').filter({ has: page.getByRole('heading', { name: 'Duplicate device', exact: true }) });
     await duplicate.getByRole('button', { name: 'Enable', exact: true }).click();
     await expect(duplicate.getByRole('alert')).toContainText('already connected');

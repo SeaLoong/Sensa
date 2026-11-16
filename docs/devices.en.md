@@ -10,9 +10,9 @@ Sensa sends movement, vibration or other controls to a device. Choose the connec
 
 Use a **TCode** output for an OSR, SR6 or another controller that accepts TCode. Choose serial, UDP, TCP or WebSocket to match its firmware and your host. WebSensa supports browser serial and TCode WebSocket; use Desktop/CLI for native UDP or TCP.
 
-Select an **Axis profile** on the output. Check direction and travel in **Settings → Axis profiles** before moving the device. L0 is the usual main stroke; the other axes depend on the controller and device.
+Select an **Axis profile** on the output. Check direction and travel in **Axis profiles** before moving the device. L0 is the usual main stroke; the other axes depend on the controller and device.
 
-[Connect your first output](quick-start.en.md#2-add-an-output) · [Output settings and bindings](signal-pipeline.en.md#add-outputs-and-bindings)
+[Connect your first output](quick-start.en.md#4-connect-outputs-review-and-enable) · [Output settings and bindings](signal-pipeline.en.md#add-outputs-and-bindings)
 
 ## Intiface devices
 

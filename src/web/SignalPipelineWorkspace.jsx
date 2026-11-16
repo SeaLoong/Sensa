@@ -1,10 +1,9 @@
 import React from 'react';
-import { Badge, Button, Notice, Section } from './ui.tsx';
+import { Badge, Button, Notice } from './ui.tsx';
 import { buildOutputSummary, getOutputOverview } from './configuration.js';
 import { isSignalOutputType } from './signal-outputs.js';
 import { computedInputOptions } from './computed-signals.js';
 import ComputedSignalsPanel from './ComputedSignalsPanel.jsx';
-import SignalPlanPanel from './SignalPlanPanel.jsx';
 import { diagnostic, t } from './i18n.js';
 
 export function formatSavedBindingSource(binding, savedComputations = []) {
@@ -17,7 +16,7 @@ export function formatSavedBindingSource(binding, savedComputations = []) {
   return `${kind} · ${value}`;
 }
 
-function OutputRoutingSummary({ outputs, overview, savedComputations, outputAvailability, online, busy, onEditOutput, onManageOutputs }) {
+export function OutputRoutingSummary({ outputs, overview, savedComputations, outputAvailability, online, busy, onEditOutput, onManageOutputs }) {
   return <section className="flow-output-routing stack" data-testid="flow-output-routing" aria-label={t('输出连接')}>
     <div className="workspace-header"><h3>{t('输出连接')}</h3>
       <Button onClick={onManageOutputs}>{outputs.length ? t('管理输出') : t('添加输出')}</Button></div>
@@ -61,16 +60,11 @@ function OutputRoutingSummary({ outputs, overview, savedComputations, outputAvai
 
 export default function SignalPipelineWorkspace({ toolbar, computedDrafts = [], runtimeSignals = [], observations = [],
   selectedSourceKey = '', computedGraphDirty = false, pathOptions = [], onComputedChange, onMapCalculation,
-  computedView, onComputedViewChange, config, outputs = [], overview, outputAvailability, online = false, busy = false,
-  onEditOutput, onManageOutputs, onSetCombinedInput, onApplyPlan, emergencyAction }) {
-  return <Section title={t('信号流程')} description={t('选择来源、处理数值，再连接到设备、应用或录制。')}
-    className="signal-pipeline-workspace" actions={<Button onClick={onSetCombinedInput}>{t('设置组合输入')}</Button>}>
+  computedView, onComputedViewChange, onSetCombinedInput }) {
+  return <div className="signal-pipeline-workspace">
     {toolbar}
-    <ComputedSignalsPanel drafts={computedDrafts} runtimeSignals={runtimeSignals} observations={observations}
+    <ComputedSignalsPanel actions={<Button onClick={onSetCombinedInput}>{t('设置组合输入')}</Button>} drafts={computedDrafts} runtimeSignals={runtimeSignals} observations={observations}
       selectedSourceKey={selectedSourceKey} graphDirty={computedGraphDirty} pathOptions={pathOptions}
       viewState={computedView} onViewStateChange={onComputedViewChange} onChange={onComputedChange} onMap={onMapCalculation} />
-    <OutputRoutingSummary outputs={outputs} overview={overview} savedComputations={config?.computedSignals || []} outputAvailability={outputAvailability} online={online}
-      busy={busy} onEditOutput={onEditOutput} onManageOutputs={onManageOutputs} />
-    <SignalPlanPanel config={config} onApply={onApplyPlan} disabled={!online || busy} emergencyAction={emergencyAction} />
-  </Section>;
+  </div>;
 }

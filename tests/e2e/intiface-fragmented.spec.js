@@ -1,4 +1,4 @@
-import { test, expect, text, card, active, enable, expand } from './fixtures.js';
+import { test, expect, text, card, active, enable, expand, workspace } from './fixtures.js';
 
 // Uses the actual C# client and a fragmented, >2KiB loopback DeviceList. No engine/hardware.
 test('large UTF-8 Intiface capabilities remain configurable and drive the selected feature / 大型UTF8设备列表可配置并驱动所选特征',
@@ -14,6 +14,7 @@ test('large UTF-8 Intiface capabilities remain configurable and drive the select
     expect((await rig.overview()).runtime.inputActive).toBe(false);
     expect(rig.wire.intiface.some(message => message.OutputCmd)).toBe(false);
 
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     const output = card(page, 'Mock Intiface');
     await output.locator('summary').filter({ hasText: await text(page, '设备扫描') }).click();
     await output.getByRole('button', { name: await text(page, '开始扫描'), exact: true }).click();
@@ -35,6 +36,7 @@ test('large UTF-8 Intiface capabilities remain configurable and drive the select
     await expect.poll(async () => (await device())?.features.length).toBe(40);
     expect((await rig.overview()).runtime.inputActive).toBe(false);
 
+    await workspace(page, '输入');
     await active(page);
     await expand(page, await text(page, '更多动作轴'));
     await page.getByRole('spinbutton', { name: 'V0 震动数值', exact: true }).fill('400');

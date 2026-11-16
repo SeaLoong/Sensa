@@ -17,7 +17,7 @@ test.describe('computed advanced Intiface routes', () => {
       } });
       expect(response.ok(), await response.text()).toBe(true);
       await page.reload();
-      await workspace(page, '控制');
+      await workspace(page, '输出');
       const output = page.locator('.output-card[data-output-id="intiface"]');
       await output.getByRole('button', { name: await text(page, '配置'), exact: true }).click();
       const dialog = page.getByRole('dialog', { name: await text(page, '输出设置'), exact: true });

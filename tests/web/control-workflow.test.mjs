@@ -15,7 +15,7 @@ const compiled = await build({
   stdin: { contents: "export { default as GettingStarted } from './src/web/GettingStarted.jsx'; export { default as ManualControls } from './src/web/ManualControls.jsx'; export { default as Workbench } from './src/web/app.js'; export { setLocale, t } from './src/web/i18n.js';", resolveDir: root },
   bundle: true, write: false, platform: 'node', format: 'esm', jsx: 'automatic', loader: { '.js': 'jsx' },
   plugins: [{ name: 'shared-test-react', setup(builder) {
-    builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
+    builder.onResolve({ filter: /^react(?:-dom)?(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
   } }],
 });
 const { GettingStarted, ManualControls, Workbench, setLocale, t } = await import('data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64'));
@@ -204,9 +204,10 @@ test('shared workbench keeps one actual readiness status and visible errors besi
     outputs: [{ id: 'saved-device', enabled: true, connected: false, lastError: 'Device connection failed' }] };
   const html = render(Workbench, { client, initialSnapshot: { config, overview, logs: [], serialPorts: [] } });
   assert.equal((html.match(/class="control-readiness control-readiness--/g) || []).length, 1);
-  assert.ok(html.includes(t('设备控制台')));
-  for (const className of ['workbench-layout', 'workbench-main', 'workbench-aside', 'workspace-status']) assert.ok(html.includes(`class="${className}"`));
+  assert.ok(html.includes(t('输入')));
+  for (const className of ['input-workspace-layout', 'workbench-main', 'workspace-status']) assert.ok(html.includes(`class="${className}"`));
   assert.match(html, /data-testid="open-scene-presets"/);
-  assert.match(html, /<div class="output-detail"><div class="notice notice--error" role="alert">Device connection failed<\/div><\/div>/);
+  assert.doesNotMatch(html, /class="output-card"|class="profile-list"/);
+  for (const id of ["control", "pipeline", "axes", "outputs"]) assert.ok(html.includes(`id="workspace-tabs-${id}"`));
   assert.ok(html.indexOf('class="workspace-status"') < html.indexOf('class="section input-section"'));
 });

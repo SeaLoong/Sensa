@@ -17,27 +17,32 @@ test('unrelated saves preserve mapping and receiver drafts / 跨区域保存保�
   await expect(page.locator('.mapping-toolbar').getByText('未保存', { exact: true })).toBeVisible();
 
   await workspace(page, '控制');
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await card(page, 'Mock UDP').getByRole('button', { name: '配置', exact: true }).click();
   const output = page.getByRole('dialog', { name: '输出设置', exact: true });
   await output.getByRole('textbox', { name: '名称', exact: true }).fill('Workflow UDP');
   await output.getByRole('button', { name: '保存输出', exact: true }).click();
   await expect(output).not.toBeVisible();
+  if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
   await expect(card(page, 'Workflow UDP')).toBeVisible();
   await oscWorkspace(page, '映射');
   await expect(path).toHaveValue(draftPath);
   await expect(page.locator('.mapping-toolbar').getByText('未保存', { exact: true })).toBeVisible();
   expect((await savedConfiguration(page, rig)).signals[0].oscPath).toBe(initial.signals[0].oscPath);
 
+  await oscWorkspace(page, '参数');
   await expand(page, '接收与转发设置');
   const receiverPort = page.getByRole('spinbutton', { name: '监听端口', exact: true });
   const draftPort = 19094;
   await receiverPort.fill(String(draftPort));
+  await oscWorkspace(page, '映射');
   const saveMappings = page.getByRole('button', { name: await text(page, '保存更改'), exact: true });
   await saveMappings.click();
   await expect.poll(async () => (await savedConfiguration(page, rig)).signals[0].oscPath).toBe(draftPath);
   await expect(saveMappings).toBeEnabled();
   await expect(page.locator('.mapping-toolbar').getByText('未保存', { exact: true })).toHaveCount(0);
   await expect(path).toHaveValue(draftPath);
+  await oscWorkspace(page, '参数');
   await expand(page, '接收与转发设置');
   await expect(receiverPort).toHaveValue(String(draftPort));
   const saved = await savedConfiguration(page, rig);
@@ -83,6 +88,7 @@ test.describe('vibration-only Intiface peer / 纯振动 Intiface 模拟端', () 
     await active(page, false);
 
     await mode(page, '手动');
+    if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     await card(page, 'Mock Intiface').getByRole('button', { name: '配置', exact: true }).click();
     const output = page.getByRole('dialog', { name: '输出设置', exact: true });
     await output.getByLabel('振动来源', { exact: true }).selectOption('L0');
@@ -91,6 +97,7 @@ test.describe('vibration-only Intiface peer / 纯振动 Intiface 模拟端', () 
     await expect(output).not.toBeVisible();
     await expect.poll(selectedAxis).toBe('L0');
     expect((await rig.overview()).runtime.inputActive).toBe(false);
+    await workspace(page, '输入');
     await page.getByRole('spinbutton', { name: 'L0 主轴数值', exact: true }).fill('500');
     await page.getByRole('button', { name: '发送一次', exact: true }).click();
     await expect(page.getByText(await text(page, '手动目标已更新'), { exact: true })).toBeVisible();
@@ -192,7 +199,7 @@ test('OGB control sends explicit enable and final disable without activating inp
   { tag: ['@osc', '@input', '@transport', '@visual'] }, async ({ page, rig }) => {
     expect((await savedConfiguration(page, rig)).outputs.every(output => !output.enabled)).toBe(true);
     await mode(page, 'OSC');
-    await oscWorkspace(page, '映射');
+    await oscWorkspace(page, '参数');
     await expand(page, '接收与转发设置');
     await expand(page, 'OGB 参数启用');
     const settings = page.locator('.ogb-control-settings');

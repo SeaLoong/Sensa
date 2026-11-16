@@ -70,24 +70,25 @@ for (const locale of ['zh-CN', 'en-US']) {
       await expect(page.getByTestId('onboarding-goal-protocol')).toHaveCount(0);
       await page.getByTestId('onboarding-goal-manual').click();
       await page.getByTestId('onboarding-next').click();
-      await page.getByTestId('onboarding-step-ready').click();
-      await expect(page.getByTestId('onboarding-complete')).toBeDisabled();
-      await page.getByTestId('onboarding-step-device').click();
+      await jumpToStep(page, 'ready');
+      await expect(page.getByTestId('onboarding-complete')).toBeEnabled();
+      await jumpToStep(page, 'device');
       await page.getByTestId('onboarding-skip').click();
       expect(await page.evaluate(() => localStorage.getItem('sensa.web.configuration.v1'))).toBe(original);
       await page.reload();
       await page.getByTestId('onboarding-resume').click();
       await expect(page.getByTestId('onboarding-step-device')).toHaveAttribute('aria-current', 'step');
-      await page.getByTestId('onboarding-step-input').click();
+      await jumpToStep(page, 'input');
       await page.getByTestId('onboarding-prepare-input').click();
       await expect(page.locator('#input-tabs-manual')).toBeFocused();
       await expect(page.getByTestId('onboarding-apply-input')).toHaveCount(0);
       await page.getByTestId('onboarding-skip').click();
       await page.getByTestId('open-scene-presets').click();
       let library = page.getByRole('dialog', { name: label('场景预设'), exact: true });
-      await expect(library.getByRole('tab')).toHaveCount(1);
+      await expect(library.getByRole('tab')).toHaveCount(2);
+      await expect(library.locator('#scene-preset-tabs-transform')).toBeVisible();
       await expect(library.locator('#scene-preset-tabs-osc')).toHaveCount(0);
-      await library.getByTestId('scene-axis-preset').selectOption('osr-first-run');
+      await library.getByTestId('scene-axis-preset-osr-first-run').click();
       await library.getByTestId('scene-axis-review').click();
       let dialog = page.getByRole('dialog', { name: label('轴配置'), exact: true });
       await expect(dialog.getByRole('tabpanel').getByRole('spinbutton', { name: label('映射范围') + label('起点'), exact: true })).toHaveValue('400');
@@ -194,11 +195,13 @@ test('@site @transport WebSensa sends manual fanout and scripts to actual indepe
   await expect.poll(() => commands.some(item => item.type === 'tcode' && item.value === 'L0729\n')).toBe(true);
   await expect.poll(() => commands.some(item => item.type === 'json' && item.value.values?.L0 === .73)).toBe(true);
   await expect.poll(() => commands.some(item => item.type === 'http' && item.value.values?.L0 === .73)).toBe(true);
+  await page.locator('#workspace-tabs-outputs').click();
   await page.locator('.recording-panel summary').click();
   await page.getByRole('button', { name: 'Start recording', exact: true }).click();
   await manualMotion(page, 'L0', 810);
   await expect.poll(() => commands.some(item => item.type === 'http' && item.value.values?.L0 === .81)).toBe(true);
   const downloadEvent = page.waitForEvent('download');
+  await page.locator('#workspace-tabs-outputs').click();
   await page.getByRole('button', { name: 'Stop recording and export', exact: true }).click();
   const download = await downloadEvent;
   expect(download.suggestedFilename()).toMatch(/\.funscript$/);
@@ -245,6 +248,7 @@ test('@site @transport WebSensa multiplexes two Intiface devices through one act
   await expect.poll(() => commands.some(item => item.command === 'ScalarCmd' && item.body.DeviceIndex === 1 && item.body.Scalars[0].Scalar === .38)).toBe(true);
   await inputActivation(page).uncheck();
   await expect.poll(() => new Set(commands.filter(item => item.command === 'StopDeviceCmd').map(item => item.body.DeviceIndex)).size).toBe(2);
+  await page.locator('#workspace-tabs-outputs').click();
   await position.getByRole('button', { name: 'Remove', exact: true }).click();
   await expect(page.locator('.output-card')).toHaveCount(1);
   await expect(vibration.locator('.output-identity').getByText('Connected', { exact: true })).toBeVisible();
@@ -282,3 +286,9 @@ test('@site @input WebSensa receives explicitly paired explorer frames without a
   await info.attach('websensa-explorer-lifecycle.json', { body: JSON.stringify({ origin: new URL(base).origin, explicitPairing: true, automaticActivation: false, expiryStopped: true, explicitStop: true }), contentType: 'application/json' });
   await popup.close();
 });
+
+async function jumpToStep(page, step) {
+  const target = page.getByTestId('onboarding-step-' + step);
+  if (!(await target.isVisible())) await page.locator('.onboarding-jump > summary').click();
+  await target.click();
+}

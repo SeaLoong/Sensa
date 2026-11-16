@@ -504,16 +504,16 @@ for (const locale of ['zh-CN', 'en-US']) {
 }
 
 test('@site document language changes preserve the current section and discard unknown fragments', async ({ page }, info) => {
-  const zhId = '3-启用输入并检查结果', enId = '3-enable-input-and-inspect-results';
+  const zhId = '4-连接输出检查并启用', enId = '4-connect-outputs-review-and-enable';
   await page.goto(new URL('zh-CN/docs/quick-start.html#' + encodeURIComponent(zhId), base).href);
-  const chinese = page.getByRole('heading', { name: '3. 启用输入并检查结果', exact: true });
+  const chinese = page.getByRole('heading', { name: '4. 连接输出、检查并启用', exact: true });
   await expect(chinese).toHaveAttribute('id', zhId);
   await expect(chinese).toBeInViewport();
   const englishLink = page.locator('header [data-locale="en"]');
   await expect(englishLink).toHaveAttribute('href', new URL('en/docs/quick-start.html#' + enId, base).href);
   await englishLink.click();
   await expect(page).toHaveURL(new URL('en/docs/quick-start.html#' + enId, base).href);
-  const english = page.getByRole('heading', { name: '3. Enable input and inspect results', exact: true });
+  const english = page.getByRole('heading', { name: '4. Connect outputs, review and enable', exact: true });
   await expect(english).toHaveAttribute('tabindex', '-1');
   await expect(english).toBeInViewport();
   await page.locator('header [data-locale="zh-CN"]').click();

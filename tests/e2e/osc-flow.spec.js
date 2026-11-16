@@ -50,7 +50,7 @@ async function oscTabsGeometry(page) {
       tabIndex: node.tabIndex, controls: node.getAttribute('aria-controls'),
       clientWidth: node.clientWidth, scrollWidth: node.scrollWidth })) };
   });
-  expect(geometry.tabs).toHaveLength(3);
+  expect(geometry.tabs).toHaveLength(2);
   expect(geometry.tabs.filter(tab => tab.selected === 'true')).toHaveLength(1);
   expect(geometry.tabs.filter(tab => tab.tabIndex === 0)).toHaveLength(1);
   expect(geometry.container.left).toBeGreaterThanOrEqual(0);
@@ -75,29 +75,22 @@ for (const locale of ['zh-CN', 'en-US']) {
       { tag: ['@osc', '@config', '@input', '@i18n', '@osc-flow-preflight'] }, async ({ page, rig }, info) => {
         const initial = await snapshot(page, rig), viewport = page.viewportSize();
         await oscWorkspace(page, '映射');
-        const tabs = page.getByRole('tablist', { name: await text(page, 'OSC 工作区'), exact: true });
-        await expect(tabs.getByRole('tab')).toHaveText([await text(page, '映射'), await text(page, '参数'), await text(page, '实验诊断')]);
-        const map = tabs.locator('#osc-tabs-setup');
-        await expect(page.getByTestId('computed-signals-editor')).toHaveCount(0);
         const path = page.locator('.mapping-row').first().getByLabel(await text(page, '参数路径'), { exact: true });
         await path.fill('CI/UncommittedMap');
-        await map.focus();
-        const sequence = [
-          ['ArrowRight', 'parameters'], ['ArrowRight', 'experimental'], ['ArrowRight', 'setup'],
-          ['ArrowLeft', 'experimental'], ['Home', 'setup'], ['End', 'experimental'], ['Home', 'setup'],
-        ];
+        await oscWorkspace(page, '参数');
+        const tabs = page.getByRole('tablist', { name: await text(page, 'OSC 工作区'), exact: true });
+        await expect(tabs.getByRole('tab')).toHaveText([await text(page, '参数'), await text(page, '实验诊断')]);
+        const map = tabs.locator('#osc-tabs-parameters'); await map.focus();
+        const sequence = [['ArrowRight', 'experimental'], ['ArrowRight', 'parameters'], ['ArrowLeft', 'experimental'], ['Home', 'parameters'], ['End', 'experimental'], ['Home', 'parameters']];
         for (const [key, selected] of sequence) {
           await page.keyboard.press(key);
           const tab = tabs.locator('#osc-tabs-' + selected);
-          await expect(tab).toBeFocused();
-          await expect(tab).toHaveAttribute('aria-selected', 'true');
+          await expect(tab).toBeFocused(); await expect(tab).toHaveAttribute('aria-selected', 'true');
           await expect(page.locator('#osc-tabs-panel')).toHaveAttribute('aria-labelledby', 'osc-tabs-' + selected);
-          await expect(page.getByTestId('computed-signals-editor')).toHaveCount(0);
+          await expect(page.getByTestId('axis-mappings-panel')).toHaveCount(0);
           if (selected === 'parameters') await expect(page.getByRole('searchbox', { name: await text(page, '搜索参数'), exact: true })).toBeVisible();
-          else if (selected === 'experimental') await expect(page.getByRole('checkbox', { name: await text(page, '允许实验空间输入'), exact: true })).toBeVisible();
-          else await expect(page.getByTestId('axis-mappings-panel')).toBeVisible();
+          else await expect(page.getByRole('checkbox', { name: await text(page, '允许实验空间输入'), exact: true })).toBeVisible();
         }
-        await expect(path).toHaveValue('CI/UncommittedMap');
         const focus = await inspectFocusIndicator(map), geometry = [];
         try {
           for (const width of [...new Set([viewport.width, 320, 390])]) {
@@ -108,6 +101,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         } finally { await page.setViewportSize(viewport); }
         await unchanged(page, rig, initial);
 
+        await oscWorkspace(page, '映射');
         await page.getByTestId('edit-computations').click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         const editor = page.getByTestId('computed-signals-editor');
@@ -115,14 +109,14 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect.poll(() => editor.evaluate(element => element.contains(document.activeElement))).toBe(true);
         await expect(page.locator('.output-card')).toHaveCount(0);
         const routing = page.getByTestId('flow-output-routing');
-        await expect(routing.locator('[data-output-id]')).toHaveCount(initial.config.outputs.length);
+        await expect(routing).toHaveCount(0);
         await expect(routing.getByRole('button', { name: await text(page, '启用'), exact: true })).toHaveCount(0);
 
         await editor.getByRole('button', { name: await text(page, '新增计算信号'), exact: true }).click();
         const calculation = editor.getByTestId('computed-signal-card');
         await expect(calculation).toHaveCount(1);
         await calculation.getByRole('textbox', { name: await text(page, '信号名称'), exact: true }).fill('Pending blend');
-        await workspace(page, 'OSC');
+        await oscWorkspace(page, '映射');
         const toolbar = page.getByTestId('signal-draft-toolbar');
         await expect(toolbar.getByTestId('save-signal-drafts')).toBeDisabled();
         await expect(toolbar).toContainText(await text(page, '待填写'));
@@ -134,7 +128,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           await inputs.nth(index).getByRole('spinbutton', { name: await text(page, '固定数值'), exact: true }).fill(value);
         }
         await calculation.getByRole('button', { name: await text(page, '用于轴映射'), exact: true }).click();
-        await expect(page.locator('#osc-tabs-setup')).toHaveAttribute('aria-selected', 'true');
+        await expect(page.locator('#mapping-tabs-mappings')).toHaveAttribute('aria-selected', 'true');
         const mappings = page.locator('.mapping-row');
         await expect(mappings).toHaveCount(initial.config.signals.length + 1);
         await expect(mappings.last().getByRole('combobox', { name: await text(page, '计算信号'), exact: true })).toHaveValue('Signal1');
@@ -142,6 +136,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.getByTestId('computed-signals-editor')).toHaveCount(0);
         await page.getByTestId('edit-computations').click();
         await expect(calculation).toHaveJSProperty('open', true);
+        await workspace(page, '流程');
         await expect(calculation.getByRole('textbox', { name: await text(page, '信号名称'), exact: true })).toHaveValue('Pending blend');
         await expect(inputs.nth(0).getByRole('spinbutton', { name: await text(page, '固定数值'), exact: true })).toHaveValue('0.25');
         await expect(inputs.nth(1).getByRole('spinbutton', { name: await text(page, '固定数值'), exact: true })).toHaveValue('0.75');
@@ -167,6 +162,9 @@ for (const locale of ['zh-CN', 'en-US']) {
         await attachState(page, info, 'osc-flow-drafts', locale, { computedDrafts: 1,
           mappingDrafts: initial.config.signals.length + 1, savedComputations: 0, savedPlanExcludesDrafts: true });
 
+        await workspace(page, '输出');
+        await page.locator('details.section > summary').click();
+        await expect(routing.locator('[data-output-id]')).toHaveCount(initial.config.outputs.length);
         const route = routing.locator('[data-output-id="udp"]');
         await route.getByTestId('edit-output-bindings').click();
         const dialog = page.getByRole('dialog', { name: await text(page, '输出设置'), exact: true });
@@ -201,6 +199,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         expect(outputSaved.config.computedSignals).toEqual(initial.config.computedSignals);
         expect(outputSaved.config.signals).toEqual(initial.config.signals);
         expect(outputSaved.config.outputs.every(output => !output.enabled)).toBe(true);
+        await workspace(page, '流程');
         await expect(calculation.getByRole('textbox', { name: await text(page, '信号名称'), exact: true })).toHaveValue('Pending blend');
         await oscWorkspace(page, '映射');
         await expect(path).toHaveValue('CI/UncommittedMap');
@@ -211,6 +210,8 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.getByTestId('edit-computations').click();
         await expect(editor.getByTestId('computed-signal-card')).toHaveCount(0);
         await expect(toolbar.getByTestId('restore-signal-drafts')).toBeDisabled();
+        await workspace(page, '输出');
+        await page.locator('details.section > summary').click();
         await expect(routing.locator('[data-output-id="udp"]')).toContainText('Flow UDP ' + locale);
         await unchanged(page, rig, outputSaved);
         const proof = { schema: 1, sourceCommit: process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA,

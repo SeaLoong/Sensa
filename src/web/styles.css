@@ -401,6 +401,7 @@ progress::-moz-progress-bar { background: var(--accent); }
 .computed-signals { border-block: 1px solid var(--border); padding-block: 20px; }
 .computed-signals__heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .computed-signals__heading h3 { margin: 0; }
+.computed-signals__actions { margin-left: auto; }
 .computed-signal { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; }
 .computed-signal > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
 .computed-signal > summary strong { overflow-wrap: anywhere; }
@@ -598,7 +599,7 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .header-actions { grid-area: actions; justify-content: flex-end; }
   .workspace-sidebar { display: block; padding: 0 16px; border-right: 0; border-bottom: 1px solid var(--border); overflow: visible; }
   .workspace-sidebar__label, .workspace-sidebar__help { display: none; }
-  .workspace-nav .tabs--workspace { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .workspace-nav .tabs--workspace { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
   .tabs--workspace [role="tab"] { justify-content: center; padding: 10px 8px; border-radius: 6px 6px 0 0; }
   .tabs--workspace small { display: none; }
   .workspace-nav__icon svg { width: 18px; height: 18px; }
@@ -838,6 +839,7 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
 
 /* Only the active guide is expanded; its steps remain ordinary keyboard buttons. */
 .onboarding-panel { display: grid; gap: 20px; min-width: 0; padding: 20px; border: 1px solid var(--td-brand-color-focus); border-radius: 12px; background: var(--surface); }
+.onboarding-panel__content { display: grid; gap: 12px; min-width: 0; }
 .guided-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; min-width: 0; margin: 0; padding: 0; list-style: none; }
 .guided-step { min-width: 0; color: var(--muted); font-size: 13px; line-height: 20px; }
 .guided-step > .button { justify-content: flex-start; gap: 8px; width: 100%; min-height: 44px; padding: 8px 10px; border-color: var(--border); font-size: 13px; font-weight: 500; text-align: left; white-space: normal; }
@@ -846,6 +848,10 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
 .guided-step--active > .button > span { border-color: var(--accent); color: #fff; background: var(--accent); }
 .guided-step--completed > .button > span { border-color: var(--success-text); color: var(--success-text); background: var(--td-success-color-light); }
 .onboarding-invitation .guided-step { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.onboarding-panel__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.onboarding-panel__header .muted { font-size: 12px; }
+.onboarding-jump > summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.onboarding-jump .guided-steps { margin-top: 8px; }
 .onboarding-panel__body { min-width: 0; padding-top: 4px; }
 .onboarding-panel__body > .stack { gap: 12px; }
 .onboarding-panel__body p { max-width: 76ch; overflow-wrap: anywhere; }
@@ -856,37 +862,12 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
 .scene-presets__group > .button { align-self: flex-start; }
 .scene-presets__group p { max-width: 72ch; }
 
-/* Status stays above the work; the device column owns its narrow card layout. */
+/* Input status stays above the source controls. */
 .workspace-status { min-width: 0; }
 .workspace-status .control-readiness { margin-bottom: 0; padding: 12px 16px; border-radius: 10px; }
-.workbench-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; align-items: start; gap: 24px; min-width: 0; }
-.workbench-main, .workbench-aside { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.workbench-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .workbench-main { container: workbench-main / inline-size; }
-.workbench-aside { container: workbench-aside / inline-size; }
-.workbench-main > .section, .workbench-aside > .section { width: 100%; }
-.workbench-aside .section { padding: 20px; }
-.workbench-aside .section__header { align-items: flex-start; gap: 12px; }
-.workbench-aside .section__header .workspace-header__content { flex-basis: 100%; }
-.workbench-aside .section__actions { justify-content: flex-start; width: 100%; margin-left: 0; }
-.workbench-aside .section__actions .output-type-field { flex: 1 1 100%; width: 100%; }
-.workbench-aside .output-card { grid-template-columns: minmax(0, 1fr); gap: 16px; padding-block: 20px; }
-.workbench-aside .output-card:first-child { padding-top: 0; }
-.workbench-aside .output-card:last-child { padding-bottom: 0; }
-.workbench-aside .output-identity .section__header { gap: 8px; margin-bottom: 6px; }
-.workbench-aside .output-identity .section__header > div { flex-basis: auto; }
-.workbench-aside .output-actions { justify-content: flex-start; }
-.workbench-aside .output-position-axes { grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 12px; }
-.workbench-aside .output-position-axes .value-field__heading > span { min-width: 0; overflow-wrap: anywhere; }
-.workbench-aside .output-detail { padding-top: 12px; }
-.workbench-aside .output-detail .form-grid { grid-template-columns: minmax(0, 1fr); }
-.device-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; min-width: 0; padding: 16px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--muted-surface); }
-.device-summary > .actions { justify-content: space-between; }
-.device-summary > strong, .device-summary > span { grid-column: 1; min-width: 0; overflow-wrap: anywhere; }
-.device-summary > span { color: var(--muted); font-size: 12px; line-height: 20px; }
-.device-summary > .button { grid-column: 2; grid-row: 1 / span 2; justify-self: end; padding-inline: 8px; }
-.device-summary h3 { font-size: 14px; line-height: 22px; }
-.device-summary strong { color: var(--text); overflow-wrap: anywhere; }
-.device-summary p { color: var(--muted); font-size: 12px; line-height: 20px; overflow-wrap: anywhere; }
+.workbench-main > .section { width: 100%; }
 
 /* Safe narrow-column defaults precede enhancements for the actual column width. */
 .workbench-main .script-player__options-grid { grid-template-columns: minmax(0, 1fr); }
@@ -922,9 +903,6 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .workbench-main .input-toolbar .tabs--segmented { width: 100%; }
   .workbench-main .manual-extra-axes { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 1100px) {
-  .workbench-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
-}
 @media (max-width: 700px) {
   .guided-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -943,9 +921,7 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .onboarding-checklist { display: grid; gap: 4px; }
   .scene-presets { width: calc(100% - 16px); }
   .scene-presets__group { padding: 14px; }
-  .workbench-main, .workbench-aside { gap: 16px; }
-  .workbench-aside .section { padding: 16px; }
-  .device-summary { padding: 14px 16px; }
+  .workbench-main { gap: 16px; }
   .manual-primary .value-field { padding: 12px; }
 }
 @media (pointer: coarse) {
@@ -955,7 +931,34 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .axis-profile-editor .axis-profile-navigation { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (forced-colors: active) {
-  .task-tile, .guided-step > .button, .scene-launchpad, .onboarding-panel, .device-summary { border-color: CanvasText; }
+  .task-tile, .guided-step > .button, .scene-launchpad, .onboarding-panel { border-color: CanvasText; }
   .task-tile--selected, .task-tile[aria-pressed="true"], .guided-step--active > .button { outline: 2px solid Highlight; outline-offset: -2px; }
   .task-tile:focus-visible, .guided-step > .button:focus-visible { outline: 3px solid Highlight; outline-offset: 3px; }
 }
+
+/* One configuration stage per page; the tour points at its live controls. */
+.input-workspace-layout { display: block; min-width: 0; }
+.mapping-workspace > [role="tabpanel"] { min-width: 0; }
+.mapping-workspace .signal-pipeline-workspace { padding: 0; border: 0; box-shadow: none; }
+.guided-tour { position: fixed; inset: 0; z-index: 1000; pointer-events: none; }
+.guided-tour__shade { position: absolute; background: rgb(9 16 31 / 68%); pointer-events: auto; }
+.guided-tour__target { position: absolute; border: 2px solid var(--td-brand-color); border-radius: 10px; box-shadow: 0 0 0 3px rgb(255 255 255 / 75%); }
+.guided-tour__card { position: absolute; display: flex; flex-direction: column; pointer-events: auto; overflow: hidden; background: var(--surface); border-radius: 14px; box-shadow: 0 12px 48px rgb(0 0 0 / 30%); }
+.guided-tour__card .onboarding-panel { display: flex; flex-direction: column; min-height: 0; padding: 0; gap: 0; border: 0; }
+.guided-tour__card .onboarding-panel__content { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 18px; }
+.guided-tour__card .onboarding-panel__footer { flex-shrink: 0; padding: 10px 18px; }
+.guided-tour__card .guided-steps { display: flex; gap: 4px; flex-wrap: wrap; }
+.guided-tour__card .guided-step { flex: 1 1 26%; }
+.guided-tour__card .guided-step > .button { font-size: 12px; padding: 6px; min-height: 32px; }
+.guided-tour__card .guided-step > .button span { display: none; }
+.guided-tour__card .onboarding-panel__body h3 { font-size: 16px; }
+.guided-tour__card .onboarding-panel__body p { font-size: 13px; }
+.guided-tour__emergency { display: flex; flex-shrink: 0; justify-content: flex-end; padding: 8px 18px 12px; background: var(--surface); border-top: 1px solid var(--border); }
+.preset-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.preset-card { display: flex; flex-direction: column; align-items: flex-start; text-align: start; white-space: normal; padding: 16px; gap: 8px; }
+.preset-card[aria-pressed="true"] { border-color: var(--td-brand-color); background: var(--td-brand-color-light); }
+@media (max-width: 600px) {
+  .workspace-nav .tabs--workspace [role="tab"] { padding: 8px 3px; font-size: 12px; }
+  .guided-tour__card .onboarding-panel__content { padding: 12px; }
+}
+@media (forced-colors: active) { .guided-tour__target { border-color: Highlight; } .guided-tour__card { border: 2px solid CanvasText; } }

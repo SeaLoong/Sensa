@@ -27,6 +27,6 @@ Use VRChat/SPS, a funscript or manual controls to drive an OSR or another intera
 
 - [Workbench map](guide.en.md) — find controls, presets, mappings and recordings.
 - [Feature reference](features.en.md) — explore inputs, outputs, recordings and download formats.
-- [Mapping presets](presets.en.md) and [OSC parameters](osc-parameters.en.md) — understand the values used by your Avatar.
+- [Scene presets](presets.en.md) and [OSC parameters](osc-parameters.en.md) — understand the values used by your Avatar.
 - [Avatar tracking routes](usage-scenarios.en.md#vrchat-parameters-and-tracking) and [Unity package](../unity/top.sealoong.sensa/README.md) — add tracking when existing contact parameters are not enough.
 - [Development and releases](development.en.md) — build, verify or extend Sensa.

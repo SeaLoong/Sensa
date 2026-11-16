@@ -76,7 +76,7 @@ async function openPresets(page) {
 async function profilePreset(page) {
   const library = await openPresets(page);
   await library.locator('#scene-preset-tabs-profile').click();
-  await library.getByTestId('scene-axis-preset').selectOption('osr-first-run');
+  await library.getByTestId('scene-axis-preset-osr-first-run').click();
   await library.getByTestId('scene-axis-review').click();
   await expect(library).toBeHidden();
   const dialog = page.getByRole('dialog', { name: await text(page, '轴配置'), exact: true });
@@ -98,11 +98,14 @@ for (const locale of ['zh-CN', 'en-US']) {
           await step(page, 'goal');
           await expect(page.getByTestId('onboarding-next')).toBeDisabled();
           await page.getByTestId('onboarding-goal-manual').click();
-          await page.getByTestId('onboarding-next').click();
+          await jumpToStep(page, 'input');
+          await step(page, 'input');
+          await expect(page.getByTestId('tour-highlight')).toBeVisible();
+          await jumpToStep(page, 'device');
           await step(page, 'device');
-          await page.getByTestId('onboarding-step-ready').click();
-          await expect(page.getByTestId('onboarding-complete')).toBeDisabled();
-          await page.getByTestId('onboarding-step-device').click();
+          await jumpToStep(page, 'ready');
+          await expect(page.getByTestId('onboarding-complete')).toBeEnabled();
+          await jumpToStep(page, 'device');
           await page.getByTestId('onboarding-connect-device').click();
           await expect(page.getByTestId('output-type')).toBeFocused();
           await unchanged(page, rig, initial);
@@ -127,12 +130,12 @@ for (const locale of ['zh-CN', 'en-US']) {
           await card(page, deviceName).getByRole('button', { name: await text(page, '启用'), exact: true }).click();
           await expect(card(page, deviceName).locator('.output-identity')).toContainText(await text(page, '已连接'));
           const connected = await passiveSnapshot(page, rig);
-          await page.getByTestId('onboarding-next').click();
+          await jumpToStep(page, 'input');
           await step(page, 'input');
           await page.getByTestId('onboarding-prepare-input').click();
           await expect(page.locator('#input-tabs-manual')).toBeFocused();
           await expect(page.getByTestId('onboarding-apply-input')).toHaveCount(0);
-          await page.getByTestId('onboarding-next').click();
+          await jumpToStep(page, 'ready');
           await step(page, 'ready');
           await expect(page.getByTestId('onboarding-complete')).toBeEnabled();
           await unchanged(page, rig, connected);
@@ -160,25 +163,25 @@ for (const locale of ['zh-CN', 'en-US']) {
         const initial = await passiveSnapshot(page, rig);
         await page.getByTestId('onboarding-start').click();
         for (const goal of ['osc', 'script', 'manual', 'protocol']) {
-          await page.getByTestId('onboarding-step-goal').click();
+          await jumpToStep(page, 'goal');
           await page.getByTestId('onboarding-goal-' + goal).click();
-          await page.getByTestId('onboarding-step-input').click();
+          await jumpToStep(page, 'input');
           await page.getByTestId('onboarding-prepare-input').click();
           if (goal === 'osc') {
-            await expect(page.locator('#workspace-tabs-osc')).toHaveAttribute('aria-selected', 'true');
-            await expect(page.locator('.preset-strip')).toBeInViewport();
+            await expect(page.locator('#workspace-tabs-control')).toHaveAttribute('aria-selected', 'true');
+            await expect(page.locator('#input-tabs-osc')).toHaveAttribute('aria-selected', 'true');
           } else if (goal === 'protocol') {
-            await expect(page.locator('#workspace-tabs-settings')).toHaveAttribute('aria-selected', 'true');
+            await expect(page.locator('#workspace-tabs-control')).toHaveAttribute('aria-selected', 'true');
             await expect(page.getByTestId('protocol-inputs-panel')).toBeInViewport();
           } else await expect(page.locator('#input-tabs-' + goal)).toBeFocused();
           expect((await rig.overview()).input.mode).toBe('manual');
           await unchanged(page, rig, initial);
-          await page.getByTestId('onboarding-step-ready').click();
-          await expect(page.getByTestId('onboarding-complete')).toBeDisabled();
+          await jumpToStep(page, 'ready');
+          await expect(page.getByTestId('onboarding-complete')).toBeEnabled();
         }
-        await page.getByTestId('onboarding-step-goal').click();
+        await jumpToStep(page, 'goal');
         await page.getByTestId('onboarding-goal-script').click();
-        await page.getByTestId('onboarding-step-input').click();
+        await jumpToStep(page, 'input');
         await page.getByTestId('onboarding-prepare-input').click();
         await expect(page.getByTestId('onboarding-apply-input')).toBeEnabled();
         await unchanged(page, rig, initial);
@@ -233,12 +236,12 @@ for (const locale of ['zh-CN', 'en-US']) {
       { tag: ['@osc-flow-preflight', '@onboarding', '@config', '@i18n'] }, async ({ page, rig }, info) => {
         const initial = await passiveSnapshot(page, rig);
         let library = await openPresets(page);
-        await library.getByTestId('scene-osc-preset').selectOption('ogb-depth');
+        await library.getByTestId('scene-osc-preset-ogb-depth').click();
         await unchanged(page, rig, initial);
         await attachState(page, info, 'scene-preset-library', { locale, selectedPreset: 'ogb-depth', draftOnly: true }, library);
         await library.getByTestId('scene-osc-replace').click();
         await expect(library).toBeHidden();
-        await expect(page.locator('#workspace-tabs-osc')).toHaveAttribute('aria-selected', 'true');
+        await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.locator('.mapping-row')).toHaveCount(1);
         await expect(page.locator('.mapping-row__path input')).toHaveValue(/OGB\/Orf\/\*\*\/PenOthersNewRoot/);
         await expect(page.locator('.mapping-row__target select')).toHaveValue('Depth');
@@ -250,7 +253,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         expect(depth.config.computedSignals).toEqual(initial.config.computedSignals);
         expect(depth.config.outputs).toEqual(initial.config.outputs);
         library = await openPresets(page);
-        await library.getByTestId('scene-osc-preset').selectOption('ogb-touch');
+        await library.getByTestId('scene-osc-preset-ogb-touch').click();
         await library.getByTestId('scene-osc-append').click();
         await expect(page.locator('.mapping-row')).toHaveCount(2);
         await expect(page.locator('.mapping-row__target select').nth(1)).toHaveValue('V0');
@@ -308,4 +311,10 @@ for (const locale of ['zh-CN', 'en-US']) {
           inputActive: (await rig.overview()).runtime.inputActive });
       });
   });
+}
+
+async function jumpToStep(page, step) {
+  const target = page.getByTestId('onboarding-step-' + step);
+  if (!(await target.isVisible())) await page.locator('.onboarding-jump > summary').click();
+  await target.click();
 }

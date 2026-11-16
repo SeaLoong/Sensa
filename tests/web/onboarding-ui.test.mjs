@@ -24,11 +24,13 @@ function elements(node) {
 const byTestId = (tree, id) => elements(tree).find(element => element.props['data-testid'] === id);
 
 for (const locale of ['zh-CN', 'en-US']) {
-  test('inline guide has four navigable steps and allows preparation before connecting hardware in ' + locale, () => {
+  test('spotlight guide has six navigable steps and allows preparation before connecting hardware in ' + locale, () => {
     setLocale(locale);
     const html = render(Onboarding, { ...defaultProps, state: { ...defaultProps.state, step: 'device' } });
     assert.match(html, /data-testid="onboarding-panel"[^>]*tabindex="-1"/);
-    assert.equal((html.match(/data-testid="onboarding-step-/g) || []).length, 4);
+    assert.match(html, /<details className="onboarding-jump">|<details class="onboarding-jump">/);
+    assert.ok(html.indexOf('onboarding-panel__body') < html.indexOf('onboarding-jump'));
+    assert.equal((html.match(/data-testid="onboarding-step-/g) || []).length, 6);
     assert.match(html, /data-testid="onboarding-step-device" aria-current="step"/);
     assert.doesNotMatch(html.match(/<button[^>]*data-testid="onboarding-next"[^>]*>/)?.[0], /disabled=/);
     assert.ok(html.includes(t('可用输出 {0}/{1}', [0, 0])));
@@ -40,12 +42,12 @@ for (const locale of ['zh-CN', 'en-US']) {
     setLocale(locale);
     const state = { ...defaultProps.state, step: 'ready' };
     const missing = render(Onboarding, { ...defaultProps, state });
-    assert.match(missing, /data-testid="onboarding-complete" disabled=""/);
+    assert.doesNotMatch(missing, /data-testid="onboarding-complete" disabled=""/);
     assert.ok(missing.includes(t('还差一步')));
     const ready = render(Onboarding, { ...defaultProps, state, outputCount: 1, availableOutputs: 1, inputPrepared: true });
     assert.doesNotMatch(ready.match(/<button[^>]*data-testid="onboarding-complete"[^>]*>/)?.[0], /disabled=/);
     assert.ok(ready.includes(t('设置已备好')));
-    assert.ok(ready.includes(t('返回控制页，检查目标后打开顶部“输入启用”。')));
+    assert.ok(ready.includes(t('检查高亮的输入启用开关。完成引导不会启用输入，准备好后由你打开。')));
     assert.doesNotMatch(ready, /role="switch"/);
   });
 }
@@ -56,7 +58,7 @@ test('guide selection and progression dispatch only presentation actions; runtim
   const goal = Onboarding(props);
   byTestId(goal, 'onboarding-goal-script').props.onClick();
   byTestId(goal, 'onboarding-next').props.onClick();
-  assert.deepEqual(actions, [{ type: 'goal', goal: 'script' }, { type: 'step', step: 'device' }]);
+  assert.deepEqual(actions, [{ type: 'goal', goal: 'script' }, { type: 'step', step: 'input' }]);
   assert.deepEqual(navigation, []); assert.deepEqual(applied, []);
   const input = Onboarding({ ...props, state: { status: 'active', goal: 'script', step: 'input' }, actualMode: 'manual' });
   byTestId(input, 'onboarding-prepare-input').props.onClick();
@@ -85,13 +87,13 @@ test('preset library exposes real catalogs, draft-only actions and capability-sp
   const props = { open: true, oscPresets: getOscMappingPresets({}), axisPresets: AXIS_PROFILE_PRESETS(), oscPresetId: 'ogb-touch',
     onClose() {}, onOscPresetChange() {}, onUseOscPreset() {}, onReviewAxisPreset() {} };
   const osc = render(Presets, props);
-  for (const id of ['ogb-depth', 'ogb-touch', 'contact-position', 'contact-speed', 'native-pb-stretch']) assert.ok(osc.includes(`value="${id}"`), id);
+  for (const id of ['ogb-depth', 'ogb-touch', 'contact-position', 'contact-speed', 'native-pb-stretch']) assert.ok(osc.includes(`data-testid="scene-osc-preset-${id}"`), id);
   assert.match(osc, /data-testid="scene-osc-append"/); assert.match(osc, /data-testid="scene-osc-replace"/);
   assert.ok(osc.includes(t('追加到映射草稿')));
   assert.doesNotMatch(osc, /data-testid="scene-axis-preset"|role="switch"/);
   const browser = render(Presets, { ...props, supportsOsc: false });
   assert.doesNotMatch(browser, /scene-preset-tabs-osc|data-testid="scene-osc-preset"/);
-  for (const preset of AXIS_PROFILE_PRESETS()) assert.ok(browser.includes(`value="${preset.id}"`), preset.id);
-  assert.match(browser, /value="osr-first-run" selected=""/);
+  for (const preset of AXIS_PROFILE_PRESETS()) assert.ok(browser.includes(`data-testid="scene-axis-preset-${preset.id}"`), preset.id);
+  assert.match(browser, /data-testid="scene-axis-preset-osr-first-run" aria-pressed="true"/);
   assert.match(browser, /data-testid="scene-axis-review"/);
 });

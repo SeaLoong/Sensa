@@ -8,7 +8,7 @@ These images were captured from Sensa running in Chromium in [GitHub Actions](ht
 
 ## Manual control
 
-The Control page brings together input mode, runtime state and sliders.
+The Input page brings together input mode, runtime state and sliders.
 
 ![Manual control · desktop](screenshots/desktop/english-manual.png)
 

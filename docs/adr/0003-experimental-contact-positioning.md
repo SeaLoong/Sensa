@@ -4,9 +4,9 @@ SPS 四点定位通过 P0–P3 四个距离值计算根点位置，Sample 同时
 
 SPS four-anchor tracking calculates a root position from four distance values, P0–P3. Sample indicates valid measurements and ongoing producer activity. The Unity generator and desktop solver share one anchor layout. Unchanged distances can reuse their previous values while a changing Sample confirms continued updates, supporting OSC parameters sent only when their values change. Fields arrive separately; sample age and Avatar-scale checks determine whether the set can be used for tracking. [Parameter reference](../osc-parameters.en.md)
 
-Shader 根点捕获使用专用 OSC 路径，接收同一来源的完整十二字段，并通过变化的 Frame 检查画面更新。Point、Handle 与 Pose 分别保留各自的有效期。使用空间映射时，先在设置中启用实验定位，再启用输入；测量失效会停止相应输出。CRC 检查传输内容，Producer ID 区分测量通道，解算残差衡量距离值与模型的吻合程度。实际位置精度通过客户端和设备环境验证。
+Shader 根点捕获使用专用 OSC 路径，接收同一来源的完整十二字段，并通过变化的 Frame 检查画面更新。Point、Handle 与 Pose 分别保留各自的有效期。使用空间映射时，先在“输入 → OSC → 实验诊断”中启用实验定位，再启用输入；测量失效会停止相应输出。CRC 检查传输内容，Producer ID 区分测量通道，解算残差衡量距离值与模型的吻合程度。实际位置精度通过客户端和设备环境验证。
 
-Shader root capture uses dedicated OSC paths, twelve complete fields from one source, and a changing Frame to check image updates. Point, Handle and Pose keep their own validity windows. To use spatial mappings, enable experimental tracking in settings, then enable input; invalid measurements stop the affected output. CRC checks packet contents, Producer ID distinguishes measurement channels, and solver residuals describe how closely the distances fit the model. Position accuracy is verified in the target client and device environment.
+Shader root capture uses dedicated OSC paths, twelve complete fields from one source, and a changing Frame to check image updates. Point, Handle and Pose keep their own validity windows. To use spatial mappings, enable experimental tracking under Input → OSC → Experimental diagnostics, then enable input; invalid measurements stop the affected output. CRC checks packet contents, Producer ID distinguishes measurement channels, and solver residuals describe how closely the distances fit the model. Position accuracy is verified in the target client and device environment.
 
 ## Coverage and image alignment / 覆盖范围与画面对齐
 

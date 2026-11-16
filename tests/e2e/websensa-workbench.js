@@ -10,7 +10,7 @@ export async function controlWorkspace(page) {
   await page.locator('#workspace-tabs-control').click();
 }
 export async function addWorkbenchOutput(page, type, endpoint, { name, deviceName, profile } = {}) {
-  await controlWorkspace(page);
+  await page.locator('#workspace-tabs-outputs').click();
   await page.getByTestId('output-type').selectOption(type);
   await page.getByTestId('add-output').click();
   const dialog = page.getByRole('dialog', { name: 'Output settings', exact: true });
@@ -38,6 +38,7 @@ export async function changeWorkbenchInput(page, mode) {
   await expect(apply).not.toBeVisible();
 }
 export async function manualMotion(page, axis, value) {
+  await controlWorkspace(page);
   if (axis !== 'L0') await revealWorkbenchAxes(page);
   const slider = page.locator('.manual-workspace').getByRole('slider', { name: new RegExp('^' + axis + ' ') });
   await slider.evaluate((element, next) => {
@@ -48,6 +49,7 @@ export async function manualMotion(page, axis, value) {
   await expect(slider).toHaveValue(String(value));
 }
 export async function revealWorkbenchAxes(page) {
+  await controlWorkspace(page);
   const moreAxes = page.getByTestId('manual-more-axes');
   await expect(moreAxes).toHaveCount(1);
   const summary = moreAxes.locator('summary');

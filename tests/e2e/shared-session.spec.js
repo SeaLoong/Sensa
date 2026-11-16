@@ -1,4 +1,4 @@
-import { test, expect, active, observePageCommands } from './fixtures.js';
+import { test, expect, active, workspace, observePageCommands } from './fixtures.js';
 
 async function instrumentSharing(context, kind) {
   await context.addInitScript(mode => {
@@ -36,7 +36,9 @@ for (const kind of ['shared-worker', 'web-locks']) {
         page.on('pageerror', error => errors.push(error.message));
         await observePageCommands(page, command => commands.push(command));
         await page.goto(rig.baseUrl);
+        await workspace(page, '输出');
         await expect(page.getByRole('heading', { name: 'Mock UDP', exact: true })).toBeVisible();
+        await workspace(page, '输入');
         await expect(page.getByRole('switch', { name: '输入启用', exact: true })).toBeEnabled();
         if (kind === 'shared-worker') await expect.poll(() => page.evaluate(() => globalThis.__sharedSessionFixture.workerReady)).toBe(true);
         return page;

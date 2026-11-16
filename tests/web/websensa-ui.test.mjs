@@ -10,11 +10,11 @@ import { resolveWebSensaLocale, saveWebSensaLocale } from '../../src/websensa/lo
 
 const require = createRequire(import.meta.url);
 const compiled = await build({ entryPoints: ['src/websensa/WebSensa.tsx'], bundle: true, write: false, platform: 'node', format: 'esm', jsx: 'automatic', loader: { '.js': 'jsx' }, plugins: [{ name: 'shared-test-react', setup(builder) {
-  builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
+  builder.onResolve({ filter: /^react(?:-dom)?(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
 } }] });
 const source = compiled.outputFiles[0].text;
 const { default: WebSensa } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
-const render = props => renderToStaticMarkup(React.createElement(WebSensa, props));
+const render = props => renderToStaticMarkup(React.createElement(WebSensa, { initialWorkspace: 'outputs', ...props }));
 const makeHost = options => createBrowserWorkbench({ page: null, storage: null, ...options });
 
 test('WebSensa preserves explicit query, shared tab language and persistent fallback in the correct order', () => {
@@ -36,7 +36,7 @@ test('WebSensa renders the complete shared workbench with actual local runtime s
   const html = render({ host });
   assert.match(html, /class="app-shell"/); assert.match(html, /workspace-sidebar/); assert.match(html, /workspace-scroll/);
   assert.match(html, /WebSensa/); assert.match(html, /Input enabled/); assert.match(html, /Emergency stop/);
-  assert.match(html, /aria-label="Motion axes"/); assert.match(html, /value="SensaHttp"/);
+  assert.match(render({ host, initialWorkspace: 'control' }), /aria-label="Motion axes"/); assert.match(html, /value="SensaHttp"/);
   assert.doesNotMatch(html, /value="password|localhost.*api|app\.bundle.*cdn/);
   await host.client.dispose();
 });
@@ -95,7 +95,7 @@ test('saved unsupported outputs retain recovery actions and render host diagnost
 
 test('the browser workbench exposes all twelve manual axes and keeps input inactive', async () => {
   const host = makeHost();
-  const html = render({ host });
+  const html = render({ host, initialWorkspace: 'control' });
   for (const axis of ['L0', 'L1', 'L2', 'R0', 'R1', 'R2', 'V0', 'V1', 'V2', 'A0', 'A1', 'A2']) assert.ok(html.includes('>' + axis + '</span></label>'), axis);
   assert.match(html, /<label class="toggle"><input type="checkbox"[^>]*checked=""[^>]*\/><span>L0<\/span><\/label>/);
   assert.equal(host.runtime.getSnapshot().inputActive, false);
