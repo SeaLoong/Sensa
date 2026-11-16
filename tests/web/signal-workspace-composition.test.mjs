@@ -81,6 +81,9 @@ for (const locale of ['zh-CN', 'en-US']) {
     const flow = render(Pipeline, pipelineProps({ computedDrafts: computations, computedGraphDirty: true,
       runtimeSignals: [{ id: 'DraftOnly', valid: true, value: .65 }] }));
     assert.equal((flow.match(/data-testid="computed-signals-editor"/g) || []).length, 1);
+    const headings = [...flow.matchAll(/<h[1-6]\b[^>]*>(.*?)<\/h[1-6]>/g)].map(match => match[1]);
+    assert.equal(headings.filter(title => title === t('计算信号')).length, 1);
+    assert.ok(flow.includes(t('设置组合输入')));
     assert.equal((flow.match(/data-testid="computed-signal-card"/g) || []).length, 1);
     assert.match(flow, /data-testid="computed-signal-value">—<\/output>/);
     assert.doesNotMatch(flow, /class="mapping-row/);

@@ -401,6 +401,7 @@ progress::-moz-progress-bar { background: var(--accent); }
 .computed-signals { border-block: 1px solid var(--border); padding-block: 20px; }
 .computed-signals__heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .computed-signals__heading h3 { margin: 0; }
+.computed-signals__actions { margin-left: auto; }
 .computed-signal { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; }
 .computed-signal > summary { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
 .computed-signal > summary strong { overflow-wrap: anywhere; }

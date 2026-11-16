@@ -1,5 +1,5 @@
 import React from 'react';
-import { Badge, Button, Notice, Section } from './ui.tsx';
+import { Badge, Button, Notice } from './ui.tsx';
 import { buildOutputSummary, getOutputOverview } from './configuration.js';
 import { isSignalOutputType } from './signal-outputs.js';
 import { computedInputOptions } from './computed-signals.js';
@@ -61,11 +61,10 @@ export function OutputRoutingSummary({ outputs, overview, savedComputations, out
 export default function SignalPipelineWorkspace({ toolbar, computedDrafts = [], runtimeSignals = [], observations = [],
   selectedSourceKey = '', computedGraphDirty = false, pathOptions = [], onComputedChange, onMapCalculation,
   computedView, onComputedViewChange, onSetCombinedInput }) {
-  return <Section title={t('计算信号')} description={t('为输入添加平滑、混合或其他变换，再复用结果。')}
-    className="signal-pipeline-workspace" actions={<Button onClick={onSetCombinedInput}>{t('设置组合输入')}</Button>}>
+  return <div className="signal-pipeline-workspace">
     {toolbar}
-    <ComputedSignalsPanel drafts={computedDrafts} runtimeSignals={runtimeSignals} observations={observations}
+    <ComputedSignalsPanel actions={<Button onClick={onSetCombinedInput}>{t('设置组合输入')}</Button>} drafts={computedDrafts} runtimeSignals={runtimeSignals} observations={observations}
       selectedSourceKey={selectedSourceKey} graphDirty={computedGraphDirty} pathOptions={pathOptions}
       viewState={computedView} onViewStateChange={onComputedViewChange} onChange={onComputedChange} onMap={onMapCalculation} />
-  </Section>;
+  </div>;
 }

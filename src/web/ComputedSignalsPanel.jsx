@@ -88,7 +88,7 @@ function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, ope
 }
 
 export default function ComputedSignalsPanel({ drafts = [], runtimeSignals = [], observations = [], selectedSourceKey = '', graphDirty = false, pathOptions = [],
-  viewState, onViewStateChange, onChange, onMap }) {
+  viewState, onViewStateChange, onChange, onMap, actions }) {
   const locale = getLocale();
   const [localView, setLocalView] = useState({ selectedId: '', expandedIds: [] });
   const view = viewState || localView;
@@ -100,7 +100,7 @@ export default function ComputedSignalsPanel({ drafts = [], runtimeSignals = [],
     .map(point => [`${point.prefix}/**`, { value: `${point.prefix}/**`, label: `${point.instance} · ${pointTrackingLabel(point) || point.kind}` }])).values()], [observations, selectedSourceKey, locale]);
   return (
     <section className="computed-signals stack" aria-label={t('计算信号')} data-testid="computed-signals-editor">
-      <div className="computed-signals__heading"><h3>{t('计算信号')}</h3><Badge>{t('{0} 个计算', [drafts.length])}</Badge></div>
+      <div className="computed-signals__heading"><h3>{t('计算信号')}</h3><Badge>{t('{0} 个计算', [drafts.length])}</Badge>{actions && <div className="computed-signals__actions actions">{actions}</div>}</div>
       <p className="caption muted">{t('为计算取一个名称，再选择运算和输入。保存后，这个结果就能用于输出连接、轴映射或下一步计算。')}</p>
       <details className="transform-presets" open={drafts.length === 0 ? true : undefined}>
         <summary>{t('常用变换预设')}</summary><div className="preset-cards">

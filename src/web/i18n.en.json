@@ -1702,8 +1702,6 @@
   "选择设备预设，再校准行程、方向与速度。": "Choose a device preset, then calibrate travel, direction and speed.",
   "连接设备、应用或录制，选择要发送的结果。": "Connect a device, app or recording and choose the results to send.",
   "查看运行日志，排查连接和信号问题。": "Inspect runtime logs to diagnose connection and signal issues.",
-  "把来源映射到动作轴，或先计算、平滑与组合信号。": "Map sources to motion axes, or calculate, smooth and combine signals first.",
-  "为输入添加平滑、混合或其他变换，再复用结果。": "Smooth, mix or transform inputs and reuse the results.",
   "选择映射或变换预设": "Choose a mapping or transform preset",
   "在高亮区域选择 SPS、Contact 或 PhysBone 预设，追加到草稿，再检查来源与目标轴并保存。": "Choose an SPS, Contact or PhysBone preset in the highlighted area. Add it to the draft, check the source and target axis, then save.",
   "手动与脚本可以直接使用动作轴。需要平滑、混合或阈值时，在计算信号中选择变换预设；否则继续下一步。": "Manual controls and scripts can use motion axes directly. Choose a transform preset for smoothing, mixing or thresholds, or continue to the next step.",

@@ -2788,7 +2788,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
               </>
             )}
-            {workspace === 'pipeline' && <Section title={t('映射与变换')} description={t('把来源映射到动作轴，或先计算、平滑与组合信号。')} className="mapping-workspace">
+            {workspace === 'pipeline' && <section className="section mapping-workspace" aria-label={t('映射与变换')}>
               <Tabs id="mapping-tabs" label={t('映射与变换')} value={mappingTab} onChange={setMappingTab}
                 options={[{ value: 'mappings', label: t('轴映射') }, { value: 'computations', label: t('计算信号') }]} />
               {renderSignalDraftToolbar(mappingTab === 'mappings' ? 'osc' : 'pipeline')}
@@ -2802,7 +2802,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
               onSetCombinedInput={() => { setWorkspace('control'); selectInputTab('combined'); }} />}
               </div>
               <SignalPlanPanel config={config} onApply={applySignalPlan} disabled={!online || Boolean(busyKey)} emergencyAction={emergencyAction} />
-            </Section>}
+            </section>}
             {workspace === 'outputs' && <>{renderOutputs()}
               <details className="section"><summary>{t('输出连接')}</summary>
                 <OutputRoutingSummary outputs={outputs} overview={overview} savedComputations={config?.computedSignals || []}
