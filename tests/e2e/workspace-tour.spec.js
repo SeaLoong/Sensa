@@ -1,5 +1,21 @@
 import { test, expect, text, workspace, oscWorkspace } from './fixtures.js';
 
+async function captureSpotlight(page, info, selector, name) {
+  const target = page.locator(selector), highlight = page.getByTestId('tour-highlight');
+  await expect.poll(async () => {
+    const source = await target.boundingBox(), focus = await highlight.boundingBox();
+    return Boolean(source && focus && Math.abs(focus.x - Math.max(4, source.x - 6)) < 1
+      && Math.abs(focus.y - Math.max(4, source.y - 6)) < 1 && focus.width >= Math.min(source.width, page.viewportSize().width - 8));
+  }).toBe(true);
+  const next = page.getByTestId('onboarding-next');
+  const hit = await next.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+  });
+  expect(hit, 'Next is visible and clickable without scrolling the guide').toBe(true);
+  await info.attach(name, { body: await page.screenshot(), contentType: 'image/png' });
+}
+
 for (const locale of ['zh-CN', 'en-US']) {
   test.describe('Separate stages and spotlight tour ' + locale, () => {
     test.use({ locale });
@@ -18,7 +34,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.getByTestId('onboarding-goal-manual').click(); await page.getByTestId('onboarding-next').click();
         await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'input');
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
-        await info.attach('spotlight-input-' + locale, { body: await page.screenshot(), contentType: 'image/png' });
+        await captureSpotlight(page, info, '.manual-primary', 'spotlight-input-' + locale);
         const target = await page.locator('.manual-primary').boundingBox();
         const highlight = await page.getByTestId('tour-highlight').boundingBox();
         expect(highlight.x).toBeLessThanOrEqual(target.x); expect(highlight.y).toBeLessThanOrEqual(target.y);
@@ -29,13 +45,13 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.keyboard.press('Escape'); await expect(page.getByTestId('guided-tour')).toHaveCount(0);
         await page.getByTestId('onboarding-resume').click();
         await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'input');
-        await page.getByTestId('onboarding-step-mapping').click();
+        await page.getByTestId('onboarding-next').click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
-        await info.attach('spotlight-mapping-' + locale, { body: await page.screenshot(), contentType: 'image/png' });
+        await captureSpotlight(page, info, '.preset-strip', 'spotlight-mapping-' + locale);
         await page.getByTestId('onboarding-step-axes').click();
         await expect(page.locator('#workspace-tabs-axes')).toHaveAttribute('aria-selected', 'true');
-        await info.attach('spotlight-axes-' + locale, { body: await page.screenshot(), contentType: 'image/png' });
+        await captureSpotlight(page, info, '.axis-profiles-section > .section__header', 'spotlight-axes-' + locale);
         await page.getByTestId('onboarding-panel').getByRole('button', { name: await text(page, '选择设备动作预设'), exact: true }).click();
         await expect(page.getByTestId('scene-presets-dialog')).toBeVisible();
         await expect(page.getByTestId('guided-tour')).toHaveCount(0);

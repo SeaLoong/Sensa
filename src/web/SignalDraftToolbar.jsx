@@ -25,7 +25,7 @@ export default function SignalDraftToolbar({ workspace, mappingCount = 0, comput
       {incompleteMappings > 0 && <div>{t('{0} 条轴映射待填写。', [incompleteMappings])}{' '}
         {workspace !== 'osc' && <Button variant="text" onClick={onOpenMappings}>{t('前往轴映射')}</Button>}</div>}
       {incompleteComputations > 0 && <div>{t('{0} 个计算信号待填写。', [incompleteComputations])}{' '}
-        {workspace !== 'pipeline' && <Button variant="text" onClick={onOpenComputations}>{t('在流程中编辑计算信号')}</Button>}</div>}
+        {workspace !== 'pipeline' && <Button variant="text" onClick={onOpenComputations}>{t('计算信号')}</Button>}</div>}
     </Notice>}
   </div>;
 }

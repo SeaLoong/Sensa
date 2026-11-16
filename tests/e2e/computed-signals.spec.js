@@ -90,7 +90,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         }
         await card.getByRole('button', { name: await text(page, '用于轴映射'), exact: true }).click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
-        await expect(page.locator('#osc-tabs-setup')).toHaveAttribute('aria-selected', 'true');
+        await expect(page.locator('#mapping-tabs-mappings')).toHaveAttribute('aria-selected', 'true');
         const mappings = page.locator('.mapping-row');
         await expect(mappings).toHaveCount(beforeDrafts.signals.length + 1);
         await expect(mappings.last().getByRole('combobox', { name: await text(page, '计算信号'), exact: true })).toHaveValue('Signal1');

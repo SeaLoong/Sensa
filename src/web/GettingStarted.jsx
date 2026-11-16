@@ -15,7 +15,7 @@ export default function GettingStarted({ hasOutputs = false, inputModes, support
           {onboarding.status === 'dismissed' ? t('继续设置') : welcome ? t('开始设置向导') : t('操作引导')}
         </Button></>} />
     {welcome && <ol className="guided-steps onboarding-invitation" aria-label={t('首次设置步骤')}>
-      {[t('选择场景'), t('连接设备'), t('准备输入'), t('检查并完成')].map((label, index) => <li className="guided-step" key={label}><span>{index + 1}</span>{label}</li>)}
+      {[t('选择场景'), t('准备输入'), t('映射与变换'), t('轴配置'), t('连接设备'), t('检查并完成')].map((label, index) => <li className="guided-step" key={label}><span>{index + 1}</span>{label}</li>)}
     </ol>}
     <div className={welcome ? 'task-tiles' : 'scene-launchpad__shortcuts'}>
       {scenes.map(scene => <TaskTile key={scene.id} title={scene.title} description={welcome ? scene.description : undefined}

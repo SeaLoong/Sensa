@@ -14,6 +14,7 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
   const canContinue = Boolean(scene);
   const canFinish = availableOutputs > 0 && inputPrepared;
   return <section className="onboarding-panel" data-testid="onboarding-panel" aria-label={t('设备设置向导')} tabIndex={-1}>
+    <div className="onboarding-panel__content">
     <WorkspaceHeader title={t('设备设置向导')} eyebrow={t('第 {0} 步，共 {1} 步', [current + 1, ONBOARDING_STEPS.length])}
       actions={<Button variant="text" data-testid="onboarding-skip" onClick={() => onChange({ type: 'dismiss' })}>{t('保存进度，稍后继续')}</Button>} />
     <ol className="guided-steps" aria-label={t('首次设置步骤')}>
@@ -61,6 +62,7 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
           <li>{t('可用输出 {0}/{1}', [availableOutputs, outputCount])}</li><li>{inputPrepared ? t('输入已准备') : t('输入待准备')}</li></ul>
         <p>{inputActive ? t('输入已启用，继续通过顶部开关控制。') : t('检查高亮的输入启用开关。完成引导不会启用输入，准备好后由你打开。')}</p>
       </div>}
+    </div>
     </div>
     <footer className="onboarding-panel__footer actions">
       {current > 0 && <Button data-testid="onboarding-back" onClick={() => go(ONBOARDING_STEPS[current - 1])}>{t('上一步')}</Button>}

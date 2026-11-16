@@ -101,7 +101,7 @@ test('save guards include incomplete drafts owned by the other workspace without
   const osc = Toolbar(props);
   assert.equal(byId(osc, 'save-signal-drafts').props.disabled, true);
   assert.equal(byId(osc, 'restore-signal-drafts').props.disabled, false);
-  byLabel(osc, '在流程中编辑计算信号').props.onClick();
+  byLabel(osc, '计算信号').props.onClick();
   assert.deepEqual(opened, ['pipeline']); assert.deepEqual(saves, []); assert.deepEqual(restores, []);
   byId(osc, 'restore-signal-drafts').props.onClick();
   assert.deepEqual(restores, ['restore']);

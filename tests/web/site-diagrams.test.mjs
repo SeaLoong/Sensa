@@ -66,10 +66,10 @@ test('Mermaid fences retain exact escaped source and an accessible no-JavaScript
 test('offline browser asset preserves the pinned distribution, MIT license and bundled notices', async () => {
   const assets = await documentDiagramAssets();
   const runtime = await fs.readFile(new URL('../../node_modules/@mermaid-js/tiny/dist/mermaid.tiny.js', import.meta.url));
-  assert.equal(assets.version, '12.2.0');
+  assert.equal(assets.version, '12.3.0');
   assert.ok(assets.content.subarray(0, runtime.length).equals(runtime), 'Retain every upstream runtime byte and legal comment');
   assert.ok(assets.content.subarray(runtime.length).toString().endsWith(wrapper));
-  for (const notice of ['The MIT License', 'DOMPurify 3.4.12', 'Lodash', 'OpenJS Foundation'])
+  for (const notice of ['The MIT License', 'DOMPurify 3.4.17', 'Lodash', 'OpenJS Foundation'])
     assert.ok(assets.license.includes(notice), notice);
   new vm.Script(assets.content.toString()); // Syntax check only; no browser/renderer process.
 });

@@ -24,7 +24,7 @@ Scene shortcuts open the controls for a task. Selecting a scene or a preset does
 
 Prepare your source and output, save, then **Apply input mode** and turn on **Input enabled**. Merely opening a tab prepares its controls. Saving configuration, changing mode or loading a script turns input off. Clearing **Emergency stop** also leaves input off.
 
-In OSC and Flow, **Save changes** saves all computed-signal and axis-mapping drafts together, including edits made in the other workspace. **Restore changes** restores both to their saved state. Output bindings use **Save output** separately. If saving is blocked, the toolbar identifies incomplete drafts and links to their workspace.
+In **Mapping & transforms**, **Save changes** saves all computed-signal and axis-mapping drafts together, including edits made in the other subtab. **Restore changes** restores both to their saved state. Output bindings use **Save output** separately. If saving is blocked, the toolbar identifies incomplete drafts and links to their workspace.
 
 ## Control
 
@@ -38,7 +38,7 @@ Choose Combined when different source kinds should contribute together. [Worked 
 
 ### Outputs
 
-In **Control → Outputs**, choose **Output type → Add output**, configure and **Save output**, then **Enable** its card. Connection status, device actions and recent values appear here. [Output settings and bindings](signal-pipeline.en.md#add-outputs-and-bindings)
+In **Outputs**, choose **Output type → Add output**, configure and **Save output**, then **Enable** its card. Connection status, device actions and recent values appear here. [Output settings and bindings](signal-pipeline.en.md#add-outputs-and-bindings)
 
 ### Receive a website's serial or Bluetooth commands
 
@@ -46,15 +46,15 @@ Use a [protocol input](protocol-inputs.en.md) for a compatible player, or the [s
 
 ### L0 recording
 
-**Record L0 targets** captures the main-axis trajectory. **Stop recording and export** saves it as funscript.
+**Outputs → Record L0 targets** captures the main-axis trajectory. **Stop recording and export** saves it as funscript.
 
 ### Recording outputs
 
-In **Control → Outputs**, add a **Signal recording** output for selected sources, several tracks or diagnostic data. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
+In **Outputs**, add a **Signal recording** output for selected sources, several tracks or diagnostic data. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
 
 ## OSC
 
-Use **Map**, **Parameters** and **Experimental diagnostics** to choose the OSC view. These segmented tabs prepare settings without applying an input mode.
+In **Input → OSC**, choose **Parameters** or **Experimental diagnostics**. Mappings live separately in **Mapping & transforms**. These segmented tabs prepare settings without applying an input mode.
 
 ### Parameters and sources
 
@@ -70,7 +70,7 @@ Open **Scene presets** to choose an OSC preset and load it into **Mapping & tran
 
 ### Combine inputs first (computed signals)
 
-Choose **Edit computed signals in Flow** when you need blending, smoothing or a condition. Create the calculation in Flow, then select its result in the mapping. [Calculation examples](computed-signals.en.md)
+Choose **Mapping & transforms → Computed signals** when you need blending, smoothing or a condition. Start with a transform preset or create a calculation, then select its result in **Axis mapping**. [Calculation examples](computed-signals.en.md)
 
 ### Reception, discovery and forwarding
 
@@ -80,11 +80,11 @@ OSC settings contain the listening endpoint, OSCQuery discovery, Hub forwarding 
 
 Choose a [tracking setup](usage-scenarios.en.md), inspect valid readings and capture movement endpoints before enabling spatial input. [Units and calibration](positioning.en.md)
 
-## Flow
+## Mapping & transforms
 
-Flow is the home for creating and editing **Computed signals**. **Map to an axis** on a calculation opens OSC with a new draft; review it and **Save changes** when ready.
+**Mapping & transforms** is the home for creating and editing **Computed signals**. **Map to an axis** on a calculation opens the **Axis mapping** subtab with a new draft; review it and **Save changes** when ready.
 
-**Output connections** summarizes saved routes. **Edit output bindings** opens the output's existing settings dialog at its bindings; **Manage outputs** opens the full device cards in Control. Bindings that use computations read saved results. **Save output** applies bindings separately, preserving unfinished calculation/mapping drafts.
+Expand **Output connections** on the **Outputs** page to inspect saved routes. **Edit output bindings** opens the output's existing settings dialog at its bindings; **Manage outputs** locates the full device cards on the same page. Bindings that use computations read saved results. **Save output** applies bindings separately, preserving unfinished calculation/mapping drafts.
 
 **Save and load a complete plan** exports saved configuration. Save any calculation, mapping or output edits first to include them. [Signal-flow guide](signal-pipeline.en.md)
 

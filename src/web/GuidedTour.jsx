@@ -24,9 +24,13 @@ export default function GuidedTour({ step, goal, suspended, onDismiss, emergency
       }
       const bounds = target?.getBoundingClientRect();
       const card = cardRef.current;
+      const content = card?.querySelector('.onboarding-panel__content');
+      const naturalHeight = (content?.scrollHeight || 240)
+        + (card?.querySelector('.onboarding-panel__footer')?.offsetHeight || 60)
+        + (card?.querySelector('.guided-tour__emergency')?.offsetHeight || 60);
       const next = tourLayout(bounds?.width && bounds?.height ? bounds : null,
         { width: window.innerWidth, height: window.innerHeight },
-        { width: step === 'goal' ? 560 : 380, height: card?.scrollHeight || 320 });
+        { width: step === 'goal' ? 560 : 380, height: naturalHeight });
       setLayout(current => JSON.stringify(current) === JSON.stringify(next) ? current : next);
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
