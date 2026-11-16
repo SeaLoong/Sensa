@@ -314,6 +314,7 @@ for (const locale of ['zh-CN', 'en-US']) {
 }
 
 async function jumpToStep(page, step) {
-  await page.locator('.onboarding-jump > summary').click();
-  await page.getByTestId('onboarding-step-' + step).click();
+  const target = page.getByTestId('onboarding-step-' + step);
+  if (!(await target.isVisible())) await page.locator('.onboarding-jump > summary').click();
+  await target.click();
 }

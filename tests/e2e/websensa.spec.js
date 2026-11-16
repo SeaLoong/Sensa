@@ -288,6 +288,7 @@ test('@site @input WebSensa receives explicitly paired explorer frames without a
 });
 
 async function jumpToStep(page, step) {
-  await page.locator('.onboarding-jump > summary').click();
-  await page.getByTestId('onboarding-step-' + step).click();
+  const target = page.getByTestId('onboarding-step-' + step);
+  if (!(await target.isVisible())) await page.locator('.onboarding-jump > summary').click();
+  await target.click();
 }
