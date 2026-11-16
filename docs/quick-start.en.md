@@ -22,7 +22,7 @@ The guide stays available as **Guided setup**. **Save and exit** keeps your plac
 
 ## 2. Prepare input in the highlighted controls
 
-The guide follows **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step opens the relevant page, highlights real controls and dims the rest. You can interact with the highlighted controls. Use **Jump to step** to reveal the step list. Longer instructions scroll separately, keeping **Back / Next** and emergency stop available. Opening an editor suspends the guide; closing it resumes the guide. Press **Escape** to save progress and leave.
+The guide follows **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step opens the relevant page, highlights real controls and dims the rest. You can interact with the highlighted controls, using **Tab / Shift+Tab** to move forward or backward between them and the guide. The mapping step highlights OSC mapping presets for OSC, and common transform presets for manual, script and protocol scenes. Use **Jump to step** to reveal the step list. Longer instructions scroll separately, keeping **Back / Next** and emergency stop available. Opening an editor suspends the guide; closing it resumes the guide. Press **Escape** to save progress and leave.
 
 Prepare your source in **Input**. Opening a tab does not apply its input mode:
 

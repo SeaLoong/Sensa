@@ -44,7 +44,9 @@ export default function GuidedTour({ step, goal, suspended, onDismiss, emergency
       if (!controls.length) return;
       const index = controls.indexOf(document.activeElement);
       event.preventDefault();
-      controls[(index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length].focus();
+      const next = index < 0 ? (event.shiftKey ? controls.length - 1 : 0)
+        : (index + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+      controls[next].focus();
     };
     const observer = new window.MutationObserver(schedule);
     observer.observe(document.querySelector('.app-shell'), { childList: true, subtree: true });

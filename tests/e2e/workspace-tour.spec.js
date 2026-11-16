@@ -48,6 +48,13 @@ for (const locale of ['zh-CN', 'en-US']) {
         expect(highlight.width).toBeGreaterThanOrEqual(target.width);
         const control = page.locator('.manual-primary input[type=range]');
         const value = page.locator('.manual-primary input[type=number]');
+        const guideCard = page.locator('.guided-tour__card');
+        await guideCard.focus(); await page.keyboard.press('Shift+Tab');
+        await expect(control).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(page.getByTestId('onboarding-skip')).toBeFocused();
+        await page.keyboard.press('Shift+Tab');
+        await expect(control).toBeFocused();
         await value.click(); await value.fill('650');
         await expect(control).toHaveValue('650');
         await control.focus(); await page.keyboard.press('Tab');
@@ -59,7 +66,8 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.getByTestId('onboarding-next').click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
-        await captureSpotlight(page, info, '.preset-strip', 'spotlight-mapping-' + locale);
+        await expect(page.locator('.transform-presets')).toHaveAttribute('open', '');
+        await captureSpotlight(page, info, '.transform-presets', 'spotlight-mapping-' + locale);
         await page.getByTestId('onboarding-next').click();
         await expect(page.locator('#workspace-tabs-axes')).toHaveAttribute('aria-selected', 'true');
         await captureSpotlight(page, info, '.axis-profiles-section > .section__header', 'spotlight-axes-' + locale);

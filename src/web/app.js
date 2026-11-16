@@ -1828,7 +1828,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   useEffect(() => {
     if (onboarding.status !== 'active') return;
     if (onboarding.step === 'input') navigateWorkflow(onboarding.goal === 'protocol' ? 'protocol-settings' : onboarding.goal || 'manual');
-    if (onboarding.step === 'mapping') navigateWorkflow('osc-mappings');
+    if (onboarding.step === 'mapping') navigateWorkflow(onboarding.goal === 'osc' ? 'osc-mappings' : 'pipeline');
     if (onboarding.step === 'axes') { setWorkspace('axes'); setNavigationTarget('.axis-profiles-section'); }
     if (onboarding.step === 'device') navigateWorkflow('outputs');
     if (onboarding.step === 'ready' || onboarding.step === 'goal') setWorkspace('control');

@@ -23,6 +23,7 @@ export function tourLayout(rect, viewport, card = { width: 360, height: 320 }) {
 
 export function tourTarget(step, goal) {
   if (step === 'input') return { manual: '.manual-primary', script: '.script-player__header', osc: '.osc-receiver-settings', protocol: '[data-testid="protocol-inputs-panel"]' }[goal] || '.input-toolbar';
-  return { input: '.input-toolbar', mapping: '.preset-strip', axes: '.axis-profiles-section > .section__header',
+  if (step === 'mapping') return goal === 'osc' ? '.preset-strip' : '.transform-presets';
+  return { input: '.input-toolbar', axes: '.axis-profiles-section > .section__header',
     device: '.outputs-section > .section__header', ready: '.header-actions' }[step] || null;
 }
