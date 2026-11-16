@@ -40,9 +40,13 @@ for (const locale of ['zh-CN', 'en-US']) {
         expect(highlight.x).toBeLessThanOrEqual(target.x); expect(highlight.y).toBeLessThanOrEqual(target.y);
         expect(highlight.width).toBeGreaterThanOrEqual(target.width);
         const control = page.locator('.manual-primary input[type=range]');
+        const value = page.locator('.manual-primary input[type=number]');
+        await value.click(); await value.fill('650');
+        await expect(control).toHaveValue('650');
         await control.focus(); await page.keyboard.press('Tab');
         await expect(page.getByTestId('guided-tour').locator('.guided-tour__card')).toBeVisible();
         await page.keyboard.press('Escape'); await expect(page.getByTestId('guided-tour')).toHaveCount(0);
+        await expect(value).toHaveValue('650');
         await page.getByTestId('onboarding-resume').click();
         await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'input');
         await page.getByTestId('onboarding-next').click();

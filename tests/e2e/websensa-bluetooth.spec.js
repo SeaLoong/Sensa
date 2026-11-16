@@ -74,7 +74,7 @@ test('WebSensa drives two BLE device families with independent wire sequences an
     await installMockBluetooth(page);
     await openWorkbench(page, rig.baseUrl + '/websensa/?lang=en');
     await addBluetoothOutput(page, 'lovense-single', 'Lovense CI');
-    await expect(page.getByText('Lovense CI', { exact: true })).toBeVisible();
+    await expect(page.locator('.output-card').getByRole('heading', { name: 'Lovense CI', exact: true })).toBeVisible();
     await addBluetoothOutput(page, 'youou-vx001', 'Youou CI');
     if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
     await expect(page.locator('.output-card')).toHaveCount(2);

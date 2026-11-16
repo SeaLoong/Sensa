@@ -85,7 +85,8 @@ for (const locale of ['zh-CN', 'en-US']) {
       await page.getByTestId('onboarding-skip').click();
       await page.getByTestId('open-scene-presets').click();
       let library = page.getByRole('dialog', { name: label('场景预设'), exact: true });
-      await expect(library.getByRole('tab')).toHaveCount(1);
+      await expect(library.getByRole('tab')).toHaveCount(2);
+      await expect(library.locator('#scene-preset-tabs-transform')).toBeVisible();
       await expect(library.locator('#scene-preset-tabs-osc')).toHaveCount(0);
       await library.getByTestId('scene-axis-preset-osr-first-run').click();
       await library.getByTestId('scene-axis-review').click();

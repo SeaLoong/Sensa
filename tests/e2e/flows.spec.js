@@ -294,7 +294,7 @@ test('paired pose is diagnostic by default, explicit opt-in drives, missing land
   await feed.set(poseSamples().map(([path,value]) => [path,path.endsWith('/Tip/A0') ? 0 : value]));
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
   await expect.poll(async () => (await rig.overview()).runtime.poseBlocked).toBe(true);
-  await workspace(page, '控制'); await checkpoint(page, page.locator('.input-section'), 'pose-landmark-lost');
+  await workspace(page, '控制'); await checkpointViewport(page, 'pose-landmark-lost');
 });
 
 test.describe('OSCQuery and Hub', () => {
