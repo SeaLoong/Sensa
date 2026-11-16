@@ -2,119 +2,29 @@
 
 **简体中文** | [English](e2e-status.en.md)
 
-每项结果对应明确的源码、运行与 attempt。[当前 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml) · [开发与检查](development.md)
+本页只列当前工作台改版的证据；旧页面、旧数量和历史结论保留在[固定历史记录](https://github.com/SeaLoong/Sensa/blob/8eff42a03462566a61e37c97737fede0e973c59b/docs/e2e-status.md)。每项验证分别对应源码与 Actions 运行。
 
-## OSC 分段导航与流程职责：15e15cf4
+## 独立工作区、预设与高亮引导
 
-源码 [`15e15cf4`](https://github.com/SeaLoong/Sensa/commit/15e15cf47dcb5bd49083b1df1123e9aa143c3bf2)，[候选运行 42200163244](https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1)，attempt 1：
+候选源码 [`a0122057`](https://github.com/SeaLoong/Sensa/commit/a012205759b1b60f50fb4f736a26e90aac344e6b)，[完整候选运行](https://github.com/SeaLoong/Sensa/actions/runs/43941133222/attempts/1)，attempt 1。
 
-| 检查 | 本轮记录 |
+| 检查 | 当前证据 |
 | --- | --- |
-| 本地 Web／文档与工具检查 | **497／48 项通过**；本轮新增 19 项 Web 单元 |
-| 定向预检 | [52/52 项通过](https://github.com/SeaLoong/Sensa/actions/runs/42198781679/attempts/1)，诊断衍生源码 `eff33bcce`；不代表主源码的完整执行 |
-| 完整浏览器候选 | **306/306 项通过**，桌面与窄屏各 153 项；每项单次执行，retry 与其他结果均为零 |
-| 布局与操作检查 | **20 份报告、52 个状态、92 项检查通过** |
-| 图片选择 | 26 张变化原图均逐张打开；选择 14 张（6 张应用、8 张站点），保留 12 张栅格差异候选。所选方法：14 张本轮观察、146 张精确摘要复用与 12 张旧图保留 |
-| 文档镜像 | 38 张均有本轮采集证明并与所选基线逐字节一致，其中 2 张更新、36 张未变 |
+| Web／运行时／脚本和文档单元 | 候选源码 `a0122057` 的 [CI](https://github.com/SeaLoong/Sensa/actions/runs/43940440695) 分别通过 **501／1607／455 项** |
+| 完整浏览器候选 | 正在执行；包含桌面和窄屏的 **310 项**，尚无完成结论 |
+| 截图与引导审阅 | 已更新逐图审阅后的应用基线和公开图库；最新引导与站点原图仍待复核 |
+| 普通完整比较 | 图片审阅与提交之后单独执行；候选采集不证明比较通过 |
 
-新增四项浏览器用例覆盖双语、桌面与窄屏。流程独占计算编辑；OSC 映射负责轴映射与计算结果选择。共享的 **保存更改**／**恢复更改** 原子处理计算与轴映射草稿；输出连接单独保存，计算来源使用已保存计算配置的实时结果，方案导出也只包含已保存配置。
+上轮后续候选通过 308/310；两项窄屏用例发现变换预设网格挤压引导正文。最新实现高亮一个可操作预设，并保留引导可读高度。
 
-逐图记录保留采集源码／运行身份与实际可见裁图范围；局部裁图不证明未显示的字段。连接使用隔离模拟，实体设备与 Unity／VRChat 客户端另行验收。原图审阅与选择不等同于普通比较通过。
+本轮覆盖输入、映射与变换、轴配置、输出四个独立页面；OSC 接收与协议输入归入输入，映射与计算共享保存／恢复草稿，输出保留连接、路由与录制。六步引导高亮真实目标并变暗其他区域，支持直接操作、Escape／续接和编辑器暂停。预设包括六套 OSC 映射、四种计算变换和六套设备轴配置。
 
-选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)须对最终图片／记录提交完整比较 **306 项**，关闭图片更新，要求完整选择、实际比较、命令成功及其他结果为零。产品、测试、配置、工作流与原生捕获辅助代码须与完整候选逐字节一致。普通比较、原生检查与预览发布的实际结果，以该固定提交对应的 CI 记录为准；选图本身不代表普通比较通过。
+逐图选择、截图摘要和来源将记录在[图片凭据](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)。[视觉评审](ui-visual-review.md)记录实际观察范围。最终源码的普通比较、原生构建、隔离冒烟和预览发布以[当前 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)为准。
 
-## 操作引导、预设与独立指南页：338ee0ad
+## 依赖与验证范围
 
-源码 [`338ee0ad`](https://github.com/SeaLoong/Sensa/commit/338ee0add1600401582610195b23f34271b9180b)，[候选运行 42179712565](https://github.com/SeaLoong/Sensa/actions/runs/42179712565/attempts/1)，attempt 1：
+合并 CodeQL、Electron、Mermaid 更新；Playwright 1.65.0 在 Firefox axe 分析时重复崩溃，因此保留 1.64.1 与现有无障碍检查，见 [PR #60](https://github.com/SeaLoong/Sensa/pull/60)。
 
-| 检查 | 记录结果 |
-| --- | --- |
-| Web／Node／Python 单元 | **478／1607／455 项通过** |
-| 完整浏览器候选 | **302/302 项通过**，桌面与窄屏各 151 项，逐项单次执行，retry 与其他结果均为零 |
-| 布局与操作检查 | **20 份报告、52 个状态、92 项检查通过** |
-| 选图与文档镜像 | 接受 **54 张应用图与 8 张站点原图**；**38 张镜像**均有本轮采集证明，其中 13 张更新字节 |
-| 产品 Pages 预检 | [54/54 项通过并部署](https://github.com/SeaLoong/Sensa/actions/runs/42178694959/attempts/1)；24 次线上响应与受测产物一致 |
+自动套件使用回环服务、临时配置和模拟传输，覆盖输入、计算、映射、脚本、录制、协议、停止顺序、双语与窄屏。模拟线包、WebGL 或构建成功不代表真实设备、Unity／VRChat 客户端、HMD 或机械停止已经验收。
 
-新增 28 项浏览器用例，覆盖向导进度与续接、明确配置设备、预设草稿与独立保存、WebSensa 能力选择，以及关闭 JavaScript 后的真实双语导航。使用指南与设备连接分别拥有独立页面，场景快捷入口打开相应的工作台控制。
-
-**62 张变化原图均逐张打开审阅**。172 张图片的记录包含 **62 张本轮原图观察与 110 张已有审阅的精确 SHA256 复用**。 [逐图记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)保留采集源码／运行身份与可见裁图范围。
-
-34 条 axe 未完成规则实例另有范围明确的人工复查记录，不构成完整无障碍符合性验收。连接使用隔离模拟；实体设备、Unity 与 VRChat 客户端分别验收。Pages 预检早于选图后的图库更新。
-
-选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)必须对最终图片／记录源码完整比较 **302 项**，关闭图片更新，要求完整选择、实际比较、命令成功和其他结果为零。产品、测试、配置、工作流与原生捕获辅助代码须与完整候选逐字节一致。最终源码／运行，以及原生程序和发布结果，以该 CI 记录为准。
-
-## 用途说明与上手交互：23443637
-
-源码 [`23443637`](https://github.com/SeaLoong/Sensa/commit/2344363779e028519feb318d807757dbdbb00ce2)，[候选运行 42131857671](https://github.com/SeaLoong/Sensa/actions/runs/42131857671/attempts/1)，attempt 1：
-
-| 检查 | 实际结果 |
-| --- | --- |
-| Web／Node／Python 单元 | **454／1607／455 项通过** |
-| 完整浏览器候选 | **274/274 项通过**，逐项单次执行，retry 与其他结果均为零 |
-| 布局与操作检查 | **20 份报告、52 个状态、92 项检查通过**，包含主轴与额外 11 轴的独立对齐检查 |
-| 图片与图库 | 接受 **80 张应用图、8 张站点原图**；38 张文档镜像均有本轮实际附件证明，其中 18 张更新字节 |
-
-新增 20 项浏览器用例，覆盖首次使用任务、配置导航、折叠与语言切换后保留草稿、首页用途和 WebSensa 能力入口。首页直接说明 VRChat／SPS、funscript 与 OSR 的关系；工作台默认突出 L0，其余动作轴按需展开。
-
-逐图记录包含 22 张本轮原图观察、66 张已打开原图的精确摘要复用，以及 84 张未变基线复用。66 张观察来源保留真实的 8e／42126557470 失败运行身份；当前完整候选的执行结果单独记录。局部裁图保留其焦点外圈或滚动视角范围。axe 的人工待审项不等同于自动失败，也不构成完整无障碍符合性验收。[逐图记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)
-
-选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)对固定图片提交执行完整 **274 项**比较，关闭截图更新，要求完整选择、实际比较、命令成功和其他结果为零；原生程序与自动预览使用该提交的实际运行记录。
-
-## SPS3 Beta 兼容更新：c6a1ed14
-
-源码 [`c6a1ed14`](https://github.com/SeaLoong/Sensa/commit/c6a1ed14aef7e7024cf2f9c4672e8ae2333bfb8b)，[候选运行 41927196979](https://github.com/SeaLoong/Sensa/actions/runs/41927196979/attempts/1)，attempt 1：
-
-| 检查 | 实际结果 |
-| --- | --- |
-| 本地 Web／Node／Python 单元 | **440／1607／455 项通过** |
-| 完整浏览器候选 | **254/254 项通过**，逐项单次执行，retry 为零，其他结果均为零 |
-| 图片审阅 | **接受 25 张应用图和 6 张站点原图**；7 张应用候选仅有栅格差异、2 张指南候选未完整采集页脚，均保留旧图 |
-| 文档图库 | **38 张镜像**与所选基线继续逐字节一致，保留原有 4b1／41905870856 采集来源 |
-
-新增 22 项运行时单元和 12 项浏览器用例，覆盖公开 OGB 几何、来源／实例／Self／Others 隔离、估长与超时停止，以及 Socket 根标记 1 mm／0 mm 切换、窄屏和双语重绘、录制与脚本导出。[SPS3 使用说明](sps3.md)
-
-候选使用 `snapshotsCompared=false`。选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)对固定图片提交执行完整 **254 项**比较，要求完整选择、实际比较、命令成功和其他结果为零；其报告另行记录六个平台的原生程序检查与预览发布。[逐图记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)
-
-本轮新增 37 项 Unity Editor 源用例（20 项根点兼容、17 项 GPU 数据与配置），尚未在 Unity 中执行。SPS3 探针使用真实 Unity 2022.3.22f1 头文件和 14 个固定上游依赖，经 DXC v1.9.2609 编译 `vert`／`frag` 两个 SM6 入口通过，使用 `sampler2D=sampler` 兼容宏；这是独立 HLSL 静态检查，Unity ShaderLab 导入和 GPU／VRChat 运行仍按各自实测记录。
-
-## 布局更新与审图：4b1d9816
-
-源码 [`4b1d9816`](https://github.com/SeaLoong/Sensa/commit/4b1d98167809214772a17ab02393a35311451c1f)，[候选运行 41905870856](https://github.com/SeaLoong/Sensa/actions/runs/41905870856/attempts/1)，attempt 1：
-
-| 检查 | 实际结果 |
-| --- | --- |
-| Web／Node／Python | **431／1585／454 项通过** |
-| 完整浏览器候选 | **242/242 通过**，每项单次执行，零失败、跳过、重试或未执行 |
-| Pages | [34/34 通过并部署](https://github.com/SeaLoong/Sensa/actions/runs/41905627911)，167 项资源核对一致 |
-| CodeQL | [四语言成功处理](https://github.com/SeaLoong/Sensa/actions/runs/41905628046)，35 条结果及 69 条数据流与上一源码无语义变化；扫描配置保持启用 |
-| 逐图选择 | 接受 **116 张应用图、7 张站点原图**，9 张几何图及 1 张站点图保留旧图，候选分别存在微小栅格变化和采集裁边 |
-| 文档图库 | **38 张镜像**与所选应用基线字节一致，采集来源为本轮固定源码与运行 |
-
-新增布局回归覆盖双语轴切换、独立草稿、模式与限位保存、固定弹窗框架、正文滚动、地址与短端口对齐、长表单保存／取消及键盘焦点。完整套件还检查 390 和 320 CSS px 窄屏。
-
-本轮为候选采集模式，`snapshotsCompared=false`。选图后，普通 CI 对图片提交完整执行 **242 项比较**，要求关闭基线更新、`selectionComplete=true`、`snapshotsCompared=true`、命令成功及其他结果为零。该固定提交的普通比较、六平台原生检查和预览结果记录在对应 [CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) 报告中；更新图库后的部署记录在对应 [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) 运行中。
-
-## 该轮布局的图片证据
-
-[逐图记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)保存 164 张应用基线和 8 张站点原图的所选摘要、候选摘要、具体观察、选择理由与历史链。其中 104 张新选图片按完整 SHA256 复用 956 源码下已打开的原图观察，保留其真实的[已取消运行](https://github.com/SeaLoong/Sensa/actions/runs/41899721755/attempts/1)及观察来源；当前成功采集／执行单独记录。其余新选图片已直接打开。站点原图保留采集当时的图库，后续部署检查更新后的文档图片。[图片审阅说明](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md) · [审阅流程](e2e.md)
-
-## 布局更新前的已验收快照：665753a6
-
-源码 [`665753a6`](https://github.com/SeaLoong/Sensa/commit/665753a6403d534de9a227844e8eb0d99ebbe6a2)，[CI #257](https://github.com/SeaLoong/Sensa/actions/runs/41884479633)，attempt 1，12 个作业全部成功：
-
-| 检查 | 实际结果 |
-| --- | --- |
-| Web／Node／Python | **427／1585／454 项通过** |
-| 完整普通浏览器比较 | **226/226 通过**，单次执行，其他结果为零 |
-| 独立 Firefox／WebKit 兼容检查 | **8/8 通过** |
-| Pages | [34/34 通过并部署](https://github.com/SeaLoong/Sensa/actions/runs/41884479336) |
-| 原生包 | Windows、Linux、macOS，各 x64／ARM64 构建及隔离 CLI／Electron 检查通过 |
-| 发布 | [开发预览 #257](https://github.com/SeaLoong/Sensa/releases/tag/preview-257-1-665753a6)，18 个公开资产 |
-
-## 验证范围
-
-自动套件覆盖回环 HTTP／WebSocket、隔离 PTY、模拟串口／BLE／WinRT、协议协商与任务生命周期、停止顺序、脚本／录制、计算映射、共享标签页、双语布局、下载和离线资源。原生检查运行实际打包程序，使用临时配置和模拟传输。
-
-实体设备、厂商云、Unity 客户端和 VRChat／HMD 单独验收。已有 Unity Editor 2022.3.22f1 记录止于许可证验证，实际执行零项测试；17 项 Tracking Frame 源用例未执行，未产生 NUnit XML。
-
-具体 GitHub 告警处置与扫描执行分别核对；当前无法访问的面板状态保持未知。[历史迁移候选](https://github.com/SeaLoong/Sensa/actions/runs/40996282389/attempts/1) · [更早的完整比较](https://github.com/SeaLoong/Sensa/actions/runs/40783839713)
+[开发与检查](development.md) · [浏览器验证](e2e.md) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml)

@@ -19,7 +19,7 @@ Per-image observations, selection provenance and digests are in [baseline-review
 
 Source `0419e4f1f855acd920adbb9ad747bf827c85d832` fixes scene-specific targeting and reverse focus entry: OSC selects axis-mapping presets, while manual/script/protocol select common transforms. Shift+Tab from the guide container reaches the last control. Both quick starts and browser assertions were updated.
 
-The [follow-up full candidate](https://github.com/SeaLoong/Sensa/actions/runs/43934966519) checks the updated spotlight captures and keyboard behavior. Earlier guide images do not prove these changes. Acceptance requires an ordinary full comparison of the current PR commit; see [verification status](e2e-status.en.md).
+That candidate passed 308/310: two mobile cases exposed insufficient guide body space. Source `a0122057` focuses one actionable transform preset, reserves readable guide space and checks target hit-testing. The [latest full candidate](https://github.com/SeaLoong/Sensa/actions/runs/43941133222) is in progress. Earlier guide images do not prove these changes. Acceptance requires an ordinary full comparison of the current PR commit; see [verification status](e2e-status.en.md).
 
 ## Scope
 
