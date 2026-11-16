@@ -1,26 +1,38 @@
-# 工作台视觉评审
+# 视觉评审：独立工作区与高亮引导
 
 **简体中文** | [English](ui-visual-review.en.md)
 
-本轮检查输入、映射与变换、轴配置、输出四个独立页面及双语窄屏布局。旧版参数图解的完整评审移至[固定历史记录](https://github.com/SeaLoong/Sensa/blob/8eff42a03462566a61e37c97737fede0e973c59b/docs/ui-visual-review.md)。
+本页记录当前工作区改版的视觉检查。旧参数图解评审保留于[固定历史提交](https://github.com/SeaLoong/Sensa/blob/8eff42a03462566a61e37c97737fede0e973c59b/docs/ui-visual-review.md)，不再混入当前结论。
 
-## 已核对的截图
+## 来源与选择
 
-[完整候选运行 43929566450](https://github.com/SeaLoong/Sensa/actions/runs/43929566450) 对源码 `27f569770c2eb13b6555a158f4f6e8d8302cf846` 执行 310 项测试，全部首次通过，无失败、跳过或未执行项。该运行采集候选，并未执行普通基线比较。
+[候选运行 43941133222](https://github.com/SeaLoong/Sensa/actions/runs/43941133222/attempts/1)，源码 [`a0122057`](https://github.com/SeaLoong/Sensa/commit/a012205759b1b60f50fb4f736a26e90aac344e6b)，浏览器用例 310/310 通过。生成候选不代表普通截图比较已经通过；最终 PR／main 源码仍须通过独立 [CI 比较](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)。
 
-- 164 张应用基线中，78 张变化图与此前逐图审阅记录的 SHA-256 完全一致，按原观察记录选入；80 张不变图保留。
-- 六张参数图解仅有 6～18 个像素的栅格差异，保留原基线，不据此改动接受阈值。
-- 文档中的 40 个截图引用对应 38 个唯一文件，均核对本次采集附件、源码与 SHA-256，并同步镜像。
-- 本次续接额外打开桌面输入、桌面轴映射和中文窄屏计算编辑器原图复查。输入页不再混入输出卡片；映射页保留统一保存区；窄屏计算字段按列排列，视口下方内容需要滚动。
+[图片凭据](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)列出 164 张应用基线、12 张高亮引导附件和 8 张站点原图。应用基线变化 76 张；每张接受图片都有独立观察，或与已审阅原图逐字节一致，并保留原始运行来源。未变图片保留固定历史证据；图解细小栅格差异继续使用原基线。公开图库 38 张镜像通过[图库采集凭据](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/catalog-capture-review.json)逐项核对本次用例摘要。
 
-逐图观察、选取来源与摘要见 [baseline-review.json](https://github.com/SeaLoong/Sensa/blob/8a029cb8bc2624b25ed28274022c2fbb63a0a814/tests/e2e/baseline-review.json)，文档采集证明见 [catalog-capture-review.json](https://github.com/SeaLoong/Sensa/blob/8a029cb8bc2624b25ed28274022c2fbb63a0a814/tests/e2e/catalog-capture-review.json)。旧站点原图仍是历史证据，不作为本次页面验收。
+## 实际观察
 
-## 引导后续修复
+| 标准 | 观察结果 |
+| --- | --- |
+| V1 层级 | 输入、映射与变换、轴配置、输出各有入口。映射／计算页签共用一行保存与恢复，删除重复标题。 |
+| V2 字体与数值 | 数值和单位保持成组；窄屏双语标签自然换行。面板裁图只证明可见字段。 |
+| V3 分组 | OSC 接收留在输入，映射与计算放在一起，输出连接与录制归入输出页；预设按需展开。 |
+| V4 配色与状态 | 中性色表面、蓝色主操作与文字状态保持一致。高亮引导变暗周围页面，描边标出可交互目标，卡片内始终保留急停。 |
+| V5 对齐 | 桌面表单共用边线；窄屏字段纵向排列、按钮换行，录制导出仍可见。 |
+| V6 双语与窄屏 | 逐张检查了中英文输入／映射／轴配置引导的桌面及 390px 原图。紧凑引导优先呈现当前说明，步骤导航默认折叠。 |
 
-源码 `0419e4f1f855acd920adbb9ad747bf827c85d832` 修正了场景定位和反向焦点：OSC 映射步骤指向轴映射预设，手动／脚本／协议指向常用变换；从引导容器按 Shift+Tab 可到最后一个控件。双语快速开始及浏览器断言同步更新。
+审图发现映射标题重复，以及英文手机轴配置引导的六步导航挤掉当前说明。标题已经合并，步骤导航移到正文后方的**跳转步骤**中；后续窄屏复核发现展开的变换网格挤压正文，因此改为高亮一个可操作预设，并保留最低可读高度。E2E 检查正文可见空间、“下一步”未被遮挡，以及高亮目标的点击命中。
 
-该候选通过 308/310，两项窄屏用例暴露引导正文空间不足。源码 `a0122057` 改为高亮一个可操作变换预设、保留正文可读高度，并增加目标点击命中断言。[最新完整候选](https://github.com/SeaLoong/Sensa/actions/runs/43941133222) 正在执行。完成前不将旧引导截图视为新行为的证明。最终是否通过，以当前 PR 提交的普通完整比较为准，见[验证记录](e2e-status.md)。
+| 代表画面 | 桌面 | 窄屏 |
+| --- | --- | --- |
+| 输入高亮 | [中文](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__review__/tour/desktop/input-zh-CN.png) | [英文](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__review__/tour/mobile/input-en-US.png) |
+| 映射高亮 | [英文](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__review__/tour/desktop/mapping-en-US.png) | [中文](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__review__/tour/mobile/mapping-zh-CN.png) |
+| 轴配置高亮 | [中文](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__review__/tour/desktop/axes-zh-CN.png) | [英文](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__review__/tour/mobile/axes-en-US.png) |
 
-## 范围
+## 范围与剩余限制
 
-截图只证明所示状态与视口，不证明折叠内容、全部表单、读屏、高对比或真实 400% 缩放。候选生成、静态检查与模拟传输均不能替代真实设备、Unity／VRChat、HMD 或机械停止验收。
+8 张站点原图用于核对中英文首页／指南构图，均校验源码记录、构建清单和图片摘要。8 张均来自图库更新后的[普通运行 43942444086](https://github.com/SeaLoong/Sensa/actions/runs/43942444086)，源码 `6fac7c4c`，已逐张打开检查；当前嵌入图库与五节首次使用指南在两种布局中均正常。同一运行通过 310 项普通比较；后续文档改动继续由 CI 检查。[截图图库](screenshots.md)
+
+完整浏览器套件覆盖工作区跳转、草稿保留、预设、Escape／恢复、编辑器暂停及切页后的录制。自动无障碍报告继续保留 incomplete 项；本评审不等于完整 WCAG、读屏、实体手机或真实 400% 缩放验收。桌面英文输入引导的次要“打开输入设置”按钮部分位于可滚动正文下沿，主要导航与停止保持可见。视口图片不证明屏外字段与关闭的折叠内容；没有审美问卷或用户偏好研究。
+
+模拟传输、浏览器 WebGL 和隔离冒烟不代表真实硬件、Unity／VRChat 或 HMD 行为。历史空间图形验收仍只适用于当时源码。[验证记录](e2e-status.md) · [评审标准](ui-quality.md)

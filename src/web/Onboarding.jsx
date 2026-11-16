@@ -54,8 +54,13 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
       </div>}
       {activeStep === 'ready' && <div className="stack">
         <h3>{canFinish ? t('设置已备好') : t('还差一步')}</h3>
-        <ul className="onboarding-checklist"><li>{scene?.title || t('尚未选择场景')}</li>
-          <li>{t('可用输出 {0}/{1}', [availableOutputs, outputCount])}</li><li>{inputPrepared ? t('输入已准备') : t('输入待准备')}</li></ul>
+        <p className="caption muted">{scene?.title || t('尚未选择场景')}</p>
+        <ul className="onboarding-checklist" role="list">
+          <li><Badge tone={inputPrepared ? 'success' : 'warning'}>{inputPrepared ? t('输入已准备') : t('输入待准备')}</Badge>
+            {!inputPrepared && <Button data-testid="onboarding-review-input" onClick={() => go('input')}>{t('准备输入')}</Button>}</li>
+          <li><Badge tone={availableOutputs > 0 ? 'success' : 'warning'}>{t('可用输出 {0}/{1}', [availableOutputs, outputCount])}</Badge>
+            {availableOutputs === 0 && <Button data-testid="onboarding-review-device" onClick={() => go('device')}>{t('连接设备')}</Button>}</li>
+        </ul>
         <p>{inputActive ? t('输入已启用，继续通过顶部开关控制。') : t('检查高亮的输入启用开关。完成引导不会启用输入，准备好后由你打开。')}</p>
       </div>}
     </div>

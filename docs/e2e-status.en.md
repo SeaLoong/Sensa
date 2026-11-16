@@ -2,29 +2,28 @@
 
 [简体中文](e2e-status.md) | **English**
 
-This page records the current workbench redesign. Previous layouts, counts and conclusions remain in the [fixed historical record](https://github.com/SeaLoong/Sensa/blob/8eff42a03462566a61e37c97737fede0e973c59b/docs/e2e-status.en.md). Each result belongs to its own source and Actions run.
+This page describes the current workspace redesign. Superseded layouts, counts and conclusions remain in the [fixed historical record](https://github.com/SeaLoong/Sensa/blob/8eff42a03462566a61e37c97737fede0e973c59b/docs/e2e-status.en.md).
 
-## Separate workspaces, presets and spotlight guidance
+## Separate workspaces, presets and spotlight setup
 
-Candidate source [`a0122057`](https://github.com/SeaLoong/Sensa/commit/a012205759b1b60f50fb4f736a26e90aac344e6b), [full candidate run](https://github.com/SeaLoong/Sensa/actions/runs/43941133222/attempts/1), attempt 1.
+Full candidate source [`a0122057`](https://github.com/SeaLoong/Sensa/commit/a012205759b1b60f50fb4f736a26e90aac344e6b), [Actions run](https://github.com/SeaLoong/Sensa/actions/runs/43941133222/attempts/1), attempt 1. The subsequent keyboard-root fix `84bc6f45` passed ordinary CI run 43942444086: its tested merge `6fac7c4c` has the same source tree as the PR head.
 
-| Check | Current evidence |
+| Check | Evidence |
 | --- | --- |
-| Web / runtime / scripts and docs units | Candidate source `a0122057` passed **501 / 1607 / 455 tests** in [CI](https://github.com/SeaLoong/Sensa/actions/runs/43940440695) |
-| Full browser candidate | Running **310 cases** across desktop and narrow viewports; no completed result yet |
-| Screenshot and guide review | Application baselines and public gallery refreshed from individually reviewed candidate images; latest spotlight/site captures pending |
-| Ordinary full comparison | Runs separately after image review and commit; candidate generation is not comparison acceptance |
+| Web / runtime / scripts and documentation | [CI on the final guide implementation](https://github.com/SeaLoong/Sensa/actions/runs/43942444086): **501 / 1607 / 455 passed** |
+| Full browser candidate | **310/310 passed**, desktop and mobile; zero failures, skips, flaky, unrun or interrupted cases |
+| Chromium / Firefox / WebKit compatibility | **8/8 passed** in the candidate run |
+| Image review | 76 changed application baselines reviewed individually; exact-byte images reuse recorded observations; insignificant geometry raster differences retain their existing baselines |
+| Independent ordinary comparison | [Run 43942444086](https://github.com/SeaLoong/Sensa/actions/runs/43942444086): **310/310 passed**, `selectionComplete=true`, `snapshotsCompared=true`; subsequent commits retain the same CI gate |
 
-The previous follow-up candidate passed 308/310; two mobile cases exposed guide content squeezed by a tall transform grid. The latest source highlights one actionable preset and reserves readable guide space.
+Input, Mapping & transforms, Axis profiles and Outputs now have separate pages. OSC reception and protocol sources live in Input; mappings and calculations share draft Save/Restore; Outputs owns connections, routing and recording. Six-step setup highlights interactive controls, dims surrounding areas, saves progress on Escape and suspends while an editor is open. The compact guide prioritizes current instructions and folds away Jump to step. A transform step focuses one actionable preset; Tab/Shift+Tab includes the highlighted button itself. Presets include six OSC templates, four transforms and six axis profiles.
 
-This change separates Input, Mapping & transforms, Axis profiles and Outputs. OSC reception and protocol inputs live under Input; mappings and calculations share draft save/restore; Outputs contains connections, routing and recording. The six-step guide highlights actual controls against a dimmed page, supports direct interaction, Escape/resume and suspension while an editor is open. Presets include six OSC mappings, four transforms and six device profiles.
-
-Per-image decisions, hashes and source identities are recorded in the [image receipt](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json). The [visual review](ui-visual-review.en.md) describes observed scope. Consult [current CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) for the final source's ordinary comparison, native builds, isolated smoke checks and preview publication.
+[Image receipt](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json) records individual source runs, hashes and decisions, including any observations reused from earlier diagnostic runs. [Visual review](ui-visual-review.en.md) records actual scope and limitations. Native builds, isolated smoke and previews depend on the ordinary full comparison for their pinned commit.
 
 ## Dependencies and scope
 
-CodeQL, Electron and Mermaid updates are integrated. Playwright 1.65.0 repeatedly crashes Firefox during axe analysis, so 1.64.1 and the existing accessibility checks are retained; see [PR #60](https://github.com/SeaLoong/Sensa/pull/60).
+CodeQL, Electron and Mermaid updates are included. Playwright 1.65.0 repeatedly crashed Firefox during axe analysis, so 1.64.1 and the existing accessibility checks are retained; see [PR #60](https://github.com/SeaLoong/Sensa/pull/60).
 
-Automated suites use loopback services, temporary configuration and simulated transports to exercise inputs, calculations, mappings, scripts, recording, protocols, stop ordering, languages and narrow layouts. Mock wire packets, WebGL and successful builds do not accept physical devices, Unity/VRChat clients, HMD capture or mechanical stopping.
+The suites use loopback services, temporary configuration and mock transports. Browser/WebGL, simulated wire packets and build success do not establish real hardware, Unity/VRChat, HMD or mechanical-stop acceptance.
 
-[Development and checks](development.en.md) · [Browser verification](e2e.en.md) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml)
+[Development](development.en.md) · [Browser verification](e2e.en.md) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml)

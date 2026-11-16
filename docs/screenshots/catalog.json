@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sourceCommit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-  "runId": "43929566450",
+  "sourceCommit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+  "runId": "43941133222",
   "attempt": "1",
   "scenes": [
     {
@@ -213,7 +213,7 @@
     },
     {
       "file": "mobile/recording-controls.png",
-      "sha256": "9dcc79a762aaa32cca7b086c4fbd762047a46b3b8b95b4ad90736b3629edd206",
+      "sha256": "b2f585f3e228819b2162f06a6c18d46ff361a1241e54e54b59f3b4398f60bc3b",
       "language": "zh-CN"
     },
     {

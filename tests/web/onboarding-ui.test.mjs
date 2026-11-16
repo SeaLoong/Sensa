@@ -44,9 +44,12 @@ for (const locale of ['zh-CN', 'en-US']) {
     const missing = render(Onboarding, { ...defaultProps, state });
     assert.doesNotMatch(missing, /data-testid="onboarding-complete" disabled=""/);
     assert.ok(missing.includes(t('还差一步')));
+    assert.match(missing, /data-testid="onboarding-review-input"/);
+    assert.match(missing, /data-testid="onboarding-review-device"/);
     const ready = render(Onboarding, { ...defaultProps, state, outputCount: 1, availableOutputs: 1, inputPrepared: true });
     assert.doesNotMatch(ready.match(/<button[^>]*data-testid="onboarding-complete"[^>]*>/)?.[0], /disabled=/);
     assert.ok(ready.includes(t('设置已备好')));
+    assert.doesNotMatch(ready, /data-testid="onboarding-review-(input|device)"/);
     assert.ok(ready.includes(t('检查高亮的输入启用开关。完成引导不会启用输入，准备好后由你打开。')));
     assert.doesNotMatch(ready, /role="switch"/);
   });
@@ -65,6 +68,24 @@ test('guide selection and progression dispatch only presentation actions; runtim
   assert.deepEqual(navigation, ['script']); assert.deepEqual(applied, []);
   byTestId(input, 'onboarding-apply-input').props.onClick();
   assert.deepEqual(applied, ['script']);
+});
+
+test('review repairs only missing setup and never applies input or connects a device', () => {
+  const actions = [], applied = [], navigation = [];
+  const props = { ...defaultProps, state: { ...defaultProps.state, step: 'ready' },
+    onChange: action => actions.push(action), onApplyInput: value => applied.push(value),
+    onNavigate: value => navigation.push(value) };
+  const missing = Onboarding(props);
+  byTestId(missing, 'onboarding-review-input').props.onClick();
+  byTestId(missing, 'onboarding-review-device').props.onClick();
+  assert.deepEqual(actions, [{ type: 'step', step: 'input' }, { type: 'step', step: 'device' }]);
+  assert.deepEqual(applied, []); assert.deepEqual(navigation, []);
+  const inputReady = Onboarding({ ...props, inputPrepared: true });
+  assert.equal(byTestId(inputReady, 'onboarding-review-input'), undefined);
+  assert.ok(byTestId(inputReady, 'onboarding-review-device'));
+  const outputReady = Onboarding({ ...props, outputCount: 2, availableOutputs: 1 });
+  assert.ok(byTestId(outputReady, 'onboarding-review-input'));
+  assert.equal(byTestId(outputReady, 'onboarding-review-device'), undefined);
 });
 
 test('browser guide hides native listeners and recovers a saved unavailable goal as scene selection', () => {
