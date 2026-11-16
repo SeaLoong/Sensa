@@ -40,7 +40,10 @@ export default function GuidedTour({ step, goal, suspended, onDismiss, emergency
       if (event.key === 'Escape') { event.preventDefault(); dismissRef.current(); return; }
       if (event.key !== 'Tab') return;
       const roots = [cardRef.current, target].filter(Boolean);
-      const controls = roots.flatMap(root => [...root.querySelectorAll('button, input, select, textarea, a[href], summary, [tabindex]')])
+      const selector = 'button, input, select, textarea, a[href], summary, [tabindex]';
+      const controls = [...new Set(roots.flatMap(root => [
+        ...(root.matches(selector) ? [root] : []), ...root.querySelectorAll(selector),
+      ]))]
         .filter(element => element.tabIndex >= 0 && !element.matches(':disabled') && element.getClientRects().length);
       if (!controls.length) return;
       const index = controls.indexOf(document.activeElement);

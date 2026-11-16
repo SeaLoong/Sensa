@@ -73,6 +73,10 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
         await expect(page.locator('.transform-presets')).toHaveAttribute('open', '');
         await captureSpotlight(page, info, '.transform-presets .preset-card:first-child', 'spotlight-mapping-' + locale);
+        await guideCard.focus(); await page.keyboard.press('Shift+Tab');
+        await expect(page.locator('.transform-presets .preset-card:first-child')).toBeFocused();
+        await page.keyboard.press('Tab');
+        await expect(page.getByTestId('onboarding-skip')).toBeFocused();
         await page.getByTestId('onboarding-next').click();
         await expect(page.locator('#workspace-tabs-axes')).toHaveAttribute('aria-selected', 'true');
         await captureSpotlight(page, info, '.axis-profiles-section > .section__header', 'spotlight-axes-' + locale);
