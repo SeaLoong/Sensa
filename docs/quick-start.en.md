@@ -20,40 +20,36 @@ The guide stays available as **Guided setup**. **Save progress, continue later**
 
 [Narrow layout](screenshots/mobile/english-manual.png) · [More running examples](screenshots.en.md)
 
-## 2. Add an output
+## 2. Prepare input in the highlighted controls
 
-1. In the guide, click **Connect or configure a device** to open **Control → Outputs**. Choose an **Output type** and click **Add output**.
-2. Enter your device's connection in **Output settings**:
-   - **OSR / SR6 / TCode:** select serial and the port, or enter its network endpoint. Choose the device's axis profile.
-   - **Intiface:** start Intiface Central and scan for your device. Enter its WebSocket address in Sensa. Use **Matching device name** under **Devices and features** to limit control to your device.
-3. Click **Save output**, then **Enable** on the output card. Confirm that it connects.
+The guide follows **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step opens the relevant page, highlights real controls and dims the rest. You can interact with the highlighted controls. Longer instructions scroll separately, keeping **Back / Next** and emergency stop available. Opening an editor suspends the guide; closing it resumes the guide. Press **Escape** to save progress and leave.
 
-For TCode, **Scene presets → Device axis profiles** offers a **Device motion preset**. Click **Review and create an axis profile**, check direction and travel in the editor, then save. Select that saved profile on your TCode output. You can also edit profiles in **Settings → Axis profiles**.
+Prepare your source in **Input**. Opening a tab does not apply its input mode:
 
-Return to the guide after the output is available, then continue to input preparation. [Other output types](devices.en.md)
+- **Manual:** check L0. For an Intiface vibrator using its default source, use V0 under **More motion axes**; WebSensa also requires V0 under **Motion axes**.
+- **Script:** choose a `.funscript` file. For an Intiface vibrator, its output can use **L0 · depth to vibration** as the vibration source.
+- **VRChat / SPS:** inspect received parameters and sources in **Input → OSC**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps)
+- **Website or software:** configure a source under **Input → Protocol**, then connect the upstream application. [Protocol inputs](protocol-inputs.en.md)
 
-## 3. Enable input and inspect results
+## 3. Choose mappings, transforms and axis profiles
 
-In the guide, click **Open input settings** and prepare your chosen scene:
+**Mapping & transforms** has **Axis mapping** and **Computed signals** subtabs. Open **Scene presets** and choose a card:
 
-- **Manual:** check L0, or V0 under **More motion axes** for an Intiface vibrator. In WebSensa, also enable V0 under **Motion axes**.
-- **Script:** click **Choose script** and load a `.funscript`. For a vibration-only Intiface device, set its output's **Vibration source** to **L0 · Depth to vibration**.
-- **VRChat / SPS:** receive OSC parameters, choose a mapping preset and click **Save changes** in **Mapping & transforms → Axis mapping** after calibration. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps)
-- **Website or software:** configure a protocol input and connect the upstream application. [Protocol input steps](protocol-inputs.en.md)
+- **VRChat / OSC mappings:** SPS depth, vibration, combined depth/vibration and other templates. Append or replace drafts, then check actual paths and ranges.
+- **Transforms:** manual smoothing, manual/script mixing, a threshold switch or a slow wave. After loading a calculation, select its result in an axis mapping or output binding.
+- **Device axis profiles:** TCode first-run short travel, OSR2/SR6, L0-only or V0-only. Review direction, travel and speed in the editor before saving.
 
-Click **Apply input mode** if shown. Return to the guide, check the output and prepared input, then click **Finish setup**. Finishing records your progress and returns to **Control** with your chosen input. Turn on **Input enabled** separately when ready.
+**Save changes** saves axis mappings and calculations together; **Restore changes** restores both. Manual and script inputs can drive motion axes directly, so skip transforms when unnecessary. TCode profiles live on the separate **Axis profiles** page; select a saved profile on the output to use it. [Preset reference](presets.en.md)
 
-For a first manual movement, make a small slider adjustment and click **Send once**. **Send continuously** follows later edits. For a script, press **Play** after enabling input.
+## 4. Connect outputs, review and enable
 
-The output card shows connection status and recent values. If nothing happens, check the selected device/port, output **Enable**, applied input mode and **Input enabled**.
+1. At the guide's device step, click **Connect or configure a device**, or open **Outputs** directly. Choose **Output type → Add output**.
+2. Configure the connection. For OSR/SR6/TCode, select serial or network settings and a saved axis profile. For Intiface, enter Central's WebSocket address and select the target with **Device and features → Matching device name**.
+3. **Save output**, then **Enable** its card and confirm the connection. [Other output types](devices.en.md)
+4. Return to **Input** and click **Apply input mode** when needed. The final guide step shows actual readiness; **Finish tour** only records progress and does not enable input.
+5. Turn on **Input enabled** separately when ready. For a first manual movement, make a small adjustment and **Send once**; for a script, press **Play**. Inspect connection state and recent values in **Outputs**.
 
-Turn off **Input enabled** when finished. **Emergency stop** stops all outputs and stays active until cleared. Saving settings, changing input mode or replacing a script turns input off; enable it again when ready. Clearing emergency stop also leaves input off.
-
-## 4. Choose sources and add computation
-
-Use the scene shortcuts to switch tasks, or reopen **Guided setup** for the steps. **Scene presets** lets you inspect OSC and device-motion presets. Loading a preset prepares an editable draft. **Save changes** saves the current calculation and axis-mapping drafts together; **Restore changes** restores both.
-
-Once one connection works, open **Flow** to create [computed signals](computed-signals.en.md) that mix inputs or smooth a response. Device cards stay in **Control**; Flow's **Output connections** opens their saved bindings for editing. [Choose a setup](usage-scenarios.en.md) for additional input and Avatar tracking options.
+Turn off **Input enabled** when finished. **Emergency stop** stops all outputs and stays latched until released. Saving configuration, changing mode or replacing a script turns input off; releasing emergency stop also requires explicit input activation. Calculations, mappings and output connections can be edited separately, and navigation preserves unfinished drafts.
 
 ## 5. Save recordings and complete plans
 

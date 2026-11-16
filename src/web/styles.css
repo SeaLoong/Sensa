@@ -989,4 +989,3 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .guided-tour__card .onboarding-panel__content { padding: 12px; }
 }
 @media (forced-colors: active) { .guided-tour__target { border-color: Highlight; } .guided-tour__card { border: 2px solid CanvasText; } }
-

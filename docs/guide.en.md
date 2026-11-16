@@ -26,7 +26,7 @@ Prepare your source and output, save, then **Apply input mode** and turn on **In
 
 In **Mapping & transforms**, **Save changes** saves all computed-signal and axis-mapping drafts together, including edits made in the other subtab. **Restore changes** restores both to their saved state. Output bindings use **Save output** separately. If saving is blocked, the toolbar identifies incomplete drafts and links to their workspace.
 
-## Control
+## Input
 
 ### Manual and script
 
@@ -76,7 +76,7 @@ Choose **Mapping & transforms → Computed signals** when you need blending, smo
 
 OSC settings contain the listening endpoint, OSCQuery discovery, Hub forwarding and **OGB parameter activation**. VRChat commonly sends to **9001** and receives on **9000**. [Ports and routing](protocol-inputs.en.md)
 
-### Control from root position: inspect, then calibrate
+### Input from root position: inspect, then calibrate
 
 Choose a [tracking setup](usage-scenarios.en.md), inspect valid readings and capture movement endpoints before enabling spatial input. [Units and calibration](positioning.en.md)
 
@@ -88,9 +88,9 @@ Expand **Output connections** on the **Outputs** page to inspect saved routes. *
 
 **Save and load a complete plan** exports saved configuration. Save any calculation, mapping or output edits first to include them. [Signal-flow guide](signal-pipeline.en.md)
 
-## Settings and help
+## Axis profiles, diagnostics and help
 
-**Axis profiles** set TCode direction, travel and motion. A device-motion preset can prepare a new profile; save it and select it on the output. Protocol listeners and logs are also here. Help links to [Guides](start.en.md) and can reopen guided setup or scene presets. [Connection reference](protocol-inputs.en.md) · [Independent desktop instances](quick-start.en.md#run-several-instances)
+**Axis profiles** set TCode direction, travel and motion. A device-motion preset can prepare a new profile; save it and select it on the output. Protocol listeners are under **Input → Protocol**; logs are under **Diagnostics**. Help links to [Guides](start.en.md) and can reopen guided setup or scene presets. [Connection reference](protocol-inputs.en.md) · [Independent desktop instances](quick-start.en.md#run-several-instances)
 
 ## Explore approach, contact and position
 

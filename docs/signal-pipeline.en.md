@@ -2,7 +2,7 @@
 
 [简体中文](signal-pipeline.md) | **English**
 
-A flow links a source to one or more destinations. Connect and manage devices in **Control**. Use **Flow** to create computed signals, edit output connections and reuse saved plans. Add a calculation when a result needs blending, smoothing or another conversion; each output binding has its own target, range and delivery schedule. [Use the browser edition](websensa.en.md) for manual/script flows, or the desktop workbench for all source types.
+A flow links a source to one or more destinations. Prepare sources in **Input**, create calculations or reuse saved plans in **Mapping & transforms**, and manage devices and bindings in **Outputs**. Add a calculation when a result needs blending, smoothing or another conversion; each output binding has its own target, range and delivery schedule. [Use the browser edition](websensa.en.md) for manual/script flows, or the desktop workbench for all source types.
 
 | Task | Start here |
 | --- | --- |
@@ -31,9 +31,9 @@ For example, combine two touch regions into “contact intensity,” then use it
 
 ## Record a manual track first
 
-1. In **Control → Outputs**, add a **Signal recording** output and keep its default Funscript format.
+1. In **Outputs**, add a **Signal recording** output and keep its default Funscript format.
 2. Choose Manual → L0 for the binding, set track name `L0` and both input/output ranges to 0–1, then **Save output**.
-3. Enable the output card in Control and confirm its connection. Apply Manual, enable input, adjust L0 and send once. Repeated adjustments create a changing trajectory.
+3. Enable the output card on the Outputs page and confirm its connection. Apply Manual, enable input, adjust L0 and send once. Repeated adjustments create a changing trajectory.
 4. Disable input to complete the segment, then download it or load it into the script player. Loading leaves playback paused; apply Script and enable input before playing.
 
 This flow demonstrates source, conversion, output and replay. Next, choose an OSC value or calculation as its source, or add other outputs for the same result.
@@ -42,7 +42,7 @@ This flow demonstrates source, conversion, output and replay. Next, choose an OS
 
 Manual, OSC, Script and Protocol retain quick input modes; Combined lets several kinds of source contribute to output bindings. Prepare and save the setup, apply the required input mode, then enable input.
 
-Create and edit **Computed signals** in Flow. **Save changes** saves the calculation graph and axis mappings together, including drafts edited in OSC. **Restore changes** restores both to their saved state. **Map to an axis** on a calculation opens **OSC → Map** with a draft for you to review and save.
+Create and edit **Computed signals** in Mapping & transforms → Computed signals. **Save changes** saves the calculation graph and axis mappings together, including drafts edited in Axis mapping. **Restore changes** restores both to their saved state. **Map to an axis** on a calculation opens **Mapping & transforms → Axis mapping** with a draft for you to review and save.
 
 | Source | Available reading | Example use |
 | --- | --- | --- |
@@ -63,12 +63,12 @@ Give a calculation a recognizable name, such as Contact intensity. Save it with 
 
 ## Add outputs and bindings
 
-1. In **Control → Outputs**, choose **Output type → Add output** and configure the address/device.
+1. In **Outputs**, choose **Output type → Add output** and configure the address/device.
 2. Open Input-to-output bindings and select a direct source or saved calculation.
 3. Enter the target parameter and input/output ranges, then **Save output**.
-4. Enable the output card in Control and confirm its connection. Apply the input mode, then enable input.
+4. Enable the output card on the Outputs page and confirm its connection. Apply the input mode, then enable input.
 
-For an existing output, **Flow → Output connections → Edit output bindings** opens the same settings dialog at its binding form. **Manage outputs** takes you to the full device cards in Control. Bindings that use computations read saved results; **Save output** applies them separately and preserves unfinished calculation/mapping drafts.
+For an existing output, **Outputs → Output connections → Edit output bindings** opens the same settings dialog at its binding form. **Manage outputs** takes you to the full device cards on the Outputs page. Bindings that use computations read saved results; **Save output** applies them separately and preserves unfinished calculation/mapping drafts.
 
 | Output type | Connection and destination | Suitable content |
 | --- | --- | --- |
@@ -92,7 +92,7 @@ OSC, network, MIDI, Recording and motion-axis bindings offer three sending modes
 
 ## One result, several outputs
 
-For example, create a Product calculation in Flow with the actual OSC touch value and Manual → L0 as an overall intensity, both using 0–1. Click **Save changes**, then select that saved calculation as the source in each output:
+For example, create a Product calculation in Mapping & transforms → Computed signals with the actual OSC touch value and Manual → L0 as an overall intensity, both using 0–1. Click **Save changes**, then select that saved calculation as the source in each output:
 
 | Output | Target and range | Result use |
 | --- | --- | --- |
@@ -100,7 +100,7 @@ For example, create a Product calculation in Flow with the actual OSC touch valu
 | DG-LAB | `Intensity`, 0–1, with a channel limit | Follow the current interaction intensity |
 | Recording | Track `L0`, 0–1 | Save the same effect as a funscript trajectory |
 
-After saving the outputs, apply Control → Combined, enable the outputs you intend to use and confirm their connections, then enable input. Each binding shows its raw reading, converted result and validity, with its own destination range and sending behavior.
+After saving the outputs, apply Input → Combined, enable the outputs you intend to use and confirm their connections, then enable input. Each binding shows its raw reading, converted result and validity, with its own destination range and sending behavior.
 
 ## Write back to VRChat OSC
 
@@ -136,7 +136,7 @@ MIDI uses the operating system's available output ports. Refresh the port list a
 
 ## Record and inspect
 
-The Control page also provides a quick L0 recording panel (Chinese interface shown).
+The Outputs page also provides a quick L0 recording panel (Chinese interface shown).
 
 ![L0 recording controls](screenshots/desktop/recording-controls.png)
 

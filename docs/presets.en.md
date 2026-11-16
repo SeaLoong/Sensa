@@ -1,12 +1,17 @@
-# Five built-in mapping templates
+# Scene presets: mappings, transforms and axis profiles
 
 [简体中文](presets.md) | **English**
 
-A preset fills common paths and motion roles so you can build a mapping quickly. Choose the matching Avatar feature, select its live source, capture your input endpoints and save. The rows remain editable for your own paths, direction, range and conditions.
+**Scene presets** provides **VRChat / OSC mappings**, **Transforms** and **Device axis profiles** cards. Loading prepares a draft; review, saving and input activation are separate actions.
+
+## Six built-in mapping templates
+
+A mapping preset fills common paths and motion roles so you can build a mapping quickly. Choose the matching Avatar feature, select its live source, capture your input endpoints and save. The rows remain editable for your own paths, direction, range and conditions.
 
 | Template ID | Purpose | Default destination |
 | --- | --- | --- |
 | `ogb-depth` | SPS2/SPS3 paired estimate, SPS1 or Plug depth trend | Depth → L0 |
+| `ogb-depth-touch` | Prepare SPS depth and touch-strength mappings together | Depth → L0 + V0 |
 | `ogb-touch` | Touch/Frot or standalone VFH Touch Zone | V0 |
 | `contact-position` | Contact direct position; calibrate the selected axis in metres | SensaPoint Z → Depth / L0 |
 | `contact-speed` | Contact relative speed; calibrate strength in m/s | SensaPoint Speed → V0 |
@@ -44,8 +49,36 @@ Use `contact-position` or `contact-speed` after building the dedicated own-root 
 
 ## Apply and customize
 
-Replace loads the preset into the mapping draft; append adds its rows. Both preserve computed signals. Review the paths/roles, then **Save changes**: calculations and axis mappings save together, including edits made in Flow. **Restore changes** restores both sets of drafts. Saving disables input; enable it when ready. To detect your own targets, choose Self while keeping paired parameters on the same object.
+Replace loads the preset into the mapping draft; append adds its rows. Both preserve computed signals. Review the paths/roles, then **Save changes**: calculations and axis mappings save together, including edits made in Mapping & transforms → Computed signals. **Restore changes** restores both sets of drafts. Saving disables input; enable it when ready. To detect your own targets, choose Self while keeping paired parameters on the same object.
 
 Custom presets can be saved or removed. Generate experimental root mappings through endpoint calibration. Configure QuickStart steps and Shader diagnostics manually using the paths exposed by the experiment. [Mapping guide](guide.en.md) · [Dictionary](osc-parameters.en.md)
 
-Create [computed signals](computed-signals.en.md) in **Flow** for blending and intermediate calculations, **Save changes**, then select their results in **OSC → Map** or output bindings. Custom presets store OSC parameter and tracking mappings. A [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) exports saved axis mappings, axis profiles, computations and outputs together; save current edits first to include them.
+Create [computed signals](computed-signals.en.md) in **Mapping & transforms → Computed signals** for blending and intermediate calculations, **Save changes**, then select their results in **Mapping & transforms → Axis mapping** or output bindings. Custom presets store OSC parameter and tracking mappings. A [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) exports saved axis mappings, axis profiles, computations and outputs together; save current edits first to include them.
+
+## Common transforms
+
+Load a calculation draft from **Scene presets → Transforms**, or expand common transforms in **Mapping & transforms → Computed signals**. Presets do not create target-axis mappings or change the input mode automatically.
+
+| Preset | Default behavior | Next action |
+| --- | --- | --- |
+| Manual smoothing | Smooth Manual L0 over 250 ms | Use the result in an axis mapping or output binding |
+| Manual/script mix | Equal-weight average of Manual L0 and Script L0 | Prepare and apply Combined input |
+| Threshold switch | Turn on at L0 ≥ 60%; off below 40% | Choose a gate or intensity destination |
+| Slow wave | A 0–1 sine wave with a four-second period | Review range/frequency, then connect a destination |
+
+Sources and settings remain editable. Each load creates an independent calculation draft. Click **Save changes** before selecting its saved result in an output binding.
+
+## Device axis profiles
+
+Choose a card on **Axis profiles** or in **Scene presets → Device axis profiles**. **Review and create an axis profile**, check it and save. Saving does not bind or enable an output automatically.
+
+| Preset | Axes or limits |
+| --- | --- |
+| OSR first run · short L0 travel | L0 maps to TCode 400–600 with speed limit 100; other axes ignored |
+| SR6 / OSR6 six axes | L0/L1/L2/R0/R1/R2 |
+| OSR2 three axes | L0/R1/R2 |
+| L0 only | Only L0; other axes ignored |
+| V0 only | Only V0; other axes ignored |
+| L0 with locked pose | L0 moves; other position/rotation and auxiliary axes lock at midpoint; V0/V1/V2 ignored |
+
+Select the saved profile on a TCode output. Intiface features and sources are configured separately in **Output settings**; a TCode axis preset does not change them.

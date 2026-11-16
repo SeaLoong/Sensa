@@ -10,9 +10,9 @@ Sensa 向设备发送动作、振动或其他控制。先选择设备实际支�
 
 OSR、SR6 或其他接受 TCode 的控制器使用 **TCode** 输出。根据固件与运行方式选择串口、UDP、TCP 或 WebSocket。WebSensa 支持浏览器串口与 TCode WebSocket，原生 UDP／TCP 使用 Desktop／CLI。
 
-在输出上选择**轴配置**，动作前到**设置 → 轴配置**检查方向与行程。L0 通常是主动作轴，其他轴取决于控制器与设备。
+在输出上选择**轴配置**，动作前到**轴配置**检查方向与行程。L0 通常是主动作轴，其他轴取决于控制器与设备。
 
-[连接第一个输出](quick-start.md#2-配置输出) · [输出设置与绑定](signal-pipeline.md#添加输出与绑定)
+[连接第一个输出](quick-start.md#4-连接输出检查并启用) · [输出设置与绑定](signal-pipeline.md#添加输出与绑定)
 
 ## Intiface 设备
 
