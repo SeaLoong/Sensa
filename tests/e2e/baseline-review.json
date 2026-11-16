@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "candidate": {
-    "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-    "runId": "43929566450",
+    "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+    "runId": "43941133222",
     "attempt": "1",
     "counts": {
       "total": 310,
@@ -14,8 +14,29 @@
       "notRun": 0,
       "interrupted": 0
     },
-    "summarySha256": "bb45f098d7ee16a329dfd5002ea26b0f8a95c0fa5a500518e8e2d02bcea25bfd",
-    "ordinaryComparisonAcceptance": false
+    "summarySha256": "1ac5f700458bef66fb7f9c3e816d10d6af77e8dff2935567e9e5154743ccfa93",
+    "ordinaryComparisonAcceptance": false,
+    "artifacts": [
+      {
+        "id": 14264399401,
+        "name": "e2e-baselines",
+        "size_in_bytes": 20347956,
+        "digest": "sha256:579195bef1d2616531b388fc7e5bf9c112c706de7539fd3448913b3c27262c39"
+      },
+      {
+        "id": 14263484952,
+        "name": "e2e-report",
+        "size_in_bytes": 62848250,
+        "digest": "sha256:db6f33197f2b76ebfe4647a3f87621b23645fdfb1be4606695f5886e230f2007"
+      },
+      {
+        "id": 14261334271,
+        "name": "webcompat-report",
+        "size_in_bytes": 1873210,
+        "digest": "sha256:77b429c68c22003276b7337d99e3d07de99dfe7a8bcaccd2cc90234e6d83a06d"
+      }
+    ],
+    "artifactVerification": "Downloaded ZIP sizes and SHA-256 digests were checked against GitHub metadata before extraction."
   },
   "comparisonPolicy": {
     "requiredSuite": "all",
@@ -31,20 +52,8 @@
     "method": "individual original review, exact-byte reuse and explicit retention of unchanged geometry",
     "reviewer": "/root",
     "trackedBaselinePNGs": 164,
-    "acceptedChangedBaselinePNGs": 78,
+    "acceptedChangedBaselinePNGs": 76,
     "retainedGeometryRasterNoise": [
-      {
-        "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-contact-sdk-orbit-zh-CN.png",
-        "differingPixels": 9,
-        "candidateSha256": "244359fba25fc5e6914f0883665bf5b0244c3a9ded514d3161e8655ba708689b",
-        "retainedSha256": "9d09b5d728e193cf6c7bb7a0ec37c176ef2f275395bf3d2455787736f7e53d10"
-      },
-      {
-        "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-plug-touch-orbit-en-US.png",
-        "differingPixels": 8,
-        "candidateSha256": "72d3b9d0a77fbe410554ebcd9f41533440c310029f81487a1d5516d50b1f1b6b",
-        "retainedSha256": "d07a3f75357c96c9442eb69e089dd16d1876c19eb50a96aa89b370372d8254c6"
-      },
       {
         "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-orbit-en-US.png",
         "differingPixels": 18,
@@ -64,13 +73,40 @@
         "retainedSha256": "9c1b5ab05ab1c1d40acca5b44a849e36d37190d8493b10f2893c3e4e401af30e"
       },
       {
+        "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-socket-legacy-orbit-zh-CN.png",
+        "differingPixels": 12,
+        "candidateSha256": "36a71c371a3a8c24d861738b9c35ce9b506b122f44ee14b4ba2a8541ff6ace0a",
+        "retainedSha256": "573c76175d6cc370900534924afcfb28b0f478b15f20b00c5982a0326ff7720a"
+      },
+      {
         "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-socket-modern-en-US.png",
         "differingPixels": 8,
         "candidateSha256": "ffce77e87ced98698bc1224833d0a7b128d83d6698d41ae2a6a51b71efc32f5a",
         "retainedSha256": "145e31a87221b5708db1bbff7e72230e30783964954b33892522114737a03a99"
+      },
+      {
+        "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-contact-sdk-en-US.png",
+        "differingPixels": 2,
+        "candidateSha256": "e7e4e77b4474144ae9bfeb213a259911eda04b06f98e6805ed95e688629e1db1",
+        "retainedSha256": "83867dd9e2b6aad77896292d8b8c63f767f8954ec26747eb7fc57562aa6c3a56"
+      },
+      {
+        "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-contact-sdk-orbit-zh-CN.png",
+        "differingPixels": 22,
+        "candidateSha256": "db6df609e7ba7d3a1686224a29d822c518b04611f7edbe1ebe2c848f7d694f58",
+        "retainedSha256": "361024f77304107c7aad51ae609a1c4558b76058b0771f94de239fe6c03d4f61"
+      },
+      {
+        "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-plug-touch-orbit-en-US.png",
+        "differingPixels": 2,
+        "candidateSha256": "ab60811a697c9b9c5ab2e39f13bec2c5e240dd5c9da9d6c55d868c7d2307b3fb",
+        "retainedSha256": "017d8498dbfef63c476f0d994678895696a145226a8d6f2ad5d01426dfa3d1ed"
       }
     ],
-    "scope": "Input, mapping/calculation, axis profiles and outputs in Chinese/English at 1280x900 and 390x844. Panel crops do not prove offscreen controls. No real-device or complete accessibility acceptance."
+    "scope": "Input, mapping/calculation, axis profiles and outputs in Chinese/English at 1280x900 and 390x844. Panel crops do not prove offscreen controls. No real-device or complete accessibility acceptance.",
+    "spotlightAttachments": 12,
+    "siteAttachments": 8,
+    "siteGalleryScope": "All eight current-gallery site originals were opened from ordinary comparison run 43942444086, after the catalog refresh in 8a029cb8. Their source records, build manifests and image hashes were verified. Later documentation changes remain subject to final CI."
   },
   "history": {
     "receiptUrl": "https://github.com/SeaLoong/Sensa/blob/8eff42a03462566a61e37c97737fede0e973c59b/tests/e2e/baseline-review.json",
@@ -80,314 +116,470 @@
   "files": [
     {
       "path": "tests/e2e/__review__/site/desktop/guide-en-US.png",
-      "sha256": "640cf3fda0dbc7d5af2d3628fb495b135360f9557961a4688e02e14fbec196f6",
+      "sha256": "ad0bbbe5bd60e444bc23614062057e2315d2324b91813cf5fe080987141de7df",
       "outcome": "visually_ok",
-      "notes": "Opened the current 1280×3319 original. First run retains separated navigation/article/contents columns and complete View source/MIT footer. The intended content changes are visible: OSC → Map uses Save changes; section4 explains shared calculation/mapping Save/Restore and Flow versus Control ownership; section5 says plans export saved edits. The refreshed rounded manual-panel illustration fits. Text wrapping is clean with no overlap or article clipping; the illustration is a panel crop, not a full guided-setup view.\nSelection: Accept the intended segmented OSC / single Flow editor or updated documentation capture after individual original review. Opened the current 1280×3319 original. First run retains separated navigation/article/contents columns and complete View source/MIT footer. The intended content changes are visible: OSC → Map uses Save changes; section4 explains shared calculation/mapping Save/Restore and Flow versus Control ownership; section5 says plans export saved edits. The refreshed rounded manual-panel illustration fits. Text wrapping is clean with no overlap or article clipping; the illustration is a panel crop, not a full guided-setup view.",
-      "candidateSha256": "640cf3fda0dbc7d5af2d3628fb495b135360f9557961a4688e02e14fbec196f6",
-      "candidateVisualOutcome": "visually_ok",
-      "selection": "candidate",
-      "candidateArtifact": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "sha256": "640cf3fda0dbc7d5af2d3628fb495b135360f9557961a4688e02e14fbec196f6"
-      },
-      "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root/simplify_site",
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "observedPath": "tests/e2e/__review__/site/desktop/guide-en-US.png",
-        "receiptSha256": "7fa08a6e3b9c6a5dd7d5a9a0ff87fc75c1af7bae29b6c12ca11908b3421e658a",
-        "reviewedImageSha256": "640cf3fda0dbc7d5af2d3628fb495b135360f9557961a4688e02e14fbec196f6",
-        "runUrl": "https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1",
-        "rootApprovalReceiptSha256": "f446b32af6b68bb0a5d9fa212e9190f9dca449742c40e7631618a1b252d5ffdb",
-        "priorReceiptSha256": "94811ca74ffdb4539d116e964d0d95271c2402e5e924957f4d63e26559d455e4",
-        "priorReceiptUrl": "https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json",
-        "priorReceiptRole": "Selected-baseline history only; a new image observation is proven by its own receipt."
-      },
+      "selection": "comparison_attachment",
+      "notes": "Opened original: manual-control illustration, six-step spotlight instructions, preset and output steps fit the article beside the contents column; code example and footer are complete.",
       "capture": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
+        "commit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
         "attempt": "1"
       },
-      "captureEvidence": {
-        "method": "generated_screenshots_candidate",
-        "sourceGitSha256": "34f4798945cc36628d68c95b238f0353061a2aa99e4bfa3cb3771494af9b548c"
+      "reviewEvidence": {
+        "name": "desktop-site-review-guide-en-US.png",
+        "sha256": "ad0bbbe5bd60e444bc23614062057e2315d2324b91813cf5fe080987141de7df",
+        "sourceCommit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened original: manual-control illustration, six-step spotlight instructions, preset and output steps fit the article beside the contents column; code example and footer are complete."
       }
     },
     {
       "path": "tests/e2e/__review__/site/desktop/guide-zh-CN.png",
-      "sha256": "91da1fa378f3e4c74673b1f6bd87b04d10d6ecf689f92fa03606cd696983040f",
+      "sha256": "0242d7d3450193ae421a38a6bb35b27b6bc0790e63af3ee42aa471e06bf09033",
       "outcome": "visually_ok",
-      "notes": "Opened the current 1280×3131 original. 首次使用 shows the revised 保存更改 / 恢复更改 instructions, Flow calculation ownership, Control device cards and saved-only plan export. All headings, paragraphs, instance commands and the full 查看源码/MIT footer fit without overlap. The embedded workbench now shows scene shortcuts and split input/output; it remains a viewport illustration whose lower output content is outside that embedded capture. These are real prose/image changes, not an unrelated raster-only difference.\nSelection: Accept the intended segmented OSC / single Flow editor or updated documentation capture after individual original review. Opened the current 1280×3131 original. 首次使用 shows the revised 保存更改 / 恢复更改 instructions, Flow calculation ownership, Control device cards and saved-only plan export. All headings, paragraphs, instance commands and the full 查看源码/MIT footer fit without overlap. The embedded workbench now shows scene shortcuts and split input/output; it remains a viewport illustration whose lower output content is outside that embedded capture. These are real prose/image changes, not an unrelated raster-only difference.",
-      "candidateSha256": "91da1fa378f3e4c74673b1f6bd87b04d10d6ecf689f92fa03606cd696983040f",
-      "candidateVisualOutcome": "visually_ok",
-      "selection": "candidate",
-      "candidateArtifact": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "sha256": "91da1fa378f3e4c74673b1f6bd87b04d10d6ecf689f92fa03606cd696983040f"
-      },
-      "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root/simplify_site",
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "observedPath": "tests/e2e/__review__/site/desktop/guide-zh-CN.png",
-        "receiptSha256": "7fa08a6e3b9c6a5dd7d5a9a0ff87fc75c1af7bae29b6c12ca11908b3421e658a",
-        "reviewedImageSha256": "91da1fa378f3e4c74673b1f6bd87b04d10d6ecf689f92fa03606cd696983040f",
-        "runUrl": "https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1",
-        "rootApprovalReceiptSha256": "f446b32af6b68bb0a5d9fa212e9190f9dca449742c40e7631618a1b252d5ffdb",
-        "priorReceiptSha256": "94811ca74ffdb4539d116e964d0d95271c2402e5e924957f4d63e26559d455e4",
-        "priorReceiptUrl": "https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json",
-        "priorReceiptRole": "Selected-baseline history only; a new image observation is proven by its own receipt."
-      },
+      "selection": "comparison_attachment",
+      "notes": "Opened original: current illustrated guide, article and contents columns fit; all five setup sections, code example and footer are visible.",
       "capture": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
+        "commit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
         "attempt": "1"
       },
-      "captureEvidence": {
-        "method": "generated_screenshots_candidate",
-        "sourceGitSha256": "ad2b6e40ad2763640157a9aceaeb4059f57896ce6847250e929fe4eba00eef55"
+      "reviewEvidence": {
+        "name": "desktop-site-review-guide-zh-CN.png",
+        "sha256": "0242d7d3450193ae421a38a6bb35b27b6bc0790e63af3ee42aa471e06bf09033",
+        "sourceCommit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened original: current illustrated guide, article and contents columns fit; all five setup sections, code example and footer are visible."
       }
     },
     {
       "path": "tests/e2e/__review__/site/desktop/home-en-US.png",
-      "sha256": "5c766f258ad7174da361fab1b5f345bef36c424ffaff71401148e1d2d9ebe434",
+      "sha256": "ca01d50134c30c4b5e6d8fa54ee7e0d3d851e1851760720ea04e4a91946be550",
       "outcome": "visually_ok",
-      "notes": "Opened current 1280×4350 original and the immutable repository prior original individually. Purpose, real-page navigation, workflow/capability cards, comparison and complete source/MIT footer are readable and unclipped. The meaningful difference is the embedded English manual capture: a rounded, narrower L0 card replaces the old wide unframed slider panel, shifting lower content by 34px. This is an actual image-content refresh, not pure raster churn. The gallery shows the selected manual panel only, with its capture-scope note; other gallery states are outside this page capture.\nSelection: Accept the intended segmented OSC / single Flow editor or updated documentation capture after individual original review. Opened current 1280×4350 original and the immutable repository prior original individually. Purpose, real-page navigation, workflow/capability cards, comparison and complete source/MIT footer are readable and unclipped. The meaningful difference is the embedded English manual capture: a rounded, narrower L0 card replaces the old wide unframed slider panel, shifting lower content by 34px. This is an actual image-content refresh, not pure raster churn. The gallery shows the selected manual panel only, with its capture-scope note; other gallery states are outside this page capture.",
-      "candidateSha256": "5c766f258ad7174da361fab1b5f345bef36c424ffaff71401148e1d2d9ebe434",
-      "candidateVisualOutcome": "visually_ok",
-      "selection": "candidate",
-      "candidateArtifact": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "sha256": "5c766f258ad7174da361fab1b5f345bef36c424ffaff71401148e1d2d9ebe434"
-      },
-      "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root/simplify_site",
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "observedPath": "tests/e2e/__review__/site/desktop/home-en-US.png",
-        "receiptSha256": "7fa08a6e3b9c6a5dd7d5a9a0ff87fc75c1af7bae29b6c12ca11908b3421e658a",
-        "reviewedImageSha256": "5c766f258ad7174da361fab1b5f345bef36c424ffaff71401148e1d2d9ebe434",
-        "runUrl": "https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1",
-        "rootApprovalReceiptSha256": "f446b32af6b68bb0a5d9fa212e9190f9dca449742c40e7631618a1b252d5ffdb",
-        "priorReceiptSha256": "94811ca74ffdb4539d116e964d0d95271c2402e5e924957f4d63e26559d455e4",
-        "priorReceiptUrl": "https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json",
-        "priorReceiptRole": "Selected-baseline history only; a new image observation is proven by its own receipt."
-      },
+      "selection": "comparison_attachment",
+      "notes": "Opened original: hero, workflow/device cards, current manual-control gallery, comparison table and footer fit their columns without overlap.",
       "capture": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
+        "commit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
         "attempt": "1"
       },
-      "captureEvidence": {
-        "method": "generated_screenshots_candidate",
-        "sourceGitSha256": "0730ce311d243030a24491cf77fd900fbd60bb36f6dafefcf6151e4a98c15759"
+      "reviewEvidence": {
+        "name": "desktop-site-review-home-en-US.png",
+        "sha256": "ca01d50134c30c4b5e6d8fa54ee7e0d3d851e1851760720ea04e4a91946be550",
+        "sourceCommit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened original: hero, workflow/device cards, current manual-control gallery, comparison table and footer fit their columns without overlap."
       }
     },
     {
       "path": "tests/e2e/__review__/site/desktop/home-zh-CN.png",
-      "sha256": "d246af1f7a30296be5652ce68fce97bbcd6c4e686f959671c7c5bc71022807da",
+      "sha256": "0f78afc8b077ba94f355f7a683a8eda42fe18c0aef42ecb3e69e9ada1016d42f",
       "outcome": "visually_ok",
-      "notes": "Opened current and prior 1280×4379 originals individually. Purpose, navigation, cards, full comparison and footer remain visually stable and clear. The embedded gallery meaningfully changes from the old single-column workbench to 设备控制台 with 选择使用场景 / 场景预设 / 操作引导 and split input/output, so the images are not visually identical raster churn. The embedded workbench is a viewport capture ending within the output area; that limit is separate from the complete, unclipped website footer.\nSelection: Accept the intended segmented OSC / single Flow editor or updated documentation capture after individual original review. Opened current and prior 1280×4379 originals individually. Purpose, navigation, cards, full comparison and footer remain visually stable and clear. The embedded gallery meaningfully changes from the old single-column workbench to 设备控制台 with 选择使用场景 / 场景预设 / 操作引导 and split input/output, so the images are not visually identical raster churn. The embedded workbench is a viewport capture ending within the output area; that limit is separate from the complete, unclipped website footer.",
-      "candidateSha256": "d246af1f7a30296be5652ce68fce97bbcd6c4e686f959671c7c5bc71022807da",
-      "candidateVisualOutcome": "visually_ok",
-      "selection": "candidate",
-      "candidateArtifact": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "sha256": "d246af1f7a30296be5652ce68fce97bbcd6c4e686f959671c7c5bc71022807da"
-      },
-      "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root/simplify_site",
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "observedPath": "tests/e2e/__review__/site/desktop/home-zh-CN.png",
-        "receiptSha256": "7fa08a6e3b9c6a5dd7d5a9a0ff87fc75c1af7bae29b6c12ca11908b3421e658a",
-        "reviewedImageSha256": "d246af1f7a30296be5652ce68fce97bbcd6c4e686f959671c7c5bc71022807da",
-        "runUrl": "https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1",
-        "rootApprovalReceiptSha256": "f446b32af6b68bb0a5d9fa212e9190f9dca449742c40e7631618a1b252d5ffdb",
-        "priorReceiptSha256": "94811ca74ffdb4539d116e964d0d95271c2402e5e924957f4d63e26559d455e4",
-        "priorReceiptUrl": "https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json",
-        "priorReceiptRole": "Selected-baseline history only; a new image observation is proven by its own receipt."
-      },
+      "selection": "comparison_attachment",
+      "notes": "Opened original: current Input/Mapping/Axis/Outputs/Diagnostics gallery replaces the old navigation; hero, cards, table and footer align and remain readable.",
       "capture": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
+        "commit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
         "attempt": "1"
       },
-      "captureEvidence": {
-        "method": "generated_screenshots_candidate",
-        "sourceGitSha256": "f84ba4083f8fc9e0d5c08f7fc187ce98bcc6a3682ce3e99dc54e60bbaf437a34"
+      "reviewEvidence": {
+        "name": "desktop-site-review-home-zh-CN.png",
+        "sha256": "0f78afc8b077ba94f355f7a683a8eda42fe18c0aef42ecb3e69e9ada1016d42f",
+        "sourceCommit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened original: current Input/Mapping/Axis/Outputs/Diagnostics gallery replaces the old navigation; hero, cards, table and footer align and remain readable."
       }
     },
     {
       "path": "tests/e2e/__review__/site/mobile/guide-en-US.png",
-      "sha256": "22c73c058ca421fdaad14b04f3007ff9060b038bc28afc4b118d67c92e88ac74",
+      "sha256": "baf03636b3139ea21c01ad6a4438076fe8ae8b6a9af95c23c697273abf603b01",
       "outcome": "visually_ok",
-      "notes": "Opened the current 390×4862 original. Header links wrap above Browse guides; the updated OSC → Map / Save changes, shared Save/Restore, Flow/Control and saved-plan text stays readable in one column. Numbered lists and inline configuration paths wrap within the page, and the final View source/MIT footer is visible near the bottom edge. The refreshed rounded L0 illustration is a panel crop. No text/action label is horizontally clipped; these intended content changes account for the longer page.\nSelection: Accept the intended segmented OSC / single Flow editor or updated documentation capture after individual original review. Opened the current 390×4862 original. Header links wrap above Browse guides; the updated OSC → Map / Save changes, shared Save/Restore, Flow/Control and saved-plan text stays readable in one column. Numbered lists and inline configuration paths wrap within the page, and the final View source/MIT footer is visible near the bottom edge. The refreshed rounded L0 illustration is a panel crop. No text/action label is horizontally clipped; these intended content changes account for the longer page.",
-      "candidateSha256": "22c73c058ca421fdaad14b04f3007ff9060b038bc28afc4b118d67c92e88ac74",
-      "candidateVisualOutcome": "visually_ok",
-      "selection": "candidate",
-      "candidateArtifact": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "sha256": "22c73c058ca421fdaad14b04f3007ff9060b038bc28afc4b118d67c92e88ac74"
-      },
-      "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root/simplify_site",
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "observedPath": "tests/e2e/__review__/site/mobile/guide-en-US.png",
-        "receiptSha256": "7fa08a6e3b9c6a5dd7d5a9a0ff87fc75c1af7bae29b6c12ca11908b3421e658a",
-        "reviewedImageSha256": "22c73c058ca421fdaad14b04f3007ff9060b038bc28afc4b118d67c92e88ac74",
-        "runUrl": "https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1",
-        "rootApprovalReceiptSha256": "f446b32af6b68bb0a5d9fa212e9190f9dca449742c40e7631618a1b252d5ffdb",
-        "priorReceiptSha256": "94811ca74ffdb4539d116e964d0d95271c2402e5e924957f4d63e26559d455e4",
-        "priorReceiptUrl": "https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json",
-        "priorReceiptRole": "Selected-baseline history only; a new image observation is proven by its own receipt."
-      },
+      "selection": "comparison_attachment",
+      "notes": "Opened original: manual-control illustration and buttons wrap within the article; long spotlight instructions, five sections, code example and footer remain readable without clipping.",
       "capture": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
+        "commit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
         "attempt": "1"
       },
-      "captureEvidence": {
-        "method": "generated_screenshots_candidate",
-        "sourceGitSha256": "5b3a95685ae5833bb0b4a8a73a653531bc9e26dd3bccbb0338071996b7431470"
+      "reviewEvidence": {
+        "name": "mobile-site-review-guide-en-US.png",
+        "sha256": "baf03636b3139ea21c01ad6a4438076fe8ae8b6a9af95c23c697273abf603b01",
+        "sourceCommit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened original: manual-control illustration and buttons wrap within the article; long spotlight instructions, five sections, code example and footer remain readable without clipping."
       }
     },
     {
       "path": "tests/e2e/__review__/site/mobile/guide-zh-CN.png",
-      "sha256": "9bf04ee0dd7362d70040fd4e915f759dcf1ee387d009675ea3822f278c78df41",
+      "sha256": "dad68900ce6e92618fc247ec2879f5102bbae2195b3f4fc835c26d00519f2786",
       "outcome": "visually_ok",
-      "notes": "Opened the current 390×4463 original. Wrapped navigation and 浏览帮助目录 remain distinct from the article. Updated OSC mapping Save changes, shared save/restore, Flow/Control ownership and saved-plan wording fit clearly through the final instance example and complete 查看源码/MIT footer. The refreshed scene-selector workbench illustration ends at L0 because it is a narrow viewport capture; the documentation page itself is complete, with no visible overlap or horizontal clipping.\nSelection: Accept the intended segmented OSC / single Flow editor or updated documentation capture after individual original review. Opened the current 390×4463 original. Wrapped navigation and 浏览帮助目录 remain distinct from the article. Updated OSC mapping Save changes, shared save/restore, Flow/Control ownership and saved-plan wording fit clearly through the final instance example and complete 查看源码/MIT footer. The refreshed scene-selector workbench illustration ends at L0 because it is a narrow viewport capture; the documentation page itself is complete, with no visible overlap or horizontal clipping.",
-      "candidateSha256": "9bf04ee0dd7362d70040fd4e915f759dcf1ee387d009675ea3822f278c78df41",
-      "candidateVisualOutcome": "visually_ok",
-      "selection": "candidate",
-      "candidateArtifact": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "sha256": "9bf04ee0dd7362d70040fd4e915f759dcf1ee387d009675ea3822f278c78df41"
-      },
-      "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root/simplify_site",
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "observedPath": "tests/e2e/__review__/site/mobile/guide-zh-CN.png",
-        "receiptSha256": "7fa08a6e3b9c6a5dd7d5a9a0ff87fc75c1af7bae29b6c12ca11908b3421e658a",
-        "reviewedImageSha256": "9bf04ee0dd7362d70040fd4e915f759dcf1ee387d009675ea3822f278c78df41",
-        "runUrl": "https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1",
-        "rootApprovalReceiptSha256": "f446b32af6b68bb0a5d9fa212e9190f9dca449742c40e7631618a1b252d5ffdb",
-        "priorReceiptSha256": "94811ca74ffdb4539d116e964d0d95271c2402e5e924957f4d63e26559d455e4",
-        "priorReceiptUrl": "https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json",
-        "priorReceiptRole": "Selected-baseline history only; a new image observation is proven by its own receipt."
-      },
+      "selection": "comparison_attachment",
+      "notes": "Opened original: current Input illustration fits the narrow article; headings, instructions, code example and footer wrap without horizontal clipping.",
       "capture": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
+        "commit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
         "attempt": "1"
       },
-      "captureEvidence": {
-        "method": "generated_screenshots_candidate",
-        "sourceGitSha256": "49875fa84652db46ec3a910c0169a9a921892d2fbf16528abe9e44e86357c244"
+      "reviewEvidence": {
+        "name": "mobile-site-review-guide-zh-CN.png",
+        "sha256": "dad68900ce6e92618fc247ec2879f5102bbae2195b3f4fc835c26d00519f2786",
+        "sourceCommit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened original: current Input illustration fits the narrow article; headings, instructions, code example and footer wrap without horizontal clipping."
       }
     },
     {
       "path": "tests/e2e/__review__/site/mobile/home-en-US.png",
-      "sha256": "a96010ed6c0c090731ecd6e90b1413ede7b2ce379c003bee4cceaa119518144b",
+      "sha256": "027509974f2bd089240559f4c8d0ee36fddcc8f91dc869a6459065635c68c792",
       "outcome": "visually_ok",
-      "notes": "Opened current 390×7717 original and prior 390×7691 original individually; the viewer resized them to 303×6000 and 304×6000 respectively. Cards stack, gallery controls wrap, all five compact comparison rows fit and the complete source/MIT footer remains visible without apparent horizontal clipping. The English manual illustration now has a rounded L0 card and slightly greater height, replacing the old unframed panel; this is substantive image content, not pure raster churn. Fine pixel-level review is limited by viewer resizing, and only the selected manual gallery state is shown.\nSelection: Accept the intended segmented OSC / single Flow editor or updated documentation capture after individual original review. Opened current 390×7717 original and prior 390×7691 original individually; the viewer resized them to 303×6000 and 304×6000 respectively. Cards stack, gallery controls wrap, all five compact comparison rows fit and the complete source/MIT footer remains visible without apparent horizontal clipping. The English manual illustration now has a rounded L0 card and slightly greater height, replacing the old unframed panel; this is substantive image content, not pure raster churn. Fine pixel-level review is limited by viewer resizing, and only the selected manual gallery state is shown.",
-      "candidateSha256": "a96010ed6c0c090731ecd6e90b1413ede7b2ce379c003bee4cceaa119518144b",
-      "candidateVisualOutcome": "visually_ok",
-      "selection": "candidate",
-      "candidateArtifact": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "sha256": "a96010ed6c0c090731ecd6e90b1413ede7b2ce379c003bee4cceaa119518144b"
-      },
-      "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root/simplify_site",
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "observedPath": "tests/e2e/__review__/site/mobile/home-en-US.png",
-        "receiptSha256": "7fa08a6e3b9c6a5dd7d5a9a0ff87fc75c1af7bae29b6c12ca11908b3421e658a",
-        "reviewedImageSha256": "a96010ed6c0c090731ecd6e90b1413ede7b2ce379c003bee4cceaa119518144b",
-        "runUrl": "https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1",
-        "rootApprovalReceiptSha256": "f446b32af6b68bb0a5d9fa212e9190f9dca449742c40e7631618a1b252d5ffdb",
-        "priorReceiptSha256": "94811ca74ffdb4539d116e964d0d95271c2402e5e924957f4d63e26559d455e4",
-        "priorReceiptUrl": "https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json",
-        "priorReceiptRole": "Selected-baseline history only; a new image observation is proven by its own receipt."
-      },
+      "selection": "comparison_attachment",
+      "notes": "Opened original: navigation and gallery controls wrap, cards stack, manual-control illustration fits, comparison columns and footer remain readable without horizontal clipping.",
       "capture": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
+        "commit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
         "attempt": "1"
       },
-      "captureEvidence": {
-        "method": "generated_screenshots_candidate",
-        "sourceGitSha256": "f7c04481266dc6f058f62c0024728eed22aaf5af6b2ab009084216a62f8d840f"
+      "reviewEvidence": {
+        "name": "mobile-site-review-home-en-US.png",
+        "sha256": "027509974f2bd089240559f4c8d0ee36fddcc8f91dc869a6459065635c68c792",
+        "sourceCommit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened original: navigation and gallery controls wrap, cards stack, manual-control illustration fits, comparison columns and footer remain readable without horizontal clipping."
       }
     },
     {
       "path": "tests/e2e/__review__/site/mobile/home-zh-CN.png",
-      "sha256": "31b2541c375bb4e7da4d34a9c5fd37d5135b75105f6d24167899afb5d7d269b7",
+      "sha256": "d24832abc13df84b5ada4c6b8a6c82fe5b4ace621a0ffb2b3d7e134b876f4234",
       "outcome": "visually_ok",
-      "notes": "Opened current and prior 390×6954 originals individually; each was viewer-resized to 336×6000. Purpose/actions, stacked flow/device cards, compact comparison, help and full footer remain clear. The selected gallery visibly adds the new scene-selector/preset/guided-setup workbench instead of the prior quick-setup view, a meaningful embedded-image change. It is a narrow viewport illustration ending around L0, not a complete workbench page. No website overlap or clipping is visible; fine pixel detail is limited by the viewer resize.\nSelection: Accept the intended segmented OSC / single Flow editor or updated documentation capture after individual original review. Opened current and prior 390×6954 originals individually; each was viewer-resized to 336×6000. Purpose/actions, stacked flow/device cards, compact comparison, help and full footer remain clear. The selected gallery visibly adds the new scene-selector/preset/guided-setup workbench instead of the prior quick-setup view, a meaningful embedded-image change. It is a narrow viewport illustration ending around L0, not a complete workbench page. No website overlap or clipping is visible; fine pixel detail is limited by the viewer resize.",
-      "candidateSha256": "31b2541c375bb4e7da4d34a9c5fd37d5135b75105f6d24167899afb5d7d269b7",
-      "candidateVisualOutcome": "visually_ok",
-      "selection": "candidate",
-      "candidateArtifact": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "sha256": "31b2541c375bb4e7da4d34a9c5fd37d5135b75105f6d24167899afb5d7d269b7"
-      },
-      "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root/simplify_site",
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
-        "attempt": "1",
-        "observedPath": "tests/e2e/__review__/site/mobile/home-zh-CN.png",
-        "receiptSha256": "7fa08a6e3b9c6a5dd7d5a9a0ff87fc75c1af7bae29b6c12ca11908b3421e658a",
-        "reviewedImageSha256": "31b2541c375bb4e7da4d34a9c5fd37d5135b75105f6d24167899afb5d7d269b7",
-        "runUrl": "https://github.com/SeaLoong/Sensa/actions/runs/42200163244/attempts/1",
-        "rootApprovalReceiptSha256": "f446b32af6b68bb0a5d9fa212e9190f9dca449742c40e7631618a1b252d5ffdb",
-        "priorReceiptSha256": "94811ca74ffdb4539d116e964d0d95271c2402e5e924957f4d63e26559d455e4",
-        "priorReceiptUrl": "https://github.com/SeaLoong/Sensa/blob/4c07bfa5a5b65a07653b606bc1f131bfa03e827d/tests/e2e/baseline-review.json",
-        "priorReceiptRole": "Selected-baseline history only; a new image observation is proven by its own receipt."
-      },
+      "selection": "comparison_attachment",
+      "notes": "Opened original: wrapped navigation and stacked cards fit; the narrow current Input gallery and scene cards are visible, table and footer remain within the viewport.",
       "capture": {
-        "sourceCommit": "15e15cf47dcb5bd49083b1df1123e9aa143c3bf2",
-        "runId": "42200163244",
+        "commit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
         "attempt": "1"
       },
-      "captureEvidence": {
-        "method": "generated_screenshots_candidate",
-        "sourceGitSha256": "152af454d4f5f3b82d5a5327ac46f7f7897ffccd3f128b76b6503a8062ede19b"
+      "reviewEvidence": {
+        "name": "mobile-site-review-home-zh-CN.png",
+        "sha256": "d24832abc13df84b5ada4c6b8a6c82fe5b4ace621a0ffb2b3d7e134b876f4234",
+        "sourceCommit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+        "runId": "43942444086",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened original: wrapped navigation and stacked cards fit; the narrow current Input gallery and scene cards are visible, table and footer remain within the viewport."
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/desktop/axes-en-US.png",
+      "sha256": "e15df4042c0ac4eb450cd2dee139d8cb35767ad3123163979892ba6d49f23514",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Original opened: complete profile header and two actions are highlighted above the compact English card; explanation, preset action, collapsed step jump, Back/Next and emergency all visible without overlap.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "desktop-spotlight-axes-en-US.png",
+        "sha256": "e15df4042c0ac4eb450cd2dee139d8cb35767ad3123163979892ba6d49f23514",
+        "sourceCommit": "e8b7320c828ca377a4d810fa6d0315ad775233c6",
+        "runId": "43931072984",
+        "attempt": "1",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Original opened: complete profile header and two actions are highlighted above the compact English card; explanation, preset action, collapsed step jump, Back/Next and emergency all visible without overlap.",
+        "sourceCaseStatus": "passed",
+        "sourceRunOutcome": "306/310 passed diagnostic run; four unrelated navigation-helper failures; reused only on exact image-byte matches"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/desktop/axes-zh-CN.png",
+      "sha256": "2d5ba5b3922a147c97ba6934c80dfde21f7b0fe15accc6ccaa6da6f405d0ae4e",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Original opened: Chinese profile heading, description and both profile controls are outlined; guide explanation, preset action, step jump, navigation and emergency stop fit below without covering the target.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "desktop-spotlight-axes-zh-CN.png",
+        "sha256": "2d5ba5b3922a147c97ba6934c80dfde21f7b0fe15accc6ccaa6da6f405d0ae4e",
+        "sourceCommit": "e8b7320c828ca377a4d810fa6d0315ad775233c6",
+        "runId": "43931072984",
+        "attempt": "1",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Original opened: Chinese profile heading, description and both profile controls are outlined; guide explanation, preset action, step jump, navigation and emergency stop fit below without covering the target.",
+        "sourceCaseStatus": "passed",
+        "sourceRunOutcome": "306/310 passed diagnostic run; four unrelated navigation-helper failures; reused only on exact image-byte matches"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/desktop/input-en-US.png",
+      "sha256": "82c2d7d60b153427b8e0363840ab4ccce5b85c3718920062778ff5d07ac6c39e",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Original opened: outlined L0 value/slider unobscured below the guide; input instructions and status readable; Back/Next and emergency stay visible. Open-input action is partly below the scrollable content fold and step jump is offscreen; image does not prove those controls fully visible.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "desktop-spotlight-input-en-US.png",
+        "sha256": "82c2d7d60b153427b8e0363840ab4ccce5b85c3718920062778ff5d07ac6c39e",
+        "sourceCommit": "e8b7320c828ca377a4d810fa6d0315ad775233c6",
+        "runId": "43931072984",
+        "attempt": "1",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Original opened: outlined L0 value/slider unobscured below the guide; input instructions and status readable; Back/Next and emergency stay visible. Open-input action is partly below the scrollable content fold and step jump is offscreen; image does not prove those controls fully visible.",
+        "sourceCaseStatus": "passed",
+        "sourceRunOutcome": "306/310 passed diagnostic run; four unrelated navigation-helper failures; reused only on exact image-byte matches"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/desktop/input-zh-CN.png",
+      "sha256": "e9bd3622e24e4b4a24531db79579847d72de1b09918d299a52bd820af1c211a8",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Original opened: Chinese instructions and open-input action remain above outlined L0 controls; Back/Next and emergency controls visible. Step-jump disclosure lies below the scrollable content fold, not visible in this capture.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "desktop-spotlight-input-zh-CN.png",
+        "sha256": "e9bd3622e24e4b4a24531db79579847d72de1b09918d299a52bd820af1c211a8",
+        "sourceCommit": "e8b7320c828ca377a4d810fa6d0315ad775233c6",
+        "runId": "43931072984",
+        "attempt": "1",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Original opened: Chinese instructions and open-input action remain above outlined L0 controls; Back/Next and emergency controls visible. Step-jump disclosure lies below the scrollable content fold, not visible in this capture.",
+        "sourceCaseStatus": "passed",
+        "sourceRunOutcome": "306/310 passed diagnostic run; four unrelated navigation-helper failures; reused only on exact image-byte matches"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/desktop/mapping-en-US.png",
+      "sha256": "7dace71d06340db59f53784ba77d35c13ddf4c9c72ffc743b12648c879468b63",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Opened desktop original: Smooth manual input is fully highlighted and unobscured; English guide to the right contains readable instructions and Scene presets, with Back/Next and emergency stop inside the viewport. Other cards and workspace navigation are consistently dimmed.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "desktop-spotlight-mapping-en-US.png",
+        "sha256": "7dace71d06340db59f53784ba77d35c13ddf4c9c72ffc743b12648c879468b63",
+        "sourceCommit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened desktop original: Smooth manual input is fully highlighted and unobscured; English guide to the right contains readable instructions and Scene presets, with Back/Next and emergency stop inside the viewport. Other cards and workspace navigation are consistently dimmed."
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/desktop/mapping-zh-CN.png",
+      "sha256": "4c0e990e18b8457374c9ce987b5b017e7cb601b2b179970c7c51d09b36e03099",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Opened desktop original: single smoothing preset has a bright blue outline; guide sits to its right without covering the target. Chinese instructions, Scene presets, collapsed step navigation and all footer actions fit. Separate Input, Mapping, Axes and Outputs navigation remains visible behind the dim layer.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "desktop-spotlight-mapping-zh-CN.png",
+        "sha256": "4c0e990e18b8457374c9ce987b5b017e7cb601b2b179970c7c51d09b36e03099",
+        "sourceCommit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened desktop original: single smoothing preset has a bright blue outline; guide sits to its right without covering the target. Chinese instructions, Scene presets, collapsed step navigation and all footer actions fit. Separate Input, Mapping, Axes and Outputs navigation remains visible behind the dim layer."
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/mobile/axes-en-US.png",
+      "sha256": "8f59791e8ce850253caefaaab36317749e3b57282e7b106ccb2d038b6a8dec35",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Original opened: English axis instructions and preset action are fully readable above highlighted profile heading/actions; Back/Next and emergency stop remain visible. Step navigation stays below the content fold.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "mobile-spotlight-axes-en-US.png",
+        "sha256": "8f59791e8ce850253caefaaab36317749e3b57282e7b106ccb2d038b6a8dec35",
+        "sourceCommit": "e8b7320c828ca377a4d810fa6d0315ad775233c6",
+        "runId": "43931072984",
+        "attempt": "1",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Original opened: English axis instructions and preset action are fully readable above highlighted profile heading/actions; Back/Next and emergency stop remain visible. Step navigation stays below the content fold.",
+        "sourceCaseStatus": "passed",
+        "sourceRunOutcome": "306/310 passed diagnostic run; four unrelated navigation-helper failures; reused only on exact image-byte matches"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/mobile/axes-zh-CN.png",
+      "sha256": "e04d09f2aeb4f8feda8ffce6abfc0c33a55b9cd9c66d0ea7f305b70dfac982d3",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Original opened: Chinese profile heading and both profile actions are highlighted above the card; instructions, preset action, collapsed step jump, Back/Next and emergency stop all fit without overlap.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "mobile-spotlight-axes-zh-CN.png",
+        "sha256": "e04d09f2aeb4f8feda8ffce6abfc0c33a55b9cd9c66d0ea7f305b70dfac982d3",
+        "sourceCommit": "e8b7320c828ca377a4d810fa6d0315ad775233c6",
+        "runId": "43931072984",
+        "attempt": "1",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Original opened: Chinese profile heading and both profile actions are highlighted above the card; instructions, preset action, collapsed step jump, Back/Next and emergency stop all fit without overlap.",
+        "sourceCaseStatus": "passed",
+        "sourceRunOutcome": "306/310 passed diagnostic run; four unrelated navigation-helper failures; reused only on exact image-byte matches"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/mobile/input-en-US.png",
+      "sha256": "4b5dcdc1442c342a08eff23e81b9efbdbc99aa090b8d4909bebca4bb6355d7d9",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Original opened: compact English guide above L0 target shows current instructions, input-prepared state and open-settings action; Back/Next and emergency stop remain visible, slider and value unobscured below.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "mobile-spotlight-input-en-US.png",
+        "sha256": "4b5dcdc1442c342a08eff23e81b9efbdbc99aa090b8d4909bebca4bb6355d7d9",
+        "sourceCommit": "e8b7320c828ca377a4d810fa6d0315ad775233c6",
+        "runId": "43931072984",
+        "attempt": "1",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Original opened: compact English guide above L0 target shows current instructions, input-prepared state and open-settings action; Back/Next and emergency stop remain visible, slider and value unobscured below.",
+        "sourceCaseStatus": "passed",
+        "sourceRunOutcome": "306/310 passed diagnostic run; four unrelated navigation-helper failures; reused only on exact image-byte matches"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/mobile/input-zh-CN.png",
+      "sha256": "993e2bf771a1a0fa257abc4c736c4f3fe8d44c1924474da9c5c2958b4d5d90e1",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Original opened: Chinese guide above outlined L0 panel shows all input instructions, collapsed step jump and open-settings action; numeric target and slider remain clear, navigation and emergency actions fit.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "mobile-spotlight-input-zh-CN.png",
+        "sha256": "993e2bf771a1a0fa257abc4c736c4f3fe8d44c1924474da9c5c2958b4d5d90e1",
+        "sourceCommit": "e8b7320c828ca377a4d810fa6d0315ad775233c6",
+        "runId": "43931072984",
+        "attempt": "1",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Original opened: Chinese guide above outlined L0 panel shows all input instructions, collapsed step jump and open-settings action; numeric target and slider remain clear, navigation and emergency actions fit.",
+        "sourceCaseStatus": "passed",
+        "sourceRunOutcome": "306/310 passed diagnostic run; four unrelated navigation-helper failures; reused only on exact image-byte matches"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/mobile/mapping-en-US.png",
+      "sha256": "fb8dcfd063946b05d22603bffdc45c37aaf23b970da12374fd7a4a3bcf1a5d97",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Opened 390px original: English title and three-line explanation fit, with Scene presets, collapsed Jump to step, Back/Next and emergency stop visible. The highlighted Smooth manual input button is below the guide and completely readable; surrounding presets are dimmed.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "mobile-spotlight-mapping-en-US.png",
+        "sha256": "fb8dcfd063946b05d22603bffdc45c37aaf23b970da12374fd7a4a3bcf1a5d97",
+        "sourceCommit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened 390px original: English title and three-line explanation fit, with Scene presets, collapsed Jump to step, Back/Next and emergency stop visible. The highlighted Smooth manual input button is below the guide and completely readable; surrounding presets are dimmed."
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/tour/mobile/mapping-zh-CN.png",
+      "sha256": "90aedf970cac9fde250d0737b7f12bf9ed77b0968c148e6c9883ec105bef1a80",
+      "outcome": "visually_ok",
+      "selection": "candidate_attachment",
+      "notes": "Opened 390px original: the Chinese current-step instructions and Scene presets are fully readable above the first transform button. Back, Next and emergency stop fit; the single highlighted smoothing preset is unobscured with a clear gap below the guide. Other preset cards are dimmed and continue below the viewport.",
+      "capture": {
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1"
+      },
+      "reviewEvidence": {
+        "name": "mobile-spotlight-mapping-zh-CN.png",
+        "sha256": "90aedf970cac9fde250d0737b7f12bf9ed77b0968c148e6c9883ec105bef1a80",
+        "sourceCommit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
+        "attempt": "1",
+        "sourceCaseStatus": "passed",
+        "method": "original_opened",
+        "reviewer": "/root",
+        "notes": "Opened 390px original: the Chinese current-step instructions and Scene presets are fully readable above the first transform button. Back, Next and emergency stop fit; the single highlighted smoothing preset is unobscured with a clear gap below the guide. Other preset cards are dimmed and continue below the viewport."
       }
     },
     {
@@ -397,8 +589,8 @@
       "selection": "candidate",
       "notes": "Opened original. Input is selected, Combined status and source explanation are clear, L0 400 is legible. Lower update actions continue below the viewport; expanded source content is intentionally scrollable.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -420,8 +612,8 @@
       "selection": "candidate",
       "notes": "Opened original. Separate Chinese navigation and Combined input status are legible, with Manual source and L0 400 aligned. Bottom actions are outside this viewport crop.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -499,8 +691,8 @@
       "selection": "candidate",
       "notes": "Original opened: one computed-signal heading below shared tabs/save row; combined-input action and Blend fields align without overlap; lower input form continues below viewport.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -522,8 +714,8 @@
       "selection": "candidate",
       "notes": "Original opened: Chinese mapping workspace, shared save controls, collapsed presets and Blend editor are readable; repeated workspace heading removed.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -545,8 +737,8 @@
       "selection": "candidate",
       "notes": "Input editor keeps weight, type and parameter path grouped; English labels and action fit.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -568,8 +760,8 @@
       "selection": "candidate",
       "notes": "Chinese computation input fields and weight fit one clear row without truncation.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -619,8 +811,8 @@
       "selection": "candidate",
       "notes": "Two coordinate plots and six metrics fit desktop grid, axes and units visible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -642,8 +834,8 @@
       "selection": "candidate",
       "notes": "Speed 0.400 m/s agrees with displayed vector; plotting and metrics stay readable.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -665,8 +857,8 @@
       "selection": "candidate",
       "notes": "Opened 1280×900 original. Five distinct sidebar destinations, compact task entry and input status precede an isolated Manual workspace. L0, additional-axis disclosure and send controls are readable; no outputs are mixed into this page.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -688,8 +880,8 @@
       "selection": "candidate",
       "notes": "Disabled input shows awaiting-send state rather than fabricated device position.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -711,8 +903,8 @@
       "selection": "candidate",
       "notes": "Original panel crop opened: stop-requested badge and no-target message readable; crop proves only send-target status.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -734,8 +926,8 @@
       "selection": "candidate",
       "notes": "Start/end values and capture buttons are readable in three columns; Replace draft is clearly distinct.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -757,8 +949,8 @@
       "selection": "candidate",
       "notes": "Original opened: English help dialog has aligned three task cards, guide/preset actions, close and emergency controls; no clipping.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -780,8 +972,8 @@
       "selection": "candidate",
       "notes": "Opened panel original. L0 999 and its complete blue keyboard focus outline are visible; send, continuous and stop controls align, with extra axes and send settings collapsed.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -803,8 +995,8 @@
       "selection": "candidate",
       "notes": "English Sent target label/status and L0 500 are readable.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -826,8 +1018,8 @@
       "selection": "candidate",
       "notes": "Loaded filename, three-action timeline, transport and keyframe controls are readable and aligned.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -849,8 +1041,8 @@
       "selection": "candidate",
       "notes": "Speed and axis options form one readable row; advanced groups collapsed with no duplicate page heading.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -872,8 +1064,8 @@
       "selection": "candidate",
       "notes": "Empty script state has legible status and Choose script action, no clipping.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -909,8 +1101,8 @@
       "selection": "candidate",
       "notes": "Fixed-root projections are legible, with local-unit metrics and explicit three-point requirement.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -932,8 +1124,8 @@
       "selection": "candidate",
       "notes": "Help now offers spotlight tour and scene presets plus three practical task entry points; emergency and close actions remain visible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -955,8 +1147,8 @@
       "selection": "candidate",
       "notes": "Sent target clearly shows L0 600 and filled bar; runtime value is not presented as actual hardware feedback.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -978,8 +1170,8 @@
       "selection": "candidate",
       "notes": "Opened panel original. L0 500, slider, extra-axis disclosure and send/continuous/stop controls fit; send settings are collapsed.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1001,8 +1193,8 @@
       "selection": "candidate",
       "notes": "Original crop opened: enable checkbox, explanation, IP/port fields and heartbeat status fit; desktop fields side by side.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1024,8 +1216,8 @@
       "selection": "candidate",
       "notes": "Original opened: Input workspace shows gate-closed banner and configure-mapping action above OSC parameters; four separate sidebar workspaces remain legible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1047,8 +1239,8 @@
       "selection": "candidate",
       "notes": "Hub forwarding fields, health badge, add-target and save action are visible and grouped clearly.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1070,8 +1262,8 @@
       "selection": "candidate",
       "notes": "Duplicate workspace heading removed: shared Save/Restore, presets and actual mapping fields are visible; source paths and target axis readable.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1093,8 +1285,8 @@
       "selection": "candidate",
       "notes": "Reference dialog has readable units/meaning/sources and separate emergency, close and draft actions.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1116,8 +1308,8 @@
       "selection": "candidate",
       "notes": "Chinese parameter dialog is readable with emergency stop and separate draft action; sources do not overflow.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1139,8 +1331,8 @@
       "selection": "candidate",
       "notes": "OSC table presents parameter/value/source and Mapping action without clipping at desktop width.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1162,8 +1354,8 @@
       "selection": "candidate",
       "notes": "Receiver form has readable listen address, port, allow-list and timeout; running status remains explicit.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1185,8 +1377,8 @@
       "selection": "candidate",
       "notes": "Duplicate UDP endpoint warning is prominent; invalid save disabled and focused port outline visible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1208,8 +1400,8 @@
       "selection": "candidate",
       "notes": "Paired-pose diagram labels and 50% depth metrics are clear; endpoints distinguishable.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1567,8 +1759,8 @@
       "selection": "candidate",
       "notes": "Chinese calibration preserves start 5 cm/end 15 cm and clear 100% preview with draft action.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1590,8 +1782,8 @@
       "selection": "candidate",
       "notes": "PB mapped midpoint L0 500 is readable with matching bar.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1608,48 +1800,30 @@
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pipeline-funscript-default-en-US.png",
-      "sha256": "a4f5c849b8b831ba0c41be30d8bef86d486a2bc77d7d350c40c3aaf038448d4d",
+      "sha256": "42d717c0f8dc22d11d5c20a521bf28695f153e5795a7367012399c765a632317",
       "outcome": "visually_ok",
-      "selection": "candidate",
-      "notes": "Recording format defaults visibly to Funscript (device playback); dropdown text fits.",
-      "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
-        "attempt": "1"
-      },
+      "selection": "retained",
+      "notes": "Retain the prior reviewed image: individual comparison confirms unchanged content/layout with only sparse unrelated raster differences. Keep existing comparison thresholds. The candidate and individually opened prior 266×66 originals both show the complete Recording format label and Funscript (device playback) selection, with the same border, text, field width and dropdown arrow. No visible clipping or semantic change. Only 10 pixels at the left field border differ by one RGB level (bbox0,35–2,61), so retain the prior image rather than introduce unrelated raster churn.",
       "reviewEvidence": {
-        "path": "tests/e2e/__screenshots__/desktop/pipeline-funscript-default-en-US.png",
-        "sha256": "a4f5c849b8b831ba0c41be30d8bef86d486a2bc77d7d350c40c3aaf038448d4d",
-        "sourceCommit": "a3bd168a2d8525e32b1e00a072e2b6afe77ebbca",
-        "runId": "43921602409",
-        "attempt": "1",
-        "sourceOutcome": "interrupted; image observation only, not execution acceptance",
-        "method": "original_opened",
-        "reviewer": "/root",
-        "notes": "Recording format defaults visibly to Funscript (device playback); dropdown text fits."
+        "method": "unchanged_bytes",
+        "priorReceiptUrl": "https://github.com/SeaLoong/Sensa/blob/8eff42a03462566a61e37c97737fede0e973c59b/tests/e2e/baseline-review.json",
+        "priorReceiptSha256": "01b4643669f6566aa5d331e229dec171a9e36e04dccf005bee8d998f5646e1d1",
+        "priorPath": "tests/e2e/__screenshots__/desktop/pipeline-funscript-default-en-US.png",
+        "priorImageSha256": "42d717c0f8dc22d11d5c20a521bf28695f153e5795a7367012399c765a632317"
       }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pipeline-funscript-default-zh-CN.png",
-      "sha256": "6ab679c48d6419e18dfeae7231368cf2a7713d34ff742f950ab42e8e12888efe",
+      "sha256": "425648bdf61697cdef82eea59a72d4badc6510ad57732ef43c55c41db5bd222e",
       "outcome": "visually_ok",
-      "selection": "candidate",
-      "notes": "Chinese recording-format field shows the Funscript device-playback default with complete label.",
-      "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
-        "attempt": "1"
-      },
+      "selection": "retained",
+      "notes": "Exact SHA256 reuse of the prior selected, reviewed image. Current candidate capture has identical bytes.",
       "reviewEvidence": {
-        "path": "tests/e2e/__screenshots__/desktop/pipeline-funscript-default-zh-CN.png",
-        "sha256": "6ab679c48d6419e18dfeae7231368cf2a7713d34ff742f950ab42e8e12888efe",
-        "sourceCommit": "a3bd168a2d8525e32b1e00a072e2b6afe77ebbca",
-        "runId": "43921602409",
-        "attempt": "1",
-        "sourceOutcome": "interrupted; image observation only, not execution acceptance",
-        "method": "original_opened",
-        "reviewer": "/root",
-        "notes": "Chinese recording-format field shows the Funscript device-playback default with complete label."
+        "method": "unchanged_bytes",
+        "priorReceiptUrl": "https://github.com/SeaLoong/Sensa/blob/8eff42a03462566a61e37c97737fede0e973c59b/tests/e2e/baseline-review.json",
+        "priorReceiptSha256": "01b4643669f6566aa5d331e229dec171a9e36e04dccf005bee8d998f5646e1d1",
+        "priorPath": "tests/e2e/__screenshots__/desktop/pipeline-funscript-default-zh-CN.png",
+        "priorImageSha256": "425648bdf61697cdef82eea59a72d4badc6510ad57732ef43c55c41db5bd222e"
       }
     },
     {
@@ -1687,8 +1861,8 @@
       "selection": "candidate",
       "notes": "Plan review names six outputs and explicitly states replacement and disabled activation; Cancel/Apply are visible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1724,8 +1898,8 @@
       "selection": "candidate",
       "notes": "Original opened: Input page displays emergency-locked banner and disabled input toggle; experimental diagnostics content readable. Lower panel outside crop not claimed.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1761,8 +1935,8 @@
       "selection": "candidate",
       "notes": "Original panel crop opened: recording disclosure remains expanded with stopped status, four frames and restart/disabled-stop/export actions aligned.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1784,8 +1958,8 @@
       "selection": "candidate",
       "notes": "Original opened: restart confirmation states four frames will clear; cancel/restart, close and emergency controls visible without overlap.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1807,8 +1981,8 @@
       "selection": "candidate",
       "notes": "Chinese speed, axis and loop options align; collapsed advanced groups fit the content width.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1830,8 +2004,8 @@
       "selection": "candidate",
       "notes": "Paused timeline clearly marks 5 seconds; resume, stop and three keyframe actions remain visible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1853,8 +2027,8 @@
       "selection": "candidate",
       "notes": "Axis profiles occupy their dedicated workspace; preset/add/edit actions and default profile summary are clear.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1876,8 +2050,8 @@
       "selection": "candidate",
       "notes": "Shader projections and Right/Forward/AvatarScale vectors remain aligned and readable.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1899,8 +2073,8 @@
       "selection": "candidate",
       "notes": "SPS mapped target L0 480 is readable with matching proportional bar.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1922,8 +2096,8 @@
       "selection": "candidate",
       "notes": "Output modal separates connection and motion/profile selection, with emergency and save actions visible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1945,8 +2119,8 @@
       "selection": "candidate",
       "notes": "Opened original. Five stage tabs fit with English label wrapping, scene tiles and enabled status stay within 390 px. Combined mode wraps to its own row; source controls are below the viewport.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -1968,8 +2142,8 @@
       "selection": "candidate",
       "notes": "Opened original. Chinese tabs, scene tiles and Combined state fit. Source explanation is readable; bottom Edit transforms action is partially below the viewport and reached by scrolling.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2047,8 +2221,8 @@
       "selection": "candidate",
       "notes": "Original opened: wrapped tabs and shared save controls fit 390px; combined-input button wraps under heading; preset disclosure visible; editor fields continue below viewport.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2065,25 +2239,25 @@
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/computed-signal-editor-zh-CN.png",
-      "sha256": "3054c48b6a3e8aa718ce7f6b2e32b7eb021b5c8b0255db6e70aeac12de59a26e",
+      "sha256": "664f8268d791b46e62359f05530e0e733cfcfac50f65d420029842bb20aff873",
       "outcome": "visually_ok",
       "selection": "candidate",
-      "notes": "Original opened: Chinese computed tab, save actions and presets fit single column; Blend card begins in viewport without horizontal clipping.",
+      "notes": "Opened original at 390px: separate mapping workspace and calculation tab, shared Save/Restore, collapsed presets and Blend result 0.65 are readable. Name field fits; remaining fields continue below viewport.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
         "path": "tests/e2e/__screenshots__/mobile/computed-signal-editor-zh-CN.png",
-        "sha256": "3054c48b6a3e8aa718ce7f6b2e32b7eb021b5c8b0255db6e70aeac12de59a26e",
-        "sourceCommit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "sha256": "664f8268d791b46e62359f05530e0e733cfcfac50f65d420029842bb20aff873",
+        "sourceCommit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1",
-        "sourceOutcome": "310/310 candidate cases passed; not ordinary comparison acceptance",
+        "sourceOutcome": "310/310 passed full candidate",
         "method": "original_opened",
         "reviewer": "/root",
-        "notes": "Original opened: Chinese computed tab, save actions and presets fit single column; Blend card begins in viewport without horizontal clipping."
+        "notes": "Opened original at 390px: separate mapping workspace and calculation tab, shared Save/Restore, collapsed presets and Blend result 0.65 are readable. Name field fits; remaining fields continue below viewport."
       }
     },
     {
@@ -2149,8 +2323,8 @@
       "selection": "candidate",
       "notes": "Two compact plots remain side by side; metrics stack clearly with units and three-point requirement.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2172,8 +2346,8 @@
       "selection": "candidate",
       "notes": "Speed metrics wrap into one column without overlap; compact plots retain labels.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2195,8 +2369,8 @@
       "selection": "candidate",
       "notes": "Opened 390×844 viewport. Five navigation tabs and emergency stop remain visible; task cards wrap without horizontal overflow. The L0 slider continues at the bottom edge and lower controls require ordinary content scrolling; this is a viewport capture, not proof of the full panel.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2246,8 +2420,8 @@
       "selection": "candidate",
       "notes": "Calibration adapts to stacked rows with full-width Replace draft; values and controls do not overlap.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2283,8 +2457,8 @@
       "selection": "candidate",
       "notes": "Opened panel original. Focused L0 999 fits the narrow card; Stop manual input wraps onto a separate row, with complete text and controls visible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2334,8 +2508,8 @@
       "selection": "candidate",
       "notes": "Speed, axis and loop controls fit 309px content width; advanced seek and shortcuts remain collapsed.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2385,8 +2559,8 @@
       "selection": "candidate",
       "notes": "Projection plots fit above stacked local-unit metrics without clipped values.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2436,8 +2610,8 @@
       "selection": "candidate",
       "notes": "Opened panel original. L0 500 and Chinese controls fit the narrow card, with no clipped labels or numeric field. Scope is this cropped panel.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2459,8 +2633,8 @@
       "selection": "candidate",
       "notes": "Original crop opened: explanation wraps, IP and port stack cleanly; heartbeat status visible within width.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2482,8 +2656,8 @@
       "selection": "candidate",
       "notes": "Original opened: scene choices wrap into two columns, gate banner and mapping action fit; OSC card begins below without horizontal overflow.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2505,8 +2679,8 @@
       "selection": "candidate",
       "notes": "Narrow Hub mode/rate controls fit; disabled rate is visually distinct.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2528,8 +2702,8 @@
       "selection": "candidate",
       "notes": "Target name/address/port stack cleanly; enable/status/remove/add controls remain visible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2546,25 +2720,25 @@
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-mappings-page.png",
-      "sha256": "f9325cf589a15ee0c3c4575c1f3540381b3db9e101ef54799a1615a59bae8a46",
+      "sha256": "6137ea678ae6fdd385cdabc84187a8f3cf5364c8bf5967069add8447466cd9e7",
       "outcome": "visually_ok",
       "selection": "candidate",
-      "notes": "Mapping tabs, shared save status and preset actions fit one narrow column; deeper mapping fields remain below the ordinary scroll viewport.",
+      "notes": "Opened original at 390px: axis-mapping tab and shared draft actions are distinct; preset selector and replace/append buttons fit without overlap. Mapping details continue below the viewport.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
         "path": "tests/e2e/__screenshots__/mobile/osc-mappings-page.png",
-        "sha256": "f9325cf589a15ee0c3c4575c1f3540381b3db9e101ef54799a1615a59bae8a46",
-        "sourceCommit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "sha256": "6137ea678ae6fdd385cdabc84187a8f3cf5364c8bf5967069add8447466cd9e7",
+        "sourceCommit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1",
-        "sourceOutcome": "310/310 candidate cases passed; not ordinary comparison acceptance",
+        "sourceOutcome": "310/310 passed full candidate",
         "method": "original_opened",
         "reviewer": "/root",
-        "notes": "Mapping tabs, shared save status and preset actions fit one narrow column; deeper mapping fields remain below the ordinary scroll viewport."
+        "notes": "Opened original at 390px: axis-mapping tab and shared draft actions are distinct; preset selector and replace/append buttons fit without overlap. Mapping details continue below the viewport."
       }
     },
     {
@@ -2574,8 +2748,8 @@
       "selection": "candidate",
       "notes": "Scrolled reference dialog keeps emergency header and action footer visible; long English explanatory copy wraps cleanly.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2611,8 +2785,8 @@
       "selection": "candidate",
       "notes": "Narrow table viewport shows names and values; source/action columns are offscreen in the existing horizontal scroller, not proof of full-row visibility.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2634,8 +2808,8 @@
       "selection": "candidate",
       "notes": "Receiver fields stack with wrapped explanatory copy; no overlap at narrow width.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2657,8 +2831,8 @@
       "selection": "candidate",
       "notes": "Save OSC settings action is fully visible in its capture.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -2694,8 +2868,8 @@
       "selection": "candidate",
       "notes": "Compact pose diagram and stacked rotation/depth/error values fit narrow capture.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -3053,8 +3227,8 @@
       "selection": "candidate",
       "notes": "Chinese calibration stacks without clipping; capture and replace-draft buttons remain fully visible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -3090,8 +3264,8 @@
       "selection": "candidate",
       "notes": "Narrow recording format dropdown retains the complete default option label.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -3113,8 +3287,8 @@
       "selection": "candidate",
       "notes": "Narrow Chinese recording format remains readable and contained.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -3192,8 +3366,8 @@
       "selection": "candidate",
       "notes": "Original opened: emergency-locked banner and header release button fit; scene cards and input tabs readable. Landmark details are below viewport, not proven by image.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -3215,8 +3389,8 @@
       "selection": "candidate",
       "notes": "Axis editor keeps emergency header and save footer visible; axis selector and paired range fields fit. Lower fields are intentionally scrollable.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -3233,25 +3407,25 @@
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/recording-controls.png",
-      "sha256": "9dcc79a762aaa32cca7b086c4fbd762047a46b3b8b95b4ad90736b3629edd206",
+      "sha256": "b2f585f3e228819b2162f06a6c18d46ff361a1241e54e54b59f3b4398f60bc3b",
       "outcome": "visually_ok",
       "selection": "candidate",
-      "notes": "Original panel crop opened: recording text and buttons wrap within width; export remains visible on second row.",
+      "notes": "Opened original panel crop: stopped recording shows four frames, re-record and disabled Stop align, Export wraps visibly onto its own line. This crop does not establish the surrounding output page.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
         "path": "tests/e2e/__screenshots__/mobile/recording-controls.png",
-        "sha256": "9dcc79a762aaa32cca7b086c4fbd762047a46b3b8b95b4ad90736b3629edd206",
-        "sourceCommit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "sha256": "b2f585f3e228819b2162f06a6c18d46ff361a1241e54e54b59f3b4398f60bc3b",
+        "sourceCommit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1",
-        "sourceOutcome": "310/310 candidate cases passed; not ordinary comparison acceptance",
+        "sourceOutcome": "310/310 passed full candidate",
         "method": "original_opened",
         "reviewer": "/root",
-        "notes": "Original panel crop opened: recording text and buttons wrap within width; export remains visible on second row."
+        "notes": "Opened original panel crop: stopped recording shows four frames, re-record and disabled Stop align, Export wraps visibly onto its own line. This crop does not establish the surrounding output page."
       }
     },
     {
@@ -3261,8 +3435,8 @@
       "selection": "candidate",
       "notes": "Original opened: restart confirmation fits narrow dialog; four-frame warning wraps cleanly and both footer actions remain reachable.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -3284,8 +3458,8 @@
       "selection": "candidate",
       "notes": "Chinese script options stack cleanly, loop remains alongside axis and both disclosures are visible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -3321,8 +3495,8 @@
       "selection": "candidate",
       "notes": "Axis workspace has no horizontal overflow, actions wrap and profile summary stays legible.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -3344,8 +3518,8 @@
       "selection": "candidate",
       "notes": "Shader metrics stack cleanly and retain all vector components and scale units.",
       "capture": {
-        "commit": "27f569770c2eb13b6555a158f4f6e8d8302cf846",
-        "runId": "43929566450",
+        "commit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
+        "runId": "43941133222",
         "attempt": "1"
       },
       "reviewEvidence": {
@@ -3388,5 +3562,114 @@
         "priorImageSha256": "4b042ad858e884729979a40c56d9621e5202c040796353ab5d52c5fe9e7584d2"
       }
     }
-  ]
+  ],
+  "siteReview": {
+    "schema": 1,
+    "commit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+    "repository": "SeaLoong/Sensa",
+    "runId": "43942444086",
+    "attempt": "1",
+    "projects": [
+      {
+        "project": "desktop",
+        "testId": "8ac7a53c57781e60bbd6-2a65b4a2d732f03da8e3",
+        "sourcePath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-desktop/attachments/site-review-source-96ae86e74c4f7f0057eade0e14d5a79ad3ef6553.json",
+        "sourceSha256": "03dc03baf590cda1d005f04cc02528a9fe026b030e7903c9979dcc7a94b38f6c",
+        "siteManifestPath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-desktop/attachments/site-review-manifest-d44a9ea79ed016055e87e6e322037a39c984e357.json",
+        "siteManifestSha256": "f2350ca8a9191f59ef1f2277ed318b684c72de667c0d51f84a95b63d71c7a57e",
+        "images": [
+          {
+            "path": "tests/e2e/__review__/site/desktop/home-en-US.png",
+            "attachment": "site-review-home-en-US",
+            "sourcePath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-desktop/attachments/site-review-home-en-US-1244c736e14097b2fc705bb858ad00a6f6c14036.png",
+            "sha256": "ca01d50134c30c4b5e6d8fa54ee7e0d3d851e1851760720ea04e4a91946be550"
+          },
+          {
+            "path": "tests/e2e/__review__/site/desktop/home-zh-CN.png",
+            "attachment": "site-review-home-zh-CN",
+            "sourcePath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-desktop/attachments/site-review-home-zh-CN-5455dfe06319bb7efa35dccf1cf370953c9c9e6a.png",
+            "sha256": "0f78afc8b077ba94f355f7a683a8eda42fe18c0aef42ecb3e69e9ada1016d42f"
+          },
+          {
+            "path": "tests/e2e/__review__/site/desktop/guide-en-US.png",
+            "attachment": "site-review-guide-en-US",
+            "sourcePath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-desktop/attachments/site-review-guide-en-US-9136beed76de4377215da555e6d6f0e74769eeb0.png",
+            "sha256": "ad0bbbe5bd60e444bc23614062057e2315d2324b91813cf5fe080987141de7df"
+          },
+          {
+            "path": "tests/e2e/__review__/site/desktop/guide-zh-CN.png",
+            "attachment": "site-review-guide-zh-CN",
+            "sourcePath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-desktop/attachments/site-review-guide-zh-CN-520816b6d42d8195ac276b7362a095a7be6ff5f1.png",
+            "sha256": "0242d7d3450193ae421a38a6bb35b27b6bc0790e63af3ee42aa471e06bf09033"
+          }
+        ]
+      },
+      {
+        "project": "mobile",
+        "testId": "8ac7a53c57781e60bbd6-f07b251c1a295baea2b2",
+        "sourcePath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-mobile/attachments/site-review-source-52c91261328e277082bd7d7ff3195503a6bc16c5.json",
+        "sourceSha256": "c99a28bb537d0080b6db0e77b2adf2dae7f1a9901df3ac939c4e8c587363d9f9",
+        "siteManifestPath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-mobile/attachments/site-review-manifest-4abef3c0d21bd907711771568e83ae1c24ba7d10.json",
+        "siteManifestSha256": "f2350ca8a9191f59ef1f2277ed318b684c72de667c0d51f84a95b63d71c7a57e",
+        "images": [
+          {
+            "path": "tests/e2e/__review__/site/mobile/home-en-US.png",
+            "attachment": "site-review-home-en-US",
+            "sourcePath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-mobile/attachments/site-review-home-en-US-bbc36939d06b54ef37c47c60308eda96682bbfc3.png",
+            "sha256": "027509974f2bd089240559f4c8d0ee36fddcc8f91dc869a6459065635c68c792"
+          },
+          {
+            "path": "tests/e2e/__review__/site/mobile/home-zh-CN.png",
+            "attachment": "site-review-home-zh-CN",
+            "sourcePath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-mobile/attachments/site-review-home-zh-CN-7fae58e3c2698ff18a20347dc41abc36aa4c2176.png",
+            "sha256": "d24832abc13df84b5ada4c6b8a6c82fe5b4ace621a0ffb2b3d7e134b876f4234"
+          },
+          {
+            "path": "tests/e2e/__review__/site/mobile/guide-en-US.png",
+            "attachment": "site-review-guide-en-US",
+            "sourcePath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-mobile/attachments/site-review-guide-en-US-1d76dbb4ba49e5201fc1b4f464ec79723e8b13b6.png",
+            "sha256": "baf03636b3139ea21c01ad6a4438076fe8ae8b6a9af95c23c697273abf603b01"
+          },
+          {
+            "path": "tests/e2e/__review__/site/mobile/guide-zh-CN.png",
+            "attachment": "site-review-guide-zh-CN",
+            "sourcePath": "artifacts/e2e/results/site--site-standalone-Page-973bd-on-and-independent-geometry-mobile/attachments/site-review-guide-zh-CN-2e76ec608be71fb0945fc56d5824df01dbfc1721.png",
+            "sha256": "dad68900ce6e92618fc247ec2879f5102bbae2195b3f4fc835c26d00519f2786"
+          }
+        ]
+      }
+    ]
+  },
+  "ordinaryComparison": {
+    "commit": "6fac7c4c4d06173207275c53a788c705e90f05df",
+    "repository": "SeaLoong/Sensa",
+    "runId": "43942444086",
+    "attempt": "1",
+    "runUrl": "https://github.com/SeaLoong/Sensa/actions/runs/43942444086",
+    "suite": "all",
+    "baselineMode": "comparison",
+    "selectionComplete": true,
+    "snapshotsCompared": true,
+    "status": "passed",
+    "counts": {
+      "total": 310,
+      "passed": 310,
+      "expectedFailure": 0,
+      "failed": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "notRun": 0,
+      "interrupted": 0
+    },
+    "headCommit": "84bc6f45efaaa4ef12ee36c5c0a0d0981e88a2ac",
+    "verifiedSourceTree": "9a8d02aba4e39415caee79e23a89c62d6a959964",
+    "summarySha256": "66eb5d1eae7b0dca48dbe35632a68c7bcc0b9517db0c35f9b2ddb3a46ee5f6b4",
+    "artifact": {
+      "id": 14264203797,
+      "name": "e2e-report",
+      "size_in_bytes": 57230022,
+      "digest": "sha256:c30cccc10cbb3d39ee1dec579313d0e5091502e50d41c4edcbda5963b2e7b127"
+    },
+    "artifactVerification": "ZIP size and SHA-256 verified before extraction. The tested merge and PR head have identical Git trees. Later commits require their own CI comparison."
+  }
 }
