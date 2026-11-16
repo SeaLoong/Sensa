@@ -1,56 +1,26 @@
-# 已归档视觉评审：可拖动参数图解
+# 工作台视觉评审
 
 **简体中文** | [English](ui-visual-review.en.md)
 
-这份 **2026-10-21** 历史评审记录十场景 3D、拖点、标注避让与引线的固定源码、图片和发现。当前执行情况列于[验证记录](e2e-status.md)，本页保留原始证据与图片计数。
+本轮检查输入、映射与变换、轴配置、输出四个独立页面及双语窄屏布局。旧版参数图解的完整评审移至[固定历史记录](https://github.com/SeaLoong/Sensa/blob/8eff42a03462566a61e37c97737fede0e973c59b/docs/ui-visual-review.md)。
 
-[浏览器验证记录](e2e-status.md)记录已核对的运行与未审阅图片；[开发与发布](development.md)说明当前 CI。本页的固定图片和历史计数保持原样。
+## 已核对的截图
 
-评审由代码助手按 [V1–V6](ui-quality.md)检查实际 CI 图，保持 TDesign 配色与扁平布局；没有用户问卷、综合审美分或偏好结论。更早的 98 图记录保留于[固定提交](https://github.com/SeaLoong/Sensa/blob/9ffca1ea6361aad4ca9d7b53e8b96a1e86038142/docs/ui-visual-review.md)。
+[完整候选运行 43929566450](https://github.com/SeaLoong/Sensa/actions/runs/43929566450) 对源码 `27f569770c2eb13b6555a158f4f6e8d8302cf846` 执行 310 项测试，全部首次通过，无失败、跳过或未执行项。该运行采集候选，并未执行普通基线比较。
 
-## 证据与范围
+- 164 张应用基线中，78 张变化图与此前逐图审阅记录的 SHA-256 完全一致，按原观察记录选入；80 张不变图保留。
+- 六张参数图解仅有 6～18 个像素的栅格差异，保留原基线，不据此改动接受阈值。
+- 文档中的 40 个截图引用对应 38 个唯一文件，均核对本次采集附件、源码与 SHA-256，并同步镜像。
+- 本次续接额外打开桌面输入、桌面轴映射和中文窄屏计算编辑器原图复查。输入页不再混入输出卡片；映射页保留统一保存区；窄屏计算字段按列排列，视口下方内容需要滚动。
 
-- 生成源码：`7096282a24cc2c68e363d70accd56cd3ac0fd6ee`；[成功候选 39467342379](https://github.com/SeaLoong/Sensa/actions/runs/39467342379) 的 `e2e-report`／`e2e-baselines`。
-- 58 次执行全部首次通过，零跳过、重试通过、失败或运行错误。接受 **110 张 PNG**，1280×900 与 390×844 各 55 张；原应用 70 图逐字节不变。
-- 参数图共 40 张：现代 Socket、旧 Socket、Plug Touch、Sensa SPS、Shader × 双语 × XZ／可旋转三维 × 两视口。首轮逐张审阅，后续按字节比对继承同图、对变化图复评；另审阅四张英文立体 SVG 诊断图，它们是附件而非基线。
-- 本记录的图片固定于 `da2ca1e779fe73054440d6d97f550a2222c6e49a`。先前诊断候选没有接受；最终三维代表图复位目标参数并明确选择 XZ 移动平面。生成时 `updateSnapshots=all`，不能替代最终提交的普通比较。
-- 该次浏览器与截图采集在 Actions 执行。独立文件图解用例共用软件 WebGL2 worker 池，应用用例保留原浏览器配置；图解没有 OSC、网络或设备连接。
+逐图观察、选取来源与摘要见 [baseline-review.json](../tests/e2e/baseline-review.json)，文档采集证明见 [catalog-capture-review.json](../tests/e2e/catalog-capture-review.json)。旧站点原图仍是历史证据，不作为本次页面验收。
 
-## 发现与复评
+## 引导后续修复
 
-| 准则 | 本轮调整 | 已见结果 |
-| --- | --- | --- |
-| V1 层级与含义 | 图形、读数、调整区保留清楚先后；读数上方突出 `Sensa/SPS/*` 等前缀 | 说明将 * 替换为实际实例后再接行名；完整示例地址在参数按钮标题中，不把星号当实际参数 |
-| V2 字体与数字 | 3D 标签保持 12 px 屏幕字；数值等宽；四锚点选中态用浅白实心底与同色细描边 | P0–P3 可辨，四种选中文字的实际计算对比度均高于 4.79；这项检查不等于全站合规 |
-| V3 分组与操作 | 场景、投影、移动平面和复位同组；相机按钮另组 | 拖橙色目标改变坐标，拖空白旋转相机；390 px 两个选择器与复位同排 |
-| V4 色彩与身份 | P0 蓝、P1 青绿、P2 紫、P3 玫红，贯穿球、标记、尺寸、表格色点及坐标说明 | 参数与锚点一致；名称和状态文字仍可独立辨认，普通 Sender 保持橙色 |
-| V5 外形与标注 | Socket 用带开口的中空旋转截面，Plug 用渐细圆头；以实际实体投影避让文字，并用细引线连接偏移标注 | 现代场景杯口与灰 Plug 不再被文字遮住；Tip 引线连到真正 Plug 端点，不因靠近 Socket 而误指 |
-| V6 双语与窄屏 | 双语代表画面与 320 px 自动重排；保留同排控件底边、完整前缀与数字 | 已审画面没有新增主要裁切或标签冲突；Shader 盒体完整，SPS 四点定位及读数清楚 |
+源码 `0419e4f1f855acd920adbb9ad747bf827c85d832` 修正了场景定位和反向焦点：OSC 映射步骤指向轴映射预设，手动／脚本／协议指向常用变换；从引导容器按 Shift+Tab 可到最后一个控件。双语快速开始及浏览器断言同步更新。
 
-初版三维标注盖住了小杯口和部分 Plug。先用真实 Lathe 包围盒八角的屏幕投影避让文字；复评又发现现代英文 Tip 文字距真实端点约 63 px，Socket 夹在中间，单纯移开仍会误认。最终只对偏移的实体根点／端点标注补细引线与参考点，不改几何比例、测量或页面布局。小型 OGB 实体与大 Receiver 按同一比例展示，可用相机缩放细看；旧场景默认 Plug 已进入 Socket，不能据该默认姿态声称整个内壁都可见。
+[后续完整候选](https://github.com/SeaLoong/Sensa/actions/runs/43934966519) 用于检查这些改变后的高亮图和键盘行为。完成前不将旧引导截图视为新行为的证明。最终是否通过，以当前 PR 提交的普通完整比较为准，见[验证记录](e2e-status.md)。
 
-| 代表画面 | 桌面 | 窄屏 |
-| --- | --- | --- |
-| Socket／Plug 三维 | [英文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-socket-modern-orbit-en-US.png) | [中文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-socket-modern-orbit-zh-CN.png) |
-| SPS 四点定位三维 | [英文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-orbit-en-US.png) | [中文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-sensa-sps-orbit-zh-CN.png) |
-| Plug Touch | [中文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-plug-touch-orbit-zh-CN.png) | [英文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-plug-touch-orbit-en-US.png) |
+## 范围
 
-## 交互与工程证据
-
-鼠标实际拖动覆盖 XZ、XY 两平面：独立射线／平面反算与 DOM 步长／范围得到 (0.19,1,0.29)、(0.33,1.11,0.29)，限界样本为 (1.8,1.19,0.29)。真实目标、Sender 与四路近接读数一致，锁定轴及相机不变；背景拖动、键盘、滚轮、按钮和复位仍控制相机。Escape 和切场景结束捕获，不续写旧手势。YZ 另有独立矩阵数学往返检查，未单列真实鼠标流程。
-
-真实 WebGL2 像素非空、GL 错误为零。十个场景的球／胶囊／盒体、Lathe 表面、材料色和矩阵与模型一致；改变 L／W／D 后几何更新。实体不参与 Contact 计算，严格胶囊 BBox 5.5 精度 4 断言继续通过。标签避让独立核对实际矩阵投影和 DOM 边界；引线检查读取真实 SVG／CTM，核对起点、对应标签边缘、方向和可见性，不读取实现端的成功标志。
-
-三轮切换的几何与纹理数量稳定，仅一个活动实例；退出或上下文丢失后为零。WebGL2 不可用／丢失均回退 SVG，滑条与读数继续可用。两种呈现的 320 px 检查各覆盖十场景×双语，整页宽度保持 320，同排滑条无底边漂移；SPS／Shader 八角仍满足 |NDC|≤0.9 的默认／窄屏边界。SVG 正文约 11 px、轴约 10 px，三维 HTML 标签 12 px。
-
-原应用质量报告为 40 个 axe 状态，选定规则子集零检测违规；64 项行为与四项扫描期间不启用输入检查通过。**56 次 incomplete 节点出现**仍保留（跨状态重复）：label 32、contrast 24，目标指纹没有增减。四锚点文字色值检查不能清除这些待审项。
-
-## 限制
-
-人工视觉结论限上述五个代表场景的双语 XZ／三维和四张英文立体诊断图；其他五场景有自动几何与重排检查，未逐态完整审图。320 px 是自动重排，不是真实 400% 缩放或实体手机。任意视角、主动深度放大、所有无效帧、读屏、系统高对比与其他浏览器尚未全面评估；放大可能裁切，空间不足时标注使用有限回退。
-
-图解是普通文档滚动，应用正文在常驻顶栏下独立滚动。截图不证明视口外列、折叠内容或全部表单。原应用通知可关闭，但可能短暂遮住底部次要内容；原根点流程英文未逐态截图，校准未单列 axe 状态。40 个应用扫描不覆盖独立图解，不能外推完整 WCAG 结论。
-
-灰色实体是共享截面示意，不是导入的 Avatar 网格。根坐标不是姿态或世界位置，编码分辨率不是实测精度。本轮未运行真实 Unity 生产端、VRChat Contacts／OSC 会话、桌面／HMD 编码捕获、实时 GPU 解码或用户硬件；浏览器 WebGL 和模拟线包不提供这些证明。见[参数字典](osc-parameters.md)、[OGB 兼容](ogb-compatibility.md)及[定位原理](positioning.md)。
-
-历史接受集仅适用于上述固定提交和图片，不证明新提交的界面已经检查。后续提交需要自己的普通比较结果；变化图片仍应审阅并记录实际观察与未检查范围，不能用候选采集替代比较通过。见[开发与发布](development.md)与[浏览器验证](e2e.md)。
+截图只证明所示状态与视口，不证明折叠内容、全部表单、读屏、高对比或真实 400% 缩放。候选生成、静态检查与模拟传输均不能替代真实设备、Unity／VRChat、HMD 或机械停止验收。
