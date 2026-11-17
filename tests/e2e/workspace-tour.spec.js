@@ -25,6 +25,18 @@ async function captureSpotlight(page, info, selector, name) {
     return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
   });
   expect(targetHit, 'The guide leaves the highlighted control reachable').toBe(true);
+  const nav = page.locator('.workspace-nav [role="tab"][aria-selected="true"]');
+  const navHighlight = page.getByTestId('tour-navigation-highlight');
+  await expect(navHighlight).toBeVisible();
+  const navBounds = await nav.boundingBox(), navRing = await navHighlight.boundingBox();
+  expect(navRing.x).toBeLessThanOrEqual(navBounds.x);
+  expect(navRing.y).toBeLessThanOrEqual(navBounds.y);
+  expect(navRing.x + navRing.width).toBeGreaterThanOrEqual(navBounds.x + navBounds.width);
+  expect(navRing.y + navRing.height).toBeGreaterThanOrEqual(navBounds.y + navBounds.height);
+  expect(await nav.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+  }), 'The active navigation tab is highlighted and reachable').toBe(true);
   await info.attach(name, { body: await page.screenshot(), contentType: 'image/png' });
 }
 
@@ -68,8 +80,12 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(value).toHaveValue('650');
         await page.getByTestId('onboarding-resume').click();
         await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'input');
-        await page.getByTestId('onboarding-next').click();
+        const currentNav = page.locator('#workspace-tabs-control');
+        await currentNav.focus();
+        await page.keyboard.press(info.project.name === 'mobile' ? 'ArrowRight' : 'ArrowDown');
+        await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'mapping');
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
+        await expect(page.locator('#workspace-tabs-pipeline')).toBeFocused();
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
         await expect(page.locator('.transform-presets')).toHaveAttribute('open', '');
         await captureSpotlight(page, info, '.transform-presets .preset-card:first-child', 'spotlight-mapping-' + locale);
@@ -80,11 +96,17 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.getByTestId('onboarding-next').click();
         await expect(page.locator('#workspace-tabs-axes')).toHaveAttribute('aria-selected', 'true');
         await captureSpotlight(page, info, '.axis-profiles-section > .section__header', 'spotlight-axes-' + locale);
-        await page.getByTestId('onboarding-panel').getByRole('button', { name: await text(page, '选择设备动作预设'), exact: true }).click();
-        await expect(page.getByTestId('scene-presets-dialog')).toBeVisible();
+        await page.getByTestId('onboarding-create-profile').click();
+        const profile = page.getByRole('dialog', { name: await text(page, '轴配置'), exact: true });
+        await expect(profile).toBeVisible();
         await expect(page.getByTestId('guided-tour')).toHaveCount(0);
-        await page.getByRole('dialog', { name: await text(page, '场景预设'), exact: true }).getByRole('button', { name: await text(page, '关闭预设'), exact: true }).click();
+        await profile.getByRole('button', { name: await text(page, '取消'), exact: true }).click();
         await expect(page.getByTestId('guided-tour')).toBeVisible();
+        await page.getByTestId('onboarding-next').click();
+        await page.getByTestId('onboarding-next').click();
+        await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'diagnostics');
+        await expect(page.locator('#logs-panel')).toBeVisible();
+        await captureSpotlight(page, info, '.log-section > .section__header', 'spotlight-diagnostics-' + locale);
         await page.locator('.onboarding-jump > summary').click();
         await page.getByTestId('onboarding-step-ready').click();
         await page.getByTestId('onboarding-complete').click();

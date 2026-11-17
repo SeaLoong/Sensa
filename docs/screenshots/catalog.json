@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sourceCommit": "a012205759b1b60f50fb4f736a26e90aac344e6b",
-  "runId": "43941133222",
+  "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
+  "runId": "44107180755",
   "attempt": "1",
   "scenes": [
     {
@@ -17,7 +17,7 @@
           },
           "zh-CN": {
             "file": "desktop/control-page.png",
-            "sha256": "0ca199a6f4c71b8480f0214135cd8709cc5cba9769366f82984eaece71ab815c",
+            "sha256": "7cb90ce680fbc7996e684f7a15a685bcc0ece03f8a111601cae950fc979959c3",
             "language": "zh-CN"
           }
         },
@@ -29,7 +29,7 @@
           },
           "zh-CN": {
             "file": "mobile/control-page.png",
-            "sha256": "49a67cd79623e6cdffde618422658a0c4fb4d616c2294c1efd943f9c2048def3",
+            "sha256": "ae0de8a3d650ce7764c78d2d8490d0232784d6bf51eaf04b2c94cee66b1265b1",
             "language": "zh-CN"
           }
         }
@@ -105,12 +105,12 @@
         "desktop": {
           "en": {
             "file": "desktop/computed-signal-editor-en-US.png",
-            "sha256": "522817c721c2fa413bbcb741b58d25c7c664b7cbc60d47e60550d2e6aae4f071",
+            "sha256": "5b3e6da8367e2a5ef6ed4abe5d960f2a9d986d4204cc1ae5def0e1ff61985c34",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "desktop/computed-signal-editor-zh-CN.png",
-            "sha256": "55519eaefd42a80c7e26d63b5ab9637d9dec9340fcf7c4187a6936be60e94aef",
+            "sha256": "271b5ec8462d1b1cc4f4338e4483ec25336255b8f41a0c5462302a477f7a92e1",
             "language": "zh-CN"
           }
         },
@@ -136,24 +136,24 @@
         "desktop": {
           "en": {
             "file": "desktop/combined-input-en-US.png",
-            "sha256": "c6970e465981039c5853eab2a20cf4f6b5e80aeb4f5ce7b2a1c7a6270c3a9416",
+            "sha256": "d3624334c48c669339213c47f3161c3f639e59aad3fa544a7d65f3d65cdb1798",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "desktop/combined-input-zh-CN.png",
-            "sha256": "c69c1e0e2b2c59e6426e28c79975a9e5d69b392341164e68b0b1f541a81ff7f4",
+            "sha256": "5ca3cec34e4308be70895554a8b261c1a9655121056cf0eb9c0888c261bb5495",
             "language": "zh-CN"
           }
         },
         "mobile": {
           "en": {
             "file": "mobile/combined-input-en-US.png",
-            "sha256": "fb58cd9299bf24cd9ffc09a9fa25e9cae3824cef8b255e6299db7882e8a01afd",
+            "sha256": "1129000e32ab8aab0587ec8937b2d4a5d1d65e4130378f7c2b72c9a4d8f5ee1d",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "mobile/combined-input-zh-CN.png",
-            "sha256": "31feb87895f1fed434b74243a6bf91b7d23dc663b931024e71a9a92758b8305d",
+            "sha256": "ba9cdac6a3f19f336fd199cda2a819b81b0ec919468c86d7ce251cc9362c449c",
             "language": "zh-CN"
           }
         }

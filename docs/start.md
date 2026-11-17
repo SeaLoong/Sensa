@@ -27,6 +27,6 @@
 
 - [工作台地图](guide.md) — 找到控制、预设、映射与录制。
 - [功能参考](features.md) — 查看输入、输出、录制与下载格式。
-- [场景预设](presets.md)与 [OSC 参数字典](osc-parameters.md) — 理解 Avatar 使用的数值。
+- [配置模板](presets.md)与 [OSC 参数字典](osc-parameters.md) — 理解 Avatar 使用的数值。
 - [Avatar 定位方案](usage-scenarios.md#vrchat-参数与定位)与 [Unity 组件包](../unity/top.sealoong.sensa/README.zh-CN.md) — 已有接触参数不够用时添加定位。
 - [开发与发布](development.md) — 构建、验证或扩展 Sensa。

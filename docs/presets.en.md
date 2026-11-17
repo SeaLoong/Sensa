@@ -1,8 +1,8 @@
-# Scene presets: mappings, transforms and axis profiles
+# Configuration templates: mappings, transforms and axis profiles
 
 [简体中文](presets.md) | **English**
 
-**Scene presets** provides **VRChat / OSC mappings**, **Transforms** and **Device axis profiles** cards. Loading prepares a draft; review, saving and input activation are separate actions.
+Configuration templates live in the preset selector under **Mapping & transforms → Axis mapping**, in **Computed signals → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
 
 ## Six built-in mapping templates
 
@@ -57,7 +57,7 @@ Create [computed signals](computed-signals.en.md) in **Mapping & transforms → 
 
 ## Common transforms
 
-Load a calculation draft from **Scene presets → Transforms**, or expand common transforms in **Mapping & transforms → Computed signals**. Presets do not create target-axis mappings or change the input mode automatically.
+Expand **Common transforms** under **Mapping & transforms → Computed signals** and select an example to load a calculation draft. Presets do not create target-axis mappings or change the input mode automatically.
 
 | Preset | Default behavior | Next action |
 | --- | --- | --- |
@@ -70,7 +70,7 @@ Sources and settings remain editable. Each load creates an independent calculati
 
 ## Device axis profiles
 
-Choose a card on **Axis profiles** or in **Scene presets → Device axis profiles**. **Review and create an axis profile**, check it and save. Saving does not bind or enable an output automatically.
+Expand **Device motion presets** on **Axis profiles**, choose a template, then review and save it in the axis editor. Saving does not bind or enable an output automatically.
 
 | Preset | Axes or limits |
 | --- | --- |

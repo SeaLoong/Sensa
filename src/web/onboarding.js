@@ -1,6 +1,6 @@
 import { t } from './i18n.js';
 
-export const ONBOARDING_STEPS = ['goal', 'input', 'mapping', 'axes', 'device', 'ready'];
+export const ONBOARDING_STEPS = ['goal', 'input', 'mapping', 'axes', 'device', 'diagnostics', 'ready'];
 const GOALS = ['osc', 'script', 'manual', 'protocol'];
 const STATUSES = ['new', 'active', 'dismissed', 'complete'];
 
@@ -53,4 +53,55 @@ export function guideInputPrepared(goal, { mode, scriptLoaded = false, listening
   if (goal === 'osc') return listening && mappingCount > 0;
   if (goal === 'protocol') return protocolInputs.some(input => input.enabled && input.listening && input.connected);
   return false;
+}
+
+export function onboardingInstructions(step, goal) {
+  const instructions = {
+    manual: [
+      t("先在“输入”页选择手动，检查 L0 主轴的目标值。"),
+      t("振动或旋转设备可展开“更多动作轴”，选择对应通道；先使用较小的目标值。"),
+      t("确认当前输入方式为手动；准备期间保持顶部“输入启用”关闭。"),
+    ],
+    script: [
+      t("在“输入 → 脚本”载入 funscript，确认文件已显示在播放器中。"),
+      t("检查脚本的目标轴、时间线和播放位置，确认与设备通道对应。"),
+      t("点击“应用输入方式”切换到脚本；播放与输入启用分别控制。"),
+    ],
+    osc: [
+      t("在“输入 → OSC”检查监听地址和端口，让发送端将参数发到这里。"),
+      t("启用并保存 OSC 接收设置，确认“监听中”，再查看接收到的参数和来源。"),
+      t("下一步在“映射与变换”选择映射、校准并保存，最后应用 OSC 输入方式。"),
+    ],
+    protocol: [
+      t("在“输入 → 协议”添加协议来源，填写监听地址、端口和设备能力。"),
+      t("保存来源后，让网站或软件连接这个地址，确认来源已监听且客户端已连接。"),
+      t("应用协议输入方式；连接成功不会自动启用输入。"),
+    ],
+    oscMapping: [
+      t("在“轴映射”选择适合 Avatar 的 SPS、Contact 或 PhysBone 预设。"),
+      t("“追加草稿”保留现有映射；“替换草稿”替换映射。检查来源、目标轴、量程和方向。"),
+      t("确认预览数值符合预期后点击“保存更改”；载入模板本身不会保存或启用输入。"),
+    ],
+    mapping: [
+      t("手动和脚本可直接驱动动作轴，没有变换需求时可以跳过本页。"),
+      t("需要平滑、混合或阈值时，在“计算信号”的“常用变换”选择示例。"),
+      t("检查计算来源与参数，再把计算结果连接到目标轴或输出，并保存更改。"),
+    ],
+    axes: [
+      t("TCode 设备需要轴配置；其他输出可以跳过这一步。"),
+      t("在本页展开“设备动作预设”选择模板，或点击“新增轴配置”从头编辑。"),
+      t("检查启用的轴、行程、方向与速度后保存；随后在 TCode 输出中选择这套轴配置。"),
+    ],
+    device: [
+      t("在“输出”点击添加设备，选择设备实际使用的连接方式。"),
+      t("填写地址或选择串口等连接参数；TCode 输出还需要选择已保存的轴配置。"),
+      t("保存后按设备要求连接或扫描，检查状态是否可用；连接设备不会开启输入。"),
+    ],
+    diagnostics: [
+      t("诊断页默认展开日志，可直接查看最近的连接、输入和输出消息。"),
+      t("先查看警告或错误，再按分类、关键词或轴筛选，结合发生时间定位问题。"),
+      t("日志为空时先检查筛选条件；有连接错误时返回“输出”修正设置，再重新连接。"),
+    ],
+  };
+  return instructions[step === 'input' ? goal : step === 'mapping' && goal === 'osc' ? 'oscMapping' : step] || [];
 }

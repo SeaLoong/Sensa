@@ -139,13 +139,17 @@ for (const locale of ['zh-CN', 'en-US']) {
 
         await workspace(page, '诊断');
         const logs = page.locator('button[aria-controls="logs-panel"]');
-        await expect(logs).toHaveAccessibleName(await label(page, '查看日志'));
-        await logs.click();
         await expect(logs).toHaveAttribute('aria-expanded', 'true');
         await expect(logs).toHaveAttribute('aria-controls', 'logs-panel');
         await expect(logs).toHaveAccessibleName(await label(page, '收起日志'));
         await expect(page.locator('#logs-panel')).toBeVisible();
         await report.audit('settings-logs-expanded');
+        await logs.click();
+        await expect(page.locator('#logs-panel')).toBeHidden();
+        await workspace(page, '输入');
+        await workspace(page, '诊断');
+        await expect(page.locator('#logs-panel')).toBeVisible();
+        await expect(logs).toHaveAttribute('aria-expanded', 'true');
 
         await workspace(page, '轴配置');
         await page.getByRole('button', { name: await label(page, '修改配置'), exact: true }).click();
@@ -189,7 +193,7 @@ for (const locale of ['zh-CN', 'en-US']) {
             await page.keyboard.press('End');
             await expect.poll(() => main.evaluate(element => Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop))).toBeLessThanOrEqual(1);
           }
-          const firstControl = page.getByTestId('open-scene-presets');
+          const firstControl = page.getByTestId('onboarding-start');
           await page.keyboard.press('Tab');
           await expect(firstControl).toBeFocused();
           const bounds = await firstControl.evaluate(element => {
