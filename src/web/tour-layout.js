@@ -4,11 +4,30 @@ export function tourLayout(rect, viewport, card = { width: 360, height: 320 }, n
   if (navigation) {
     const layout = tourLayout(rect, viewport, card);
     const nav = tourLayout(navigation, viewport).target;
-    const panel = layout.card;
-    if (nav && panel.left < nav.left + nav.width && panel.left + panel.width > nav.left
-      && panel.top < nav.top + nav.height && panel.top + Math.min(card.height, panel.maxHeight) > nav.top) {
-      panel.top = nav.top + nav.height + 12;
-      panel.maxHeight = Math.max(0, viewport.height - panel.top - 12);
+    const panel = layout.card, holes = [layout.target, nav].filter(Boolean), gap = 12;
+    const overlaps = (a, b) => a.left < b.left + b.width && a.left + a.width > b.left
+      && a.top < b.top + b.height && a.top + a.height > b.top;
+    if (holes.some(hole => overlaps({ ...panel, height: Math.min(card.height, panel.maxHeight) }, hole))) {
+      // A narrow-screen card may otherwise move away from the navigation and
+      // land on its target. Choose free space around both, scrolling only text.
+      const positions = [...new Set([panel.left, gap, viewport.width - panel.width - gap,
+        ...holes.flatMap(hole => [hole.left - panel.width - gap, hole.left + hole.width + gap])])]
+        .filter(left => left >= gap && left + panel.width <= viewport.width - gap);
+      const slots = positions.flatMap(left => {
+        const blocked = holes.filter(hole => left < hole.left + hole.width && left + panel.width > hole.left)
+          .sort((a, b) => a.top - b.top);
+        let top = gap;
+        const spaces = [];
+        for (const hole of blocked) {
+          if (hole.top - gap > top) spaces.push({ left, top, maxHeight: hole.top - gap - top });
+          top = Math.max(top, hole.top + hole.height + gap);
+        }
+        if (viewport.height - gap > top) spaces.push({ left, top, maxHeight: viewport.height - gap - top });
+        return spaces;
+      });
+      slots.sort((a, b) => Math.min(card.height, b.maxHeight) - Math.min(card.height, a.maxHeight)
+        || Math.abs(a.left - panel.left) + Math.abs(a.top - panel.top) - Math.abs(b.left - panel.left) - Math.abs(b.top - panel.top));
+      if (slots.length) Object.assign(panel, slots[0]);
     }
     return { ...layout, navigation: nav, shades: tourShades([layout.target, nav], viewport) };
   }

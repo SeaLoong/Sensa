@@ -75,3 +75,12 @@ test('guide cards leave the selected navigation tab uncovered on narrow screens'
     assert.ok(layout.shades.length);
   }
 });
+
+test('long guide instructions scroll below the target instead of covering it when navigation blocks the space above', () => {
+  const layout = tourLayout({ left: 32, top: 420, right: 366, bottom: 526 },
+    { width: 390, height: 844 }, { width: 380, height: 520 },
+    { left: 82, top: 168, right: 155, bottom: 224 });
+  assert.ok(layout.card.top >= layout.target.top + layout.target.height);
+  assert.ok(layout.card.maxHeight >= 280);
+  assert.ok(layout.card.top + layout.card.maxHeight <= 844);
+});

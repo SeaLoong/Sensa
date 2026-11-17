@@ -57,7 +57,7 @@ Create [computed signals](computed-signals.en.md) in **Mapping & transforms → 
 
 ## Common transforms
 
-Load a calculation draft from **Mapping & transforms → Computed signals → Common transforms**, or expand common transforms in **Mapping & transforms → Computed signals**. Presets do not create target-axis mappings or change the input mode automatically.
+Expand **Common transforms** under **Mapping & transforms → Computed signals** and select an example to load a calculation draft. Presets do not create target-axis mappings or change the input mode automatically.
 
 | Preset | Default behavior | Next action |
 | --- | --- | --- |
