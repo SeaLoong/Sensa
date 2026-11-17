@@ -16,7 +16,9 @@ export default function GuidedTour({ step, goal, workspace, suspended, onDismiss
     const selector = tourTarget(step, goal);
     const update = () => {
       frame = 0;
-      target = step === 'device' ? document.querySelector('.outputs-section .output-card') || document.querySelector(selector) : selector ? document.querySelector(selector) : null;
+      // Output telemetry can fill the viewport. Keep the connection actions
+      // reachable instead of placing instructions over an entire output card.
+      target = step === 'device' ? document.querySelector('.outputs-section .output-card .output-actions') || document.querySelector(selector) : selector ? document.querySelector(selector) : null;
       const disclosure = target?.closest('details');
       if (disclosure) disclosure.open = true;
       if (target && !scrolled) {

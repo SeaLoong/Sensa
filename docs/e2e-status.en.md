@@ -17,3 +17,5 @@ The first diagnostic candidate [44105819069](https://github.com/SeaLoong/Sensa/a
 [Image receipt](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json) · [Visual review](ui-visual-review.en.md) · [Previous verification](https://github.com/SeaLoong/Sensa/blob/579074a2fed50bef2901f81abdaa522c49d2d50d/docs/e2e-status.en.md)
 
 CI retains source/unit checks → full browser comparison on the same pinned commit → six native builds and isolated smoke. Candidate site captures predate the gallery-mirror refresh; final CI must verify the rebuilt site. Mock transports and build success do not establish real hardware, Unity/VRChat, HMD or mechanical-stop acceptance. No stable publication is requested.
+
+The first ordinary comparison [44115646674](https://github.com/SeaLoong/Sensa/actions/runs/44115646674) exposed mobile English device guidance covering Enable. The follow-up targets the output action row instead of the entire telemetry card and adds hit-testing, readable-body and action-focus assertions. Corrected source still requires the same full CI gate.

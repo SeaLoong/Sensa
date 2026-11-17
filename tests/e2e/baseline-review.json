@@ -2894,7 +2894,11 @@
     ]
   },
   "ordinaryComparison": {
-    "status": "pending",
-    "required": "Independent full comparison on final PR source; candidate generation is not acceptance."
+    "status": "requires_followup",
+    "diagnosticRunId": "44115646674",
+    "diagnosticCommit": "dffbfc3fa84d46cbcc7455c69b1ae31a5eca3ce0",
+    "diagnosticHeadCommit": "38583bad975dc13b2f7113e56e50c10bfa506b11",
+    "observedFailure": "Mobile English first-use device guide intercepted Enable after saving an output. The guide now targets output actions instead of the full telemetry card; regression checks preserve hit-testing, readable instructions and action focus.",
+    "required": "Independent full comparison on the corrected PR source; neither candidate generation nor this failed diagnostic is acceptance."
   }
 }

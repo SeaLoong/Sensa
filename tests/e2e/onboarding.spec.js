@@ -123,9 +123,23 @@ for (const locale of ['zh-CN', 'en-US']) {
           const configured = await configuration(page, rig);
           expect(configured.outputs[0]).toMatchObject({ name: deviceName, host: '127.0.0.1', port: 19999, enabled: false });
           await disarmed(page, rig);
-          await card(page, deviceName).getByRole('button', { name: await text(page, '启用'), exact: true }).click();
+          const enable = card(page, deviceName).getByRole('button', { name: await text(page, '启用'), exact: true });
+          await expect.poll(() => enable.evaluate(element => {
+            const rect = element.getBoundingClientRect();
+            return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+          }), { message: 'Device guidance leaves Enable reachable after saving an output' }).toBe(true);
+          const body = page.locator('.onboarding-panel__body');
+          expect(await body.evaluate(element => {
+            const rect = element.getBoundingClientRect(), scroller = element.closest('.onboarding-panel__content').getBoundingClientRect();
+            return Math.min(rect.bottom, scroller.bottom) - Math.max(rect.top, scroller.top);
+          }), 'Device instructions retain readable space beside the connection actions').toBeGreaterThan(70);
+          await info.attach('spotlight-device-' + locale, { body: await page.screenshot(), contentType: 'image/png' });
+          await enable.click();
           await expect(card(page, deviceName).locator('.output-identity')).toContainText(await text(page, '已连接'));
           const connected = await passiveSnapshot(page, rig);
+          await page.getByTestId('onboarding-connect-device').click();
+          await expect.poll(() => card(page, deviceName).locator('.output-actions')
+            .evaluate(element => element.contains(document.activeElement))).toBe(true);
           await jumpToStep(page, 'input');
           await step(page, 'input');
           await page.getByTestId('onboarding-prepare-input').click();

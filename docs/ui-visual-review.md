@@ -17,3 +17,5 @@
 [输入](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__review__/tour/mobile/input-en-US.png) · [映射](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__review__/tour/desktop/mapping-en-US.png) · [轴配置](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__review__/tour/mobile/axes-zh-CN.png) · [诊断](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__review__/tour/desktop/diagnostics-zh-CN.png)
 
 候选采集不构成普通截图比较验收。后续可读性回退与焦点修复仍须通过最终源码的普通完整 CI。视口图不验证屏外字段或关闭的折叠区。本轮不声称完整 WCAG 符合性、读屏／实体手机／400% 缩放测试、用户偏好研究、真实硬件或 Unity／VRChat 验收。[验证记录](e2e-status.md) · [审阅标准](ui-quality.md)
+
+首次普通比较 [44115646674](https://github.com/SeaLoong/Sensa/actions/runs/44115646674) 发现英文手机端设备引导遮挡 Enable。后续修复将目标从整张输出卡缩小为操作按钮，并补充命中、正文空间及导航焦点断言；修复后的源码仍须通过相同的完整 CI。

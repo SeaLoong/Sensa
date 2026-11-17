@@ -1878,7 +1878,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       setNavigationTarget(destination === 'axes' ? '.axis-profiles-section' : '.log-section');
     } else if (destination === 'outputs' || destination === 'recording') {
       setWorkspace('outputs');
-      setNavigationTarget(destination === 'recording' ? '.recording-panel' : '.outputs-section');
+      const guideActions = onboarding.status === 'active' && onboarding.step === 'device' && outputs.length > 0;
+      setNavigationTarget(destination === 'recording' ? '.recording-panel'
+        : guideActions ? '.outputs-section .output-card .output-actions' : '.outputs-section');
     } else {
       setWorkspace('control'); selectInputTab('osc');
       setOscWorkspaceTab(['osc-diagnostics', 'sensa-sps'].includes(destination) ? 'experimental' : 'parameters');

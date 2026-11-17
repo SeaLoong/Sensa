@@ -17,3 +17,5 @@
 [逐图记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json) · [视觉审阅](ui-visual-review.md) · [上轮验证](https://github.com/SeaLoong/Sensa/blob/579074a2fed50bef2901f81abdaa522c49d2d50d/docs/e2e-status.md)
 
 CI 保留源码／单测 → 同一固定提交完整浏览器比较 → 六组原生构建与隔离冒烟。候选站点图片早于图库镜像刷新，最终 CI 仍须检查重建站点。模拟传输与构建成功不等于真实硬件、Unity／VRChat、HMD 或机械停止验收；本轮未请求正式发布。
+
+首次普通比较 [44115646674](https://github.com/SeaLoong/Sensa/actions/runs/44115646674) 发现英文手机端设备引导遮挡 Enable。后续修复将目标从整张输出卡缩小为操作按钮，并补充命中、正文空间及导航焦点断言；修复后的源码仍须通过相同的完整 CI。
