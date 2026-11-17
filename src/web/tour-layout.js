@@ -27,7 +27,14 @@ export function tourLayout(rect, viewport, card = { width: 360, height: 320 }, n
       });
       slots.sort((a, b) => Math.min(card.height, b.maxHeight) - Math.min(card.height, a.maxHeight)
         || Math.abs(a.left - panel.left) + Math.abs(a.top - panel.top) - Math.abs(b.left - panel.left) - Math.abs(b.top - panel.top));
-      if (slots.length) Object.assign(panel, slots[0]);
+      // A large output card can fill almost the whole scrollport. Do not pick
+      // a tiny leftover strip that clips the guide's navigation and stop button.
+      const readable = slots.find(slot => slot.maxHeight >= Math.min(card.height, 260));
+      if (readable) Object.assign(panel, readable);
+      else if (nav && overlaps({ ...panel, height: Math.min(card.height, panel.maxHeight) }, nav)) {
+        panel.top = nav.top + nav.height + gap;
+        panel.maxHeight = Math.max(0, viewport.height - panel.top - gap);
+      }
     }
     return { ...layout, navigation: nav, shades: tourShades([layout.target, nav], viewport) };
   }

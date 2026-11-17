@@ -84,3 +84,12 @@ test('long guide instructions scroll below the target instead of covering it whe
   assert.ok(layout.card.maxHeight >= 280);
   assert.ok(layout.card.top + layout.card.maxHeight <= 844);
 });
+
+test('a viewport-filling output card cannot reduce the guide to an unreadable strip', () => {
+  const layout = tourLayout({ left: 24, top: 260, right: 366, bottom: 800 },
+    { width: 390, height: 844 }, { width: 380, height: 520 },
+    { left: 230, top: 168, right: 303, bottom: 224 });
+  assert.ok(layout.card.maxHeight >= 320);
+  assert.ok(layout.card.top >= layout.navigation.top + layout.navigation.height);
+  assert.ok(layout.card.top + layout.card.maxHeight <= 844);
+});
