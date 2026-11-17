@@ -22,7 +22,7 @@ The guide stays available as **Guided setup**. **Save and exit** keeps your plac
 
 ## 2. Prepare input in the highlighted controls
 
-The guide follows **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step opens the relevant page, highlights real controls and dims the rest. You can interact with the highlighted controls, using **Tab / Shift+Tab** to move forward or backward between them and the guide. The mapping step highlights OSC mapping presets for OSC, and the first common transform example for manual, script and protocol scenes; **Scene presets** opens all transform choices. Use **Jump to step** to reveal the step list. Longer instructions scroll separately, keeping **Back / Next** and emergency stop available. Opening an editor suspends the guide; closing it resumes the guide. Press **Escape** to save progress and leave.
+The guide follows **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → View logs → Review setup**. Each step gives an ordered checklist and highlights both the current sidebar tab (top navigation on narrow screens) and the live controls. Use **Tab / Shift+Tab** between the guide, navigation and controls; arrow-key navigation from the highlighted tab also changes the guide step. Mapping, transform and device-motion templates are on their own pages. Expand **Jump to step** for direct navigation. Longer instructions scroll separately while **Back / Next** and emergency stop remain available. Editors suspend the guide and closing them resumes it. **Escape** saves progress and leaves. **Diagnostics** opens with logs expanded on every visit; you can collapse them manually.
 
 Prepare your source in **Input**. Opening a tab does not apply its input mode:
 
@@ -33,7 +33,7 @@ Prepare your source in **Input**. Opening a tab does not apply its input mode:
 
 ## 3. Choose mappings, transforms and axis profiles
 
-**Mapping & transforms** has **Axis mapping** and **Computed signals** subtabs. Open **Scene presets** and choose a card:
+**Mapping & transforms** has **Axis mapping** and **Computed signals** subtabs. Use templates directly on their relevant page:
 
 - **VRChat / OSC mappings:** SPS depth, vibration, combined depth/vibration and other templates. Append or replace drafts, then check actual paths and ranges.
 - **Transforms:** manual smoothing, manual/script mixing, a threshold switch or a slow wave. After loading a calculation, select its result in an axis mapping or output binding.

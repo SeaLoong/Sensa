@@ -8,11 +8,11 @@ Drive an OSR or another interactive device from VRChat/SPS, funscripts or manual
 
 ## Guided setup and presets
 
-**Start setup guide** takes you through **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step highlights real controls and dims the rest of the page. Opening an editor suspends the guide until you close it. Save your progress and return with **Resume setup**, or reopen it through **Guided setup**. After **Finish tour**, turn on **Input enabled** when ready.
+**Start setup guide** takes you through **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → View logs → Review setup**. Each step highlights real controls and dims the rest of the page. Opening an editor suspends the guide until you close it. Save your progress and return with **Resume setup**, or reopen it through **Guided setup**. After **Finish tour**, turn on **Input enabled** when ready.
 
-**Scene presets** groups VRChat/SPS mappings, common transforms and device axis profiles. Smoothing, blending, threshold switching and slow oscillation load editable drafts. Review a mapping draft and **Save changes** before use. For a device-motion preset, review and save the new axis profile, then select it on the output. Choose ranges that match your actual device. A [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) can reuse saved configuration, including inputs and outputs.
+Configuration templates live in the preset selector under **Mapping & transforms → Axis mapping**, in **Computed signals → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
 
-[First-run steps](quick-start.en.md) · [Scene presets](presets.en.md) · [Workbench map](guide.en.md)
+[First-run steps](quick-start.en.md) · [Configuration templates](presets.en.md) · [Workbench map](guide.en.md)
 
 ## Choose an edition
 

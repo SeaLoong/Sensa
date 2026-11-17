@@ -1,16 +1,18 @@
 import React from 'react';
 import { Badge, Button, TaskTile } from './ui.tsx';
-import { ONBOARDING_STEPS, onboardingScenes } from './onboarding.js';
+import { ONBOARDING_STEPS, onboardingScenes, onboardingInstructions } from './onboarding.js';
 import { t } from './i18n.js';
 
 export default function Onboarding({ state, platform = {}, outputCount = 0, availableOutputs = 0, inputPrepared = false,
-  actualMode, inputActive = false, disabled = false, onChange, onNavigate, onApplyInput, onOpenPresets }) {
+  actualMode, inputActive = false, disabled = false, onChange, onNavigate, onApplyInput, onCreateProfile }) {
   const scenes = onboardingScenes(platform);
   const scene = scenes.find(item => item.id === state.goal);
   const activeStep = scene ? state.step : 'goal';
   const current = ONBOARDING_STEPS.indexOf(activeStep);
-  const labels = [t('选择场景'), t('准备输入'), t('映射与变换'), t('轴配置'), t('连接设备'), t('检查并完成')];
+  const labels = [t('选择场景'), t('准备输入'), t('映射与变换'), t('轴配置'), t('连接设备'), t('查看日志'), t('检查并完成')];
   const go = step => onChange({ type: 'step', step });
+  const instructions = onboardingInstructions(activeStep, state.goal);
+  const pageLabel = { input: t('输入'), mapping: t('映射与变换'), axes: t('轴配置'), device: t('输出'), diagnostics: t('诊断'), ready: t('输入') }[activeStep];
   const canContinue = Boolean(scene);
   const canFinish = availableOutputs > 0 && inputPrepared;
   return <section className="onboarding-panel" data-testid="onboarding-panel" aria-label={t('设备设置向导')} tabIndex={-1}>
@@ -20,35 +22,26 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
       <Button variant="text" data-testid="onboarding-skip" onClick={() => onChange({ type: 'dismiss' })}>{t('保存并退出')}</Button>
     </header>
     <div className="onboarding-panel__body">
+      {pageLabel && <p className="caption muted onboarding-location">{t('当前页面：{0}', [pageLabel])}</p>}
+      {activeStep === 'goal' && <p>{t('按实际输入方式选择用法，随后逐页完成设置。引导只保存进度，配置需要在对应页面明确保存。')}</p>}
+      {instructions.length > 0 && <h3>{activeStep === 'input' ? t('准备 {0}', [scene?.title]) : labels[current]}</h3>}
+      {instructions.length > 0 && <ol className="onboarding-instructions">{instructions.map(instruction => <li key={instruction}>{instruction}</li>)}</ol>}
       {activeStep === 'goal' && <div className="task-tiles">
         {scenes.map(item => <TaskTile key={item.id} title={item.title} description={item.description} selected={state.goal === item.id}
           data-testid={`onboarding-goal-${item.id}`} onClick={() => onChange({ type: 'goal', goal: item.id })} />)}
       </div>}
-      {activeStep === 'mapping' && <div className="stack">
-        <h3>{t('选择映射或变换预设')}</h3>
-        <p>{state.goal === 'osc' ? t('在高亮区域选择 SPS、Contact 或 PhysBone 预设，追加到草稿，再检查来源与目标轴并保存。') : t('手动与脚本可以直接使用动作轴。需要平滑、混合或阈值时，在计算信号中选择变换预设；否则继续下一步。')}</p>
-        <Button onClick={() => onOpenPresets(state.goal === 'osc' ? 'osc' : 'transform')}>{t('场景预设')}</Button>
-      </div>}
       {activeStep === 'axes' && <div className="stack">
-        <h3>{t('为设备选择轴配置')}</h3><p>{t('打开设备动作预设，按设备选择轴，再检查行程、方向与速度。TCode 输出会引用这套配置；其他输出可跳过。')}</p>
-        <Button onClick={() => onOpenPresets('profile')}>{t('选择设备动作预设')}</Button>
+        <Button data-testid="onboarding-create-profile" disabled={disabled} onClick={onCreateProfile}>{t('新增轴配置')}</Button>
       </div>}
       {activeStep === 'device' && <div className="stack">
-        <h3>{t('先连接要控制的设备')}</h3>
-        <p>{t('添加输出并完成连接设置，确认设备可用后继续。设备连接与输入启用分别控制。')}</p>
         <Badge tone={availableOutputs > 0 ? 'success' : 'default'}>{t('可用输出 {0}/{1}', [availableOutputs, outputCount])}</Badge>
         <div className="actions"><Button tone="primary" data-testid="onboarding-connect-device" onClick={() => onNavigate('outputs')}>{t('连接或配置设备')}</Button>
-          <Button onClick={() => onOpenPresets('profile')}>{t('选择设备动作预设')}</Button></div>
+          <Button onClick={() => go('axes')}>{t('轴配置')}</Button></div>
       </div>}
       {activeStep === 'input' && scene && <div className="stack">
-        <h3>{t('准备 {0}', [scene.title])}</h3><p>{scene.description}</p>
-        <p>{state.goal === 'manual' ? t('检查主轴目标；振动或旋转设备请在更多动作轴中选择对应通道。')
-          : state.goal === 'script' ? t('载入脚本，检查目标轴和播放位置，再应用脚本输入方式。')
-            : state.goal === 'osc' ? t('载入匹配的映射预设，确认接收参数并保存，再应用 OSC 输入方式。')
-              : t('添加协议来源，让上游客户端连接，再应用协议输入方式。')}</p>
         <Badge tone={inputPrepared ? 'success' : 'default'}>{inputPrepared ? t('输入已准备') : t('输入待准备')}</Badge>
         <div className="actions"><Button tone="primary" data-testid="onboarding-prepare-input" onClick={() => onNavigate(scene.destination)}>{t('打开输入设置')}</Button>
-          {state.goal === 'osc' && <Button onClick={() => onOpenPresets('osc')}>{t('选择映射预设')}</Button>}
+          {state.goal === 'osc' && <Button onClick={() => go('mapping')}>{t('选择映射预设')}</Button>}
           {actualMode !== state.goal && <Button data-testid="onboarding-apply-input" disabled={disabled} onClick={() => onApplyInput(state.goal)}>{t('应用输入方式')}</Button>}
         </div>
       </div>}

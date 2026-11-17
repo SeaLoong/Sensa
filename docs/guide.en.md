@@ -12,11 +12,11 @@ Use this map to find a control. [Guides](start.en.md) helps you choose a task; [
 | **Output** | Connect devices, apps and recordings; edit output bindings |
 | **Diagnostics** | Inspect runtime logs |
 
-## Guided setup and scene presets
+## Guided setup and configuration templates
 
-**Start setup guide** follows six steps: **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → Review setup**. Each step opens its page, highlights the actual controls and dims the rest. You can operate the highlighted controls directly. Opening an editor pauses the tour until you close it. **Escape** or **Save and exit** keeps your place. The emergency stop remains available in the tour. **Finish tour** records completion without enabling input or changing the configuration.
+**Start setup guide** follows seven steps: **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → View logs → Review setup**. Each step opens its page, highlights the actual controls and dims the rest. You can operate the highlighted controls directly. Opening an editor pauses the tour until you close it. **Escape** or **Save and exit** keeps your place. The emergency stop remains available in the tour. **Finish tour** records completion without enabling input or changing the configuration.
 
-**Scene presets** has three groups: **VRChat / OSC mappings**, **Transforms**, and **Device axis profiles**. Cards explain their purpose before you load an editable draft. Mapping presets include combined SPS depth/vibration; transform presets include manual smoothing, manual/script mixing, a threshold switch and a slow wave. Load and review a preset, then save explicitly. TCode outputs select their saved axis profile separately.
+Configuration templates live in the preset selector under **Mapping & transforms → Axis mapping**, in **Computed signals → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
 
 Scene shortcuts open the controls for a task. Selecting a scene or a preset does not enable input.
 
@@ -66,7 +66,7 @@ Check reception and sender port first, then source selection, saved mapping, out
 
 ### Turn an input into motion (mapping)
 
-Open **Scene presets** to choose an OSC preset and load it into **Mapping & transforms → Axis mapping**. You can also use the preset selector there. Select a parameter or computed result, calibrate its range/direction and **Save changes**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps) · [Template reference](presets.en.md)
+Choose an OSC preset directly in **Mapping & transforms → Axis mapping**, then append or replace the mapping drafts. Select a parameter or computed result, calibrate its range/direction and **Save changes**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps) · [Template reference](presets.en.md)
 
 ### Combine inputs first (computed signals)
 
@@ -90,7 +90,7 @@ Expand **Output connections** on the **Outputs** page to inspect saved routes. *
 
 ## Axis profiles, diagnostics and help
 
-**Axis profiles** set TCode direction, travel and motion. A device-motion preset can prepare a new profile; save it and select it on the output. Protocol listeners are under **Input → Protocol**; logs are under **Diagnostics**. Help links to [Guides](start.en.md) and can reopen guided setup or scene presets. [Connection reference](protocol-inputs.en.md) · [Independent desktop instances](quick-start.en.md#run-several-instances)
+**Axis profiles** set TCode direction, travel and motion. A device-motion preset can prepare a new profile; save it and select it on the output. Protocol listeners are under **Input → Protocol**; logs are under **Diagnostics**, expanded by default on every visit. Help links to [Guides](start.en.md) and can reopen guided setup. [Connection reference](protocol-inputs.en.md) · [Independent desktop instances](quick-start.en.md#run-several-instances)
 
 ## Explore approach, contact and position
 

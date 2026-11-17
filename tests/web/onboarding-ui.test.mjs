@@ -9,14 +9,14 @@ import { renderToStaticMarkup } from 'react-dom/server';
 const require = createRequire(import.meta.url);
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const compiled = await build({ absWorkingDir: root,
-  stdin: { contents: "export {default as Onboarding} from './src/web/Onboarding.jsx'; export {default as Presets} from './src/web/ScenePresets.jsx'; export {default as GettingStarted} from './src/web/GettingStarted.jsx'; export {setLocale,t} from './src/web/i18n.js'; export {getOscMappingPresets,AXIS_PROFILE_PRESETS} from './src/web/configuration.js';", resolveDir: root },
+  stdin: { contents: "export {default as Onboarding} from './src/web/Onboarding.jsx'; export {default as GettingStarted} from './src/web/GettingStarted.jsx'; export {setLocale,t} from './src/web/i18n.js';", resolveDir: root },
   bundle: true, write: false, platform: 'node', format: 'esm', jsx: 'automatic', plugins: [{ name: 'shared-test-react', setup(builder) {
     builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
   } }],
 });
-const { Onboarding, Presets, GettingStarted, setLocale, t, getOscMappingPresets, AXIS_PROFILE_PRESETS } = await import('data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64'));
+const { Onboarding, GettingStarted, setLocale, t } = await import('data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64'));
 const render = (Component, props) => renderToStaticMarkup(React.createElement(Component, props));
-const defaultProps = { state: { status: 'active', goal: 'manual', step: 'goal' }, onChange() {}, onNavigate() {}, onApplyInput() {}, onOpenPresets() {} };
+const defaultProps = { state: { status: 'active', goal: 'manual', step: 'goal' }, onChange() {}, onNavigate() {}, onApplyInput() {}, onCreateProfile() {} };
 function elements(node) {
   if (!React.isValidElement(node)) return [];
   return [node, ...React.Children.toArray(node.props.children).flatMap(elements)];
@@ -24,13 +24,13 @@ function elements(node) {
 const byTestId = (tree, id) => elements(tree).find(element => element.props['data-testid'] === id);
 
 for (const locale of ['zh-CN', 'en-US']) {
-  test('spotlight guide has six navigable steps and allows preparation before connecting hardware in ' + locale, () => {
+  test('spotlight guide has seven navigable steps and allows preparation before connecting hardware in ' + locale, () => {
     setLocale(locale);
     const html = render(Onboarding, { ...defaultProps, state: { ...defaultProps.state, step: 'device' } });
     assert.match(html, /data-testid="onboarding-panel"[^>]*tabindex="-1"/);
     assert.match(html, /<details className="onboarding-jump">|<details class="onboarding-jump">/);
     assert.ok(html.indexOf('onboarding-panel__body') < html.indexOf('onboarding-jump'));
-    assert.equal((html.match(/data-testid="onboarding-step-/g) || []).length, 6);
+    assert.equal((html.match(/data-testid="onboarding-step-/g) || []).length, 7);
     assert.match(html, /data-testid="onboarding-step-device" aria-current="step"/);
     assert.doesNotMatch(html.match(/<button[^>]*data-testid="onboarding-next"[^>]*>/)?.[0], /disabled=/);
     assert.ok(html.includes(t('可用输出 {0}/{1}', [0, 0])));
@@ -100,21 +100,19 @@ test('browser guide hides native listeners and recovers a saved unavailable goal
 test('dismissed first-run invitation becomes compact but keeps guide and scene entrypoints available', () => {
   const html = render(GettingStarted, { onboarding: { status: 'dismissed', goal: 'script', step: 'input' }, onNavigate() {} });
   assert.match(html, /scene-launchpad--compact/); assert.match(html, /data-testid="onboarding-resume"/);
-  assert.match(html, /data-testid="open-scene-presets"/); assert.doesNotMatch(html, /onboarding-invitation/);
+  assert.doesNotMatch(html, /data-testid="open-scene-presets"/); assert.doesNotMatch(html, /onboarding-invitation/);
   assert.equal((html.match(/data-testid="setup-task-/g) || []).length, 4);
 });
 
-test('preset library exposes real catalogs, draft-only actions and capability-specific groups', () => {
-  const props = { open: true, oscPresets: getOscMappingPresets({}), axisPresets: AXIS_PROFILE_PRESETS(), oscPresetId: 'ogb-touch',
-    onClose() {}, onOscPresetChange() {}, onUseOscPreset() {}, onReviewAxisPreset() {} };
-  const osc = render(Presets, props);
-  for (const id of ['ogb-depth', 'ogb-touch', 'contact-position', 'contact-speed', 'native-pb-stretch']) assert.ok(osc.includes(`data-testid="scene-osc-preset-${id}"`), id);
-  assert.match(osc, /data-testid="scene-osc-append"/); assert.match(osc, /data-testid="scene-osc-replace"/);
-  assert.ok(osc.includes(t('追加到映射草稿')));
-  assert.doesNotMatch(osc, /data-testid="scene-axis-preset"|role="switch"/);
-  const browser = render(Presets, { ...props, supportsOsc: false });
-  assert.doesNotMatch(browser, /scene-preset-tabs-osc|data-testid="scene-osc-preset"/);
-  for (const preset of AXIS_PROFILE_PRESETS()) assert.ok(browser.includes(`data-testid="scene-axis-preset-${preset.id}"`), preset.id);
-  assert.match(browser, /data-testid="scene-axis-preset-osr-first-run" aria-pressed="true"/);
-  assert.match(browser, /data-testid="scene-axis-review"/);
+test('each preparation step gives ordered instructions in both languages', () => {
+  for (const locale of ['zh-CN', 'en-US']) {
+    setLocale(locale);
+    for (const goal of ['manual', 'script', 'osc', 'protocol']) for (const step of ['input', 'mapping', 'axes', 'device', 'diagnostics']) {
+      const html = render(Onboarding, { ...defaultProps, state: { status: 'active', goal, step } });
+      assert.match(html, /class="onboarding-instructions"/);
+      assert.equal((html.match(/<li>/g) || []).length, 3);
+      assert.doesNotMatch(html, /scene-presets/);
+      if (locale === 'en-US') assert.doesNotMatch(html, /[\u4e00-\u9fff]/);
+    }
+  }
 });

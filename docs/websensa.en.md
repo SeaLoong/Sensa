@@ -14,7 +14,7 @@ To route a website or player to OSR, use **Sensa Desktop** [protocol inputs](pro
 2. Enter the connection in **Output settings**, then click **Save output**.
 3. Click **Enable** on the output card and confirm it connects.
 
-For **OSR/TCode**, use TCode WebSocket or serial. **Choose serial port** opens the browser's permission picker. **Scene presets → Device axis profiles** can prepare an axis profile: review and save it, then select it on your output. Check direction and travel before movement.
+For **OSR/TCode**, use TCode WebSocket or serial. **Choose serial port** opens the browser's permission picker. **Axis profiles → Device motion presets** can prepare an axis profile: review and save it, then select it on your output. Check direction and travel before movement.
 
 For **Intiface**, start Central and enter its WebSocket address. Under **Devices and features**, enter **Matching device name** to control your device. Once connected, **Target device** can select a discovered device; **All devices** controls every matching device.
 

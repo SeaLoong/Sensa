@@ -1,4 +1,4 @@
-import { test, expect, text, workspace, card, observePageCommands } from './fixtures.js';
+import { test, expect, text, workspace, oscWorkspace, card, observePageCommands } from './fixtures.js';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
@@ -66,19 +66,15 @@ async function attachOutcome(info, details) {
 }
 
 async function openPresets(page) {
-  await workspace(page, '控制');
-  await page.getByTestId('open-scene-presets').click();
-  const dialog = page.getByRole('dialog', { name: await text(page, '场景预设'), exact: true });
-  await expect(dialog.getByTestId('scene-presets-dialog')).toBeVisible();
-  return dialog;
+  await oscWorkspace(page, '映射');
+  return page.locator('.axis-mappings-panel');
 }
 
 async function profilePreset(page) {
-  const library = await openPresets(page);
-  await library.locator('#scene-preset-tabs-profile').click();
-  await library.getByTestId('scene-axis-preset-osr-first-run').click();
-  await library.getByTestId('scene-axis-review').click();
-  await expect(library).toBeHidden();
+  await workspace(page, '轴配置');
+  const presets = page.locator('.axis-profiles-section details').filter({ has: page.locator('summary', { hasText: await text(page, '设备动作预设') }) });
+  if ((await presets.getAttribute('open')) === null) await presets.locator('summary').click();
+  await page.getByTestId('axis-preset-osr-first-run').click();
   const dialog = page.getByRole('dialog', { name: await text(page, '轴配置'), exact: true });
   await expect(dialog).toBeVisible();
   return dialog;
@@ -236,11 +232,10 @@ for (const locale of ['zh-CN', 'en-US']) {
       { tag: ['@osc-flow-preflight', '@onboarding', '@config', '@i18n'] }, async ({ page, rig }, info) => {
         const initial = await passiveSnapshot(page, rig);
         let library = await openPresets(page);
-        await library.getByTestId('scene-osc-preset-ogb-depth').click();
+        await library.getByRole('combobox', { name: await text(page, '预设方案'), exact: true }).selectOption('ogb-depth');
         await unchanged(page, rig, initial);
         await attachState(page, info, 'scene-preset-library', { locale, selectedPreset: 'ogb-depth', draftOnly: true }, library);
-        await library.getByTestId('scene-osc-replace').click();
-        await expect(library).toBeHidden();
+        await library.getByRole('button', { name: await text(page, '替换草稿'), exact: true }).click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.locator('.mapping-row')).toHaveCount(1);
         await expect(page.locator('.mapping-row__path input')).toHaveValue(/OGB\/Orf\/\*\*\/PenOthersNewRoot/);
@@ -253,8 +248,8 @@ for (const locale of ['zh-CN', 'en-US']) {
         expect(depth.config.computedSignals).toEqual(initial.config.computedSignals);
         expect(depth.config.outputs).toEqual(initial.config.outputs);
         library = await openPresets(page);
-        await library.getByTestId('scene-osc-preset-ogb-touch').click();
-        await library.getByTestId('scene-osc-append').click();
+        await library.getByRole('combobox', { name: await text(page, '预设方案'), exact: true }).selectOption('ogb-touch');
+        await library.getByRole('button', { name: await text(page, '追加草稿'), exact: true }).click();
         await expect(page.locator('.mapping-row')).toHaveCount(2);
         await expect(page.locator('.mapping-row__target select').nth(1)).toHaveValue('V0');
         await expect(page.locator('.mapping-row__path input').nth(1)).toHaveValue(/TouchOthers/);

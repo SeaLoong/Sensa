@@ -157,7 +157,7 @@ for (const locale of ['zh-CN', 'en-US']) {
     const saved = render(GettingStarted, { ...props, hasOutputs: true });
     assert.match(saved, /scene-launchpad--compact/);
     assert.doesNotMatch(saved, /onboarding-invitation|data-testid="quick-setup"/);
-    assert.match(saved, /data-testid="open-scene-presets"/);
+    assert.doesNotMatch(saved, /data-testid="open-scene-presets"/);
     for (const task of ['osc', 'script', 'manual', 'protocol']) assert.ok(saved.includes(`data-testid="setup-task-${task}"`), task);
   });
 
@@ -206,7 +206,7 @@ test('shared workbench keeps one actual readiness status and visible errors besi
   assert.equal((html.match(/class="control-readiness control-readiness--/g) || []).length, 1);
   assert.ok(html.includes(t('输入')));
   for (const className of ['input-workspace-layout', 'workbench-main', 'workspace-status']) assert.ok(html.includes(`class="${className}"`));
-  assert.match(html, /data-testid="open-scene-presets"/);
+  assert.doesNotMatch(html, /data-testid="open-scene-presets"/);
   assert.doesNotMatch(html, /class="output-card"|class="profile-list"/);
   for (const id of ["control", "pipeline", "axes", "outputs"]) assert.ok(html.includes(`id="workspace-tabs-${id}"`));
   assert.ok(html.indexOf('class="workspace-status"') < html.indexOf('class="section input-section"'));

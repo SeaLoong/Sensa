@@ -2,7 +2,7 @@ import React from 'react';
 import { t, docUrl } from './i18n.js';
 import { Button, ButtonLink, Disclosure, Modal } from './ui.tsx';
 
-export default function HelpDialog({ open, onClose, onNavigate, onStartGuide, onOpenPresets, emergencyAction, error, supportsListeners = true }) {
+export default function HelpDialog({ open, onClose, onNavigate, onStartGuide, emergencyAction, error, supportsListeners = true }) {
   const guide = (path, label) => <ButtonLink variant="text" href={docUrl(path)} target="_blank" rel="noreferrer">{label}</ButtonLink>;
   const openTool = callback => { onClose(); callback(); };
   return (
@@ -13,7 +13,6 @@ export default function HelpDialog({ open, onClose, onNavigate, onStartGuide, on
         : t('WebSensa 可以直接在浏览器中手动控制设备，或播放 funscript。先连接设备，再选择一种用法。')}</p>
       <div className="actions help-entry-actions">
         {onStartGuide && <Button tone="primary" onClick={() => openTool(onStartGuide)}>{t('操作引导')}</Button>}
-        {onOpenPresets && <Button onClick={() => openTool(onOpenPresets)}>{t('场景预设')}</Button>}
         {guide('docs/start.md', t('使用指南'))}
         {onNavigate && <Button variant="text" onClick={() => onNavigate('outputs')}>{t('连接设备')}</Button>}
       </div>

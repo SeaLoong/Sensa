@@ -125,7 +125,6 @@ import GettingStarted from './GettingStarted.jsx';
 import ManualControls from './ManualControls.jsx';
 import Onboarding from './Onboarding.jsx';
 import GuidedTour from './GuidedTour.jsx';
-import ScenePresets from './ScenePresets.jsx';
 import { createTransformPreset } from './transform-presets.js';
 import { guideInputPrepared, loadOnboarding, onboardingReducer, onboardingScenes, saveOnboarding } from './onboarding.js';
 
@@ -191,11 +190,10 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const [overview, setOverview] = useState(initialState.overview);
   const [logs, setLogs] = useState(initialState.logs);
   const [normalizeLogSnapshot] = useState(createLogNormalizer);
-  const [logDetailsOpen, setLogDetailsOpen] = useState(false);
+  const [logDetailsOpen, setLogDetailsOpen] = useState(true);
   const [studio, setStudio] = useState(initialState.studio);
   const onboardingPath = typeof window === 'undefined' ? '/' : window.location.pathname;
   const [onboarding, setOnboarding] = useState(() => loadOnboarding(realtime.kind, onboardingPath));
-  const [scenePresets, setScenePresets] = useState({ open: false, group: 'osc' });
   const [serialPorts, setSerialPorts] = useState(initialState.serialPorts);
   const [midiPorts, setMidiPorts] = useState([]);
   const [recordingFiles, setRecordingFiles] = useState([]);
@@ -1802,7 +1800,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   }, [snackbar.open, snackbar.message, snackbar.severity]);
 
   useEffect(() => {
-    if (workspace !== 'settings') setLogDetailsOpen(false);
+    if (workspace === 'settings') setLogDetailsOpen(true);
   }, [workspace]);
 
   function changeGuide(action) {
@@ -1819,7 +1817,6 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   function startGuide() {
     setHelpOpen(false);
-    setScenePresets(previous => ({ ...previous, open: false }));
     setWorkspace('control');
     setOnboarding(previous => onboardingReducer(previous, { type: 'start' }));
 
@@ -1831,25 +1828,13 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     if (onboarding.step === 'mapping') navigateWorkflow(onboarding.goal === 'osc' ? 'osc-mappings' : 'pipeline');
     if (onboarding.step === 'axes') { setWorkspace('axes'); setNavigationTarget('.axis-profiles-section'); }
     if (onboarding.step === 'device') navigateWorkflow('outputs');
+    if (onboarding.step === 'diagnostics') navigateWorkflow('logs');
     if (onboarding.step === 'ready' || onboarding.step === 'goal') setWorkspace('control');
   }, [onboarding.status, onboarding.step, onboarding.goal]);
-
-  function openScenePresets(group = 'osc') {
-    setHelpOpen(false);
-    const supportsOsc = platform.supportsListeners !== false && (!platform.inputModes || platform.inputModes.includes('osc'));
-    setScenePresets({ open: true, group: group === 'osc' && !supportsOsc ? 'profile' : group });
-    if (!selectedOscPreset) setSelectedOscPreset(getOscMappingPresets(config)[0]?.id || '');
-  }
 
   function navigateScene(destination, goal) {
     if (goal) changeGuide({ type: 'goal', goal });
     navigateWorkflow(destination);
-  }
-
-  function useSceneOscPreset(mode) {
-    applyOscPreset(mode);
-    setScenePresets(previous => ({ ...previous, open: false }));
-    navigateWorkflow('osc-mappings');
   }
 
   function useTransformPreset(id) {
@@ -1857,16 +1842,14 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     if (!draft) { notify(t('计算信号已达到数量上限。'), 'warning'); return; }
     setComputedDrafts(previous => [...previous, draft]);
     setComputedView({ selectedId: draft.id, expandedIds: [draft.id] });
-    setScenePresets(previous => ({ ...previous, open: false }));
     navigateWorkflow('pipeline');
     notify(t('已载入计算草稿，检查来源后保存。'), 'info');
   }
 
-  function reviewSceneAxisPreset(presetId) {
+  function openAxisPreset(presetId) {
     if (!config) return;
     const preset = AXIS_PROFILE_PRESETS().find(item => item.id === presetId);
     if (!preset) return;
-    setScenePresets(previous => ({ ...previous, open: false }));
     clearErrorNotification();
     setProfileDialog({ ...buildNewProfileDialogDraft(config), name: preset.name, presetId,
       profile: cloneMotionProfile(createAxisProfilePresetMotion(presetId), false) });
@@ -1890,6 +1873,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       setNavigationTarget(computedView.expandedIds.includes(computedView.selectedId)
         && computedDrafts.some(signal => signal.id === computedView.selectedId)
         ? `[data-signal-id="${computedView.selectedId}"] summary` : '.computed-signals');
+    } else if (destination === 'axes' || destination === 'logs') {
+      setWorkspace(destination === 'axes' ? 'axes' : 'settings');
+      setNavigationTarget(destination === 'axes' ? '.axis-profiles-section' : '.log-section');
     } else if (destination === 'outputs' || destination === 'recording') {
       setWorkspace('outputs');
       setNavigationTarget(destination === 'recording' ? '.recording-panel' : '.outputs-section');
@@ -2595,7 +2581,10 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       <aside className="workspace-sidebar">
         <div className="workspace-sidebar__label">{t('工作区')}</div>
         <nav className="workspace-nav">
-          <Tabs id="workspace-tabs" label={t('主导航')} value={workspace} onChange={setWorkspace}
+          <Tabs id="workspace-tabs" label={t('主导航')} value={workspace} onChange={next => {
+            setWorkspace(next);
+            if (onboarding.status === 'active' && onboarding.goal) changeGuide({ type: 'step', step: { control: 'input', pipeline: 'mapping', axes: 'axes', outputs: 'device', settings: 'diagnostics' }[next] });
+          }}
             orientation={wideNavigation ? 'vertical' : 'horizontal'} variant="workspace"
             options={[
               { value: 'control', label: t('输入'), description: t('来源与运行'), icon: <WorkspaceIcon kind="control" /> },
@@ -2616,7 +2605,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             className={`workspace-panel workspace-panel--${workspace}`}
           >
             <header className="workspace-intro"><span className="workspace-intro__number" aria-hidden="true">{workspaceIntroduction.number}</span><div><h2>{workspaceIntroduction.title}</h2>{workspaceIntroduction.description && <p>{workspaceIntroduction.description}</p>}</div>
-                  {workspace !== 'control' && <div className="actions workspace-header__actions"><Button data-testid="workspace-open-presets" onClick={() => openScenePresets(workspace === 'axes' ? 'profile' : mappingTab === 'computations' ? 'transform' : 'osc')}>{t('场景预设')}</Button><Button data-testid="workspace-start-guide" onClick={startGuide}>{t('操作引导')}</Button></div>}
+                  {workspace !== 'control' && <div className="actions workspace-header__actions"><Button data-testid="workspace-start-guide" onClick={startGuide}>{t('操作引导')}</Button></div>}
                 </header>
             {!online && workspace !== 'control' && (
               <Notice tone="warning" role="status">
@@ -2637,7 +2626,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
               <>
                 {onboarding.status !== 'active' && <GettingStarted hasOutputs={outputs.length > 0} inputModes={platform.inputModes}
                   supportsListeners={platform.supportsListeners !== false} onboarding={onboarding} onNavigate={navigateScene}
-                  onStartGuide={startGuide} onDismissGuide={() => changeGuide({ type: 'dismiss' })} onOpenPresets={openScenePresets} />}
+                  onStartGuide={startGuide} onDismissGuide={() => changeGuide({ type: 'dismiss' })} />}
                 <div className="workspace-status">
                   <ControlFlowStatus online={online} runtime={runtimeOverview || {}} mode={actualInputMode}
                     selectedMode={selectedInputTab} script={scriptState || {}} outputs={outputs}
@@ -2817,11 +2806,17 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   title={t('轴配置')}
                   description={t('为设备保存行程、方向和速度设置，同一套配置可供多个 TCode 输出使用。')}
                   actions={
-                    <><Button onClick={() => openScenePresets('profile')}>{t('设备动作预设')}</Button><Button onClick={openNewProfileDialog} disabled={!online}>
+                    <Button onClick={openNewProfileDialog} disabled={!online}>
                       {t('新增轴配置')}
-                    </Button></>
+                    </Button>
                   }
                 >
+                  <Disclosure title={t('设备动作预设')}>
+                    <div className="preset-cards">{AXIS_PROFILE_PRESETS().map(preset => <Button key={preset.id} className="preset-card"
+                      data-testid={`axis-preset-${preset.id}`} disabled={!online} onClick={() => openAxisPreset(preset.id)}>
+                      <strong>{preset.name}</strong><span className="caption">{preset.description}</span>
+                    </Button>)}</div>
+                  </Disclosure>
                   <div className="profile-list">
                     {axisProfiles.map((profile) => (
                       <article key={profile.id} className="profile-row">
@@ -2927,12 +2922,12 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           </div>
         </div>
       </main>
-      {onboarding.status === 'active' && <GuidedTour step={onboarding.step} goal={onboarding.goal}
-        suspended={Boolean(dialog || profileDialog || presetDialog || scenePresets.open || helpOpen || parameterDetail || confirmClearMappings)}
+      {onboarding.status === 'active' && <GuidedTour step={onboarding.step} goal={onboarding.goal} workspace={workspace}
+        suspended={Boolean(dialog || profileDialog || presetDialog || helpOpen || parameterDetail || confirmClearMappings)}
         onDismiss={() => changeGuide({ type: 'dismiss' })} emergencyAction={emergencyAction}>
         <Onboarding state={onboarding} platform={platform} outputCount={outputs.length} availableOutputs={availableOutputCount}
           inputPrepared={guidePrepared} actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
-          onChange={changeGuide} onNavigate={navigateWorkflow} onOpenPresets={openScenePresets}
+          onChange={changeGuide} onNavigate={navigateWorkflow} onCreateProfile={openNewProfileDialog}
           onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />
       </GuidedTour>}
       <Modal
@@ -3263,14 +3258,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           <Button tone="primary" disabled={!online || recordingBusy} onClick={() => { setRecordingRestartOpen(false); void recordingAction('start'); }}>{t('重新录制')}</Button></>}>
         <p>{t('将清空当前录制的 {0} 帧。可先取消并导出。', [overview?.recording?.frameCount || 0])}</p>
       </Modal>
-      <ScenePresets open={scenePresets.open} initialGroup={scenePresets.group}
-        supportsOsc={platform.supportsListeners !== false && (!platform.inputModes || platform.inputModes.includes('osc'))} oscPresets={oscMappingPresets}
-        axisPresets={AXIS_PROFILE_PRESETS()} oscPresetId={selectedOscPreset} onOscPresetChange={setSelectedOscPreset}
-        onUseOscPreset={useSceneOscPreset} onReviewAxisPreset={reviewSceneAxisPreset}
-        onUseTransformPreset={useTransformPreset} onClose={() => setScenePresets(previous => ({ ...previous, open: false }))}
-        emergencyAction={emergencyAction} error={modalError} disabled={!config || Boolean(busyKey)} />
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} onNavigate={navigateWorkflow}
-        onStartGuide={startGuide} onOpenPresets={openScenePresets}
+        onStartGuide={startGuide}
         supportsListeners={platform.supportsListeners !== false} emergencyAction={emergencyAction} error={modalError} />
       {snackbar.open && (
         <div className={`toast toast--${snackbar.severity}`} role={snackbar.severity === 'error' ? 'alert' : 'status'}>

@@ -5,13 +5,13 @@ import { t } from './i18n.js';
 
 // The target remains interactive. Native editors appear above this layer and
 // suspend the tour until closed; advancing never writes runtime configuration.
-export default function GuidedTour({ step, goal, suspended, onDismiss, emergencyAction, children }) {
+export default function GuidedTour({ step, goal, workspace, suspended, onDismiss, emergencyAction, children }) {
   const cardRef = useRef(null), dismissRef = useRef(onDismiss);
   dismissRef.current = onDismiss;
   const [layout, setLayout] = useState(null);
   useEffect(() => {
     if (suspended) return undefined;
-    let frame = 0, target = null, scrolled = false;
+    let frame = 0, target = null, navigation = null, scrolled = false;
     const previousFocus = document.activeElement;
     const selector = tourTarget(step, goal);
     const update = () => {
@@ -24,6 +24,8 @@ export default function GuidedTour({ step, goal, suspended, onDismiss, emergency
         scrolled = true;
       }
       const bounds = target?.getBoundingClientRect();
+      navigation = document.getElementById(`workspace-tabs-${workspace}`);
+      const navigationBounds = navigation?.getBoundingClientRect();
       const card = cardRef.current;
       const content = card?.querySelector('.onboarding-panel__content');
       const naturalHeight = (content?.scrollHeight || 240)
@@ -31,7 +33,8 @@ export default function GuidedTour({ step, goal, suspended, onDismiss, emergency
         + (card?.querySelector('.guided-tour__emergency')?.offsetHeight || 60);
       const next = tourLayout(bounds?.width && bounds?.height ? bounds : null,
         { width: window.innerWidth, height: window.innerHeight },
-        { width: step === 'goal' ? 560 : 380, height: naturalHeight });
+        { width: step === 'goal' ? 560 : 380, height: naturalHeight },
+        navigationBounds?.width && navigationBounds?.height ? navigationBounds : null);
       setLayout(current => JSON.stringify(current) === JSON.stringify(next) ? current : next);
     };
     const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
@@ -39,7 +42,7 @@ export default function GuidedTour({ step, goal, suspended, onDismiss, emergency
       if (document.querySelector('dialog[open]')) return;
       if (event.key === 'Escape') { event.preventDefault(); dismissRef.current(); return; }
       if (event.key !== 'Tab') return;
-      const roots = [cardRef.current, target].filter(Boolean);
+      const roots = [cardRef.current, navigation, target].filter(Boolean);
       const selector = 'button, input, select, textarea, a[href], summary, [tabindex]';
       const controls = [...new Set(roots.flatMap(root => [
         ...(root.matches(selector) ? [root] : []), ...root.querySelectorAll(selector),
@@ -67,18 +70,19 @@ export default function GuidedTour({ step, goal, suspended, onDismiss, emergency
       document.removeEventListener('keydown', keydown);
       if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
-  }, [step, goal, suspended]);
+  }, [step, goal, workspace, suspended]);
   if (suspended || typeof document === 'undefined') return null;
   const target = layout?.target;
-  const masks = target ? [
+  const masks = layout?.shades || (target ? [
     { left: 0, top: 0, width: '100%', height: target.top },
     { left: 0, top: target.top, width: target.left, height: target.height },
     { left: target.left + target.width, top: target.top, right: 0, height: target.height },
     { left: 0, top: target.top + target.height, width: '100%', bottom: 0 },
-  ] : [{ inset: 0 }];
+  ] : [{ inset: 0 }]);
   return createPortal(<div className="guided-tour" data-testid="guided-tour" data-step={step}>
     {masks.map((style, index) => <div key={index} className="guided-tour__shade" style={style} aria-hidden="true" />)}
     {target && <div className="guided-tour__target" data-testid="tour-highlight" style={target} aria-hidden="true" />}
+    {layout?.navigation && <div className="guided-tour__target" data-testid="tour-navigation-highlight" data-workspace={workspace} style={layout.navigation} aria-hidden="true" />}
     <div ref={cardRef} className="guided-tour__card" role="dialog" aria-label={t('操作引导')} tabIndex={-1}
       style={layout?.card || { visibility: 'hidden' }}>
       {children}<div className="guided-tour__emergency">{emergencyAction}</div>
