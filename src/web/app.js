@@ -1897,7 +1897,11 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     }
     const target = region.matches('button, input, select, summary, [tabindex]') ? region
       : region.querySelector('button:not(:disabled), input:not(:disabled), select:not(:disabled), summary');
-    target?.focus({ preventScroll: true });
+    // Keep arrow-key navigation on the workspace tabs when the guide follows
+    // that navigation. Explicit actions inside the guide still focus controls.
+    if (onboarding.status !== 'active' || !document.activeElement?.closest('.workspace-nav')) {
+      target?.focus({ preventScroll: true });
+    }
     (region.classList.contains('recording-panel') ? region : region.closest('.input-section') || region).scrollIntoView({ block: 'start', behavior: 'instant' });
     setNavigationTarget(null);
   }, [navigationTarget, workspace, mappingTab, selectedInputTab, oscWorkspaceTab, helpOpen, onboarding.status, onboarding.step]);

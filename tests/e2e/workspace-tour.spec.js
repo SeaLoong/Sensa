@@ -85,6 +85,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.keyboard.press(info.project.name === 'mobile' ? 'ArrowRight' : 'ArrowDown');
         await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'mapping');
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
+        await expect(page.locator('#workspace-tabs-pipeline')).toBeFocused();
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
         await expect(page.locator('.transform-presets')).toHaveAttribute('open', '');
         await captureSpotlight(page, info, '.transform-presets .preset-card:first-child', 'spotlight-mapping-' + locale);

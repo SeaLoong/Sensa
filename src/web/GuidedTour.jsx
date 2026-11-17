@@ -63,7 +63,8 @@ export default function GuidedTour({ step, goal, workspace, suspended, onDismiss
     window.addEventListener('resize', schedule);
     document.addEventListener('keydown', keydown);
     update();
-    cardRef.current?.focus({ preventScroll: true });
+    if (previousFocus?.closest?.('.workspace-nav')) navigation?.focus({ preventScroll: true });
+    else cardRef.current?.focus({ preventScroll: true });
     return () => {
       cancelAnimationFrame(frame); observer.disconnect(); resize.disconnect();
       document.removeEventListener('scroll', schedule, true); window.removeEventListener('resize', schedule);
