@@ -10,9 +10,14 @@ export function axisRoutePresets() {
   ];
 }
 
+export function routeParameterPath(path) {
+  return path.split(/[;\n]/u).map(part => part.trim().replace(/^\/avatar\/parameters(?:\/|$)/u, '')).filter(Boolean).join(';');
+}
+
 export function buildAxisRoute(path, steps, role, existing) {
-  if (!path.trim() || steps.length > 16 || existing.length + steps.length > COMPUTED_SIGNAL_LIMIT) return null;
-  let source = { sourceMode: 'Direct', oscPath: path.trim() };
+  const parameter = routeParameterPath(path);
+  if (!parameter || steps.length > 16 || existing.length + steps.length > COMPUTED_SIGNAL_LIMIT) return null;
+  let source = { sourceMode: 'Direct', oscPath: parameter };
   const signals = [];
   for (const settings of steps) {
     const signal = { ...newComputedDraft([...existing, ...signals]), ...settings, inputs: [makeComputedInput(source)] };

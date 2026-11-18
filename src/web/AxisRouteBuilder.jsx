@@ -3,7 +3,7 @@ import { Button, Field } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { SIGNAL_ROLE_OPTIONS } from './configuration.js';
 import { COMPUTED_SIGNAL_LIMIT, computedOperationOptions } from './computed-signals.js';
-import { axisRoutePresets } from './axis-routes.js';
+import { axisRoutePresets, routeParameterPath } from './axis-routes.js';
 import { mappingPathSuggestions } from './mapping-path-suggestions.js';
 import { t } from './i18n.js';
 
@@ -13,6 +13,7 @@ export default function AxisRouteBuilder({ pathOptions, computedCount, onAdd }) 
   const list = useId(), presets = axisRoutePresets(), preset = presets.find(option => option.value === choice);
   const [custom, setCustom] = useState(null), [operation, setOperation] = useState('Smooth');
   const steps = custom ?? preset.steps;
+  const parameter = routeParameterPath(path);
   const atLimit = computedCount + steps.length > COMPUTED_SIGNAL_LIMIT;
   const operations = computedOperationOptions().filter(item => ['Smooth', 'DeadZone', 'Delay', 'Hysteresis', 'Derivative', 'PeakHold'].includes(item.value));
   const operationLabel = id => operations.find(item => item.value === id)?.label || id;
@@ -37,9 +38,9 @@ export default function AxisRouteBuilder({ pathOptions, computedCount, onAdd }) 
           onClick={() => setCustom([...steps, operation === 'DeadZone' ? { operation, threshold: 0.05 } : { operation }])}>{t('追加步骤')}</Button>
       </div>
     </details>
-    <output className="route-preview">{[path.trim() || t('OSC 参数'), ...steps.map(step => operationLabel(step.operation)),
+    <output className="route-preview">{[parameter || t('OSC 参数'), ...steps.map(step => operationLabel(step.operation)),
       SIGNAL_ROLE_OPTIONS().find(option => option.value === role)?.label].join(' → ')}</output>
-    <div className="actions"><Button data-testid="add-axis-route" tone="primary" disabled={!path.trim() || atLimit}
+    <div className="actions"><Button data-testid="add-axis-route" tone="primary" disabled={!parameter || atLimit}
       onClick={() => { onAdd(path, steps, role); setPath(''); }}>{t('添加到映射草稿')}</Button></div>
   </section>;
 }

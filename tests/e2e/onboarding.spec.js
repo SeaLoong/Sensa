@@ -113,7 +113,7 @@ for (const locale of ['zh-CN', 'en-US']) {
             await expect.poll(async () => (await configuration(page, rig)).signals.length).toBe(prepared.config.signals.length + 1);
             const saved = await configuration(page, rig);
             const [zone, smooth] = saved.computedSignals.slice(-2);
-            expect(zone).toMatchObject({ operation: 'DeadZone', threshold: 0.05, inputs: [{ sourceMode: 'Direct', oscPath: expect.stringMatching(/GuideDepth$/) }] });
+            expect(zone).toMatchObject({ operation: 'DeadZone', threshold: 0.05, inputs: [{ sourceMode: 'Direct', oscPath: 'GuideDepth' }] });
             expect(smooth).toMatchObject({ operation: 'Smooth', timeMs: 250, inputs: [{ sourceMode: 'Computed', oscPath: zone.id }] });
             expect(saved.signals.at(-1)).toMatchObject({ role: 'Depth', sourceMode: 'Computed', oscPath: smooth.id });
             await page.getByTestId('guided-mapping-continue').click();

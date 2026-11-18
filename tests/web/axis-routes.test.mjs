@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { encodeOscMessage, parseOscPacket, OscParameterStore } from '../../src/core/protocols/osc.ts';
+import { RuntimeEngine } from '../../src/core/runtime/runtime.ts';
 import { axisRoutePresets, buildAxisRoute, routeDependencies } from '../../src/web/axis-routes.js';
 
 test('each route preset connects the OSC input through precisely its ordered steps to L0', () => {
@@ -8,7 +10,7 @@ test('each route preset connects the OSC input through precisely its ordered ste
   for (const preset of presets) {
     const path = '/avatar/parameters/Depth';
     const { mapping, steps } = buildAxisRoute(' ' + path + ' ', preset.steps, 'Depth', [{ id: 'Signal1' }]);
-    let expectedSource = { sourceMode: 'Direct', oscPath: path };
+    let expectedSource = { sourceMode: 'Direct', oscPath: 'Depth' };
     for (const [index, step] of steps.entries()) {
       assert.notEqual(step.id, 'Signal1');
       assert.partialDeepStrictEqual(step, preset.steps[index]);
@@ -32,4 +34,32 @@ test('a shared upstream input appears once even when an unfinished graph contain
   const input = oscPath => ({ sourceMode: 'Computed', oscPath });
   const shared = { id: 'shared', inputs: [input('sum')] }, sum = { id: 'sum', inputs: [input('shared'), input('shared')] };
   assert.deepEqual(routeDependencies(input('sum'), [sum, shared]), [shared, sum]);
+});
+
+test('all presets drive L0 from a decoded VRChat packet when configured with its full address', async () => {
+  const address = '/avatar/parameters/Depth';
+  for (const preset of axisRoutePresets()) {
+    const { steps, mapping } = buildAxisRoute(address, preset.steps, 'Depth', []);
+    let now = 1000;
+    const frames = [], store = new OscParameterStore(() => now);
+    const runtime = new RuntimeEngine({ signals: [mapping], computedSignals: steps }, {
+      now: () => now, oscStore: store, sendFrame(frame) { frames.push(frame.values.L0); },
+    });
+    const receive = value => {
+      const [parameter] = parseOscPacket(encodeOscMessage(address, value, 'Float')).values;
+      store.set(parameter.path, parameter.value);
+    };
+    runtime.setInputMode('Osc');
+    receive(0.03);
+    runtime.setInputActive(true);
+    await runtime.flush();
+    now += 50;
+    receive(0.8);
+    runtime.tick();
+    await runtime.flush();
+    assert.ok(frames.length >= 2, preset.value);
+    assert.ok(frames.at(-1) > frames[0], preset.value);
+    if (preset.value === 'direct') assert.ok(Math.abs(frames.at(-1) - 0.8) < 0.002);
+    if (preset.value === 'filtered') assert.equal(frames[0], 0);
+  }
 });
