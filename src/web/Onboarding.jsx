@@ -16,7 +16,7 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
   const canContinue = Boolean(scene);
   const canFinish = availableOutputs > 0 && inputPrepared;
   return <section className="onboarding-panel" data-testid="onboarding-panel" aria-label={t('设备设置向导')} tabIndex={-1}>
-    <div className="onboarding-panel__content">
+    <div key={activeStep} className="onboarding-panel__content">
     <header className="onboarding-panel__header">
       <span className="muted">{t('第 {0} 步，共 {1} 步', [current + 1, ONBOARDING_STEPS.length])}</span>
       <Button variant="text" data-testid="onboarding-skip" onClick={() => onChange({ type: 'dismiss' })}>{t('保存并退出')}</Button>
@@ -57,7 +57,7 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
         <p>{inputActive ? t('输入已启用，继续通过顶部开关控制。') : t('检查高亮的输入启用开关。完成引导不会启用输入，准备好后由你打开。')}</p>
       </div>}
     </div>
-    <details key={activeStep} className="onboarding-jump">
+    <details className="onboarding-jump">
       <summary>{t('跳转步骤')}</summary>
     <ol className="guided-steps" aria-label={t('首次设置步骤')}>
       {ONBOARDING_STEPS.map((step, index) => <li key={step} className={`guided-step${index === current ? ' guided-step--active' : index < current ? ' guided-step--completed' : ''}`}>

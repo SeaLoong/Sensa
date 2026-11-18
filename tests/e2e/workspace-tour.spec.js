@@ -108,7 +108,14 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.locator('#logs-panel')).toBeVisible();
         await captureSpotlight(page, info, '.log-section > .section__header', 'spotlight-diagnostics-' + locale);
         await page.locator('.onboarding-jump > summary').click();
+        const instructions = page.locator('.onboarding-panel__content');
+        if (info.project.name === 'mobile') {
+          await page.getByTestId('onboarding-step-ready').scrollIntoViewIfNeeded();
+          await expect.poll(() => instructions.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+        }
         await page.getByTestId('onboarding-step-ready').click();
+        await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'ready');
+        await expect.poll(() => instructions.evaluate(element => element.scrollTop)).toBe(0);
         await page.getByTestId('onboarding-complete').click();
         await expect(page.getByRole('switch', { name: await text(page, '输入启用'), exact: true })).not.toBeChecked();
         expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(mutations);
