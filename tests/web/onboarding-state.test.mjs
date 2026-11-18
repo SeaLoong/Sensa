@@ -103,13 +103,13 @@ test('manual and script preparation requires the applied input mode while stayin
   assert.equal(guideInputPrepared('combined', { mode: 'combined' }), false);
 });
 
-test('OSC preparation needs a listener and saved mappings in the applied OSC mode', () => {
+test('OSC preparation needs a listener in the applied OSC mode', () => {
   const prepared = Object.freeze({ mode: 'osc', listening: true, mappingCount: 1, inputActive: false });
   assert.equal(guideInputPrepared('osc', prepared), true);
-  for (const patch of [{ mode: 'manual' }, { mode: 'combined' }, { listening: false }, { mappingCount: 0 }, { mappingCount: -1 }]) {
+  for (const patch of [{ mode: 'manual' }, { mode: 'combined' }, { listening: false }]) {
     assert.equal(guideInputPrepared('osc', { ...prepared, ...patch }), false, JSON.stringify(patch));
   }
-  assert.equal(guideInputPrepared('osc', { mode: 'osc', listening: true, mappingCount: 0, draftMappingCount: 3 }), false);
+  assert.equal(guideInputPrepared('osc', { mode: 'osc', listening: true, mappingCount: 0, draftMappingCount: 3 }), true);
   assert.equal(prepared.inputActive, false);
 });
 

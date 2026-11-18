@@ -125,6 +125,7 @@ import GettingStarted from './GettingStarted.jsx';
 import ManualControls from './ManualControls.jsx';
 import Onboarding from './Onboarding.jsx';
 import GuidedTour from './GuidedTour.jsx';
+import { tourTarget } from './tour-layout.js';
 import { createTransformPreset } from './transform-presets.js';
 import { guideInputPrepared, loadOnboarding, onboardingReducer, onboardingScenes, saveOnboarding } from './onboarding.js';
 
@@ -193,6 +194,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const [logDetailsOpen, setLogDetailsOpen] = useState(true);
   const [studio, setStudio] = useState(initialState.studio);
   const onboardingPath = typeof window === 'undefined' ? '/' : window.location.pathname;
+  const [editingGuideMappings, setEditingGuideMappings] = useState(false);
   const [onboarding, setOnboarding] = useState(() => loadOnboarding(realtime.kind, onboardingPath));
   const [serialPorts, setSerialPorts] = useState(initialState.serialPorts);
   const [midiPorts, setMidiPorts] = useState([]);
@@ -270,7 +272,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const scriptLoaded = Boolean(scriptState?.loaded);
   const availableOutputCount = controlReadiness({ outputs, outputStates: overview?.outputs || [] }).availableOutputs;
   const guidePrepared = guideInputPrepared(onboarding.goal, { mode: actualInputMode, scriptLoaded,
-    listening: Boolean(overview?.osc?.listening), mappingCount: config?.signals?.length || 0, protocolInputs: overview?.protocolInputs || [] });
+    listening: Boolean(overview?.osc?.listening), protocolInputs: overview?.protocolInputs || [] });
   const scriptDurationMs = Math.max(0, Number(scriptState?.durationMs || 0));
   const scriptPositionMs = Math.max(0, Math.min(Number(scriptState?.positionMs || 0), scriptDurationMs || 0));
   const scriptSliderMax = Math.max(scriptDurationMs, 1);
@@ -1804,6 +1806,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   }, [workspace]);
 
   function changeGuide(action) {
+    setEditingGuideMappings(false);
     setOnboarding(previous => onboardingReducer(previous, action));
 
     if (action.type === 'dismiss') setNavigationTarget(workspace === 'control' ? '[data-testid="onboarding-resume"]' : '[data-testid="workspace-start-guide"]');
@@ -1815,7 +1818,12 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     }
   }
 
+  useEffect(() => {
+    if (editingGuideMappings && workspace !== 'pipeline') setEditingGuideMappings(false);
+  }, [editingGuideMappings, workspace]);
+
   function startGuide() {
+    setEditingGuideMappings(false);
     setHelpOpen(false);
     setWorkspace('control');
     setOnboarding(previous => onboardingReducer(previous, { type: 'start' }));
@@ -1825,7 +1833,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   useEffect(() => {
     if (onboarding.status !== 'active') return;
     if (onboarding.step === 'input') navigateWorkflow(onboarding.goal === 'protocol' ? 'protocol-settings' : onboarding.goal || 'manual');
-    if (onboarding.step === 'mapping') navigateWorkflow(onboarding.goal === 'osc' ? 'osc-mappings' : 'pipeline');
+    if (onboarding.step === 'mapping') navigateWorkflow('osc-mappings');
     if (onboarding.step === 'axes') { setWorkspace('axes'); setNavigationTarget('.axis-profiles-section'); }
     if (onboarding.step === 'device') navigateWorkflow('outputs');
     if (onboarding.step === 'diagnostics') navigateWorkflow('logs');
@@ -1867,7 +1875,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       setNavigationTarget('[data-testid="protocol-inputs-panel"]');
     } else if (destination === 'osc-mappings') {
       setWorkspace('pipeline'); setMappingTab('mappings');
-      setNavigationTarget('.preset-strip');
+      setNavigationTarget(tourTarget('mapping'));
     } else if (destination === 'pipeline') {
       setWorkspace('pipeline'); setMappingTab('computations');
       setNavigationTarget(computedView.expandedIds.includes(computedView.selectedId)
@@ -2784,7 +2792,17 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
               </>
             )}
             {workspace === 'pipeline' && <section className="section mapping-workspace" aria-label={t('映射与变换')}>
-              <Tabs id="mapping-tabs" label={t('映射与变换')} value={mappingTab} onChange={setMappingTab}
+              {editingGuideMappings && <div className="stack" data-testid="guided-mapping-editor">
+                <p>{t('在下方编辑来源和目标轴。轴映射与计算信号一起保存，保存后可继续设置设备行程。')}</p>
+                <div className="actions">
+                  <Button tone="primary" data-testid="guided-mapping-continue" disabled={hasUnsavedMappings || hasIncompleteMappings} onClick={() => changeGuide({ type: 'step', step: 'axes' })}>{t('继续到轴配置')}</Button>
+                  <Button variant="text" onClick={() => changeGuide({ type: 'dismiss' })}>{t('保存并退出')}</Button>
+                </div>
+              </div>}
+              <Tabs id="mapping-tabs" label={t('映射与变换')} value={mappingTab} onChange={next => {
+                setMappingTab(next);
+                if (onboarding.status === 'active' && onboarding.step === 'mapping') setEditingGuideMappings(true);
+              }}
                 options={[{ value: 'mappings', label: t('轴映射') }, { value: 'computations', label: t('计算信号') }]} />
               {renderSignalDraftToolbar(mappingTab === 'mappings' ? 'osc' : 'pipeline')}
               <div id="mapping-tabs-panel" role="tabpanel" aria-labelledby={`mapping-tabs-${mappingTab}`}>
@@ -2929,10 +2947,11 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
         </div>
       </main>
       {onboarding.status === 'active' && <GuidedTour step={onboarding.step} goal={onboarding.goal} workspace={workspace}
-        suspended={Boolean(dialog || profileDialog || presetDialog || helpOpen || parameterDetail || confirmClearMappings)}
+        suspended={Boolean(editingGuideMappings || dialog || profileDialog || presetDialog || helpOpen || parameterDetail || confirmClearMappings)}
         onDismiss={() => changeGuide({ type: 'dismiss' })} emergencyAction={emergencyAction}>
         <Onboarding state={onboarding} platform={platform} outputCount={outputs.length} availableOutputs={availableOutputCount}
-          inputPrepared={guidePrepared} actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
+          savedMappingCount={config?.signals?.length || 0} inputPrepared={guidePrepared}
+          onEditMappings={() => { setEditingGuideMappings(true); setNavigationTarget(signalDrafts.length ? '.mapping-row__source select' : '.mapping-actions button'); }} actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
           onChange={changeGuide} onNavigate={navigateWorkflow} onCreateProfile={openNewProfileDialog}
           onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />
       </GuidedTour>}

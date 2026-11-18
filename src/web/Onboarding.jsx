@@ -4,19 +4,20 @@ import { ONBOARDING_STEPS, onboardingScenes, onboardingInstructions } from './on
 import { t } from './i18n.js';
 
 export default function Onboarding({ state, platform = {}, outputCount = 0, availableOutputs = 0, inputPrepared = false,
-  actualMode, inputActive = false, disabled = false, onChange, onNavigate, onApplyInput, onCreateProfile }) {
+  onEditMappings, savedMappingCount = 0, actualMode, inputActive = false, disabled = false, onChange, onNavigate, onApplyInput, onCreateProfile }) {
   const scenes = onboardingScenes(platform);
   const scene = scenes.find(item => item.id === state.goal);
   const activeStep = scene ? state.step : 'goal';
   const current = ONBOARDING_STEPS.indexOf(activeStep);
-  const labels = [t('选择场景'), t('准备输入'), t('映射与变换'), t('轴配置'), t('连接设备'), t('查看日志'), t('检查并完成')];
+  const labels = [t('选择场景'), t('准备输入'), t('轴映射'), t('轴配置'), t('连接设备'), t('查看日志'), t('检查并完成')];
   const go = step => onChange({ type: 'step', step });
   const instructions = onboardingInstructions(activeStep, state.goal);
   const pageLabel = { input: t('输入'), mapping: t('映射与变换'), axes: t('轴配置'), device: t('输出'), diagnostics: t('诊断'), ready: t('输入') }[activeStep];
   const canContinue = Boolean(scene);
-  const canFinish = availableOutputs > 0 && inputPrepared;
+  const needsMapping = state.goal === 'osc' && savedMappingCount === 0;
+  const canFinish = availableOutputs > 0 && inputPrepared && !needsMapping;
   return <section className="onboarding-panel" data-testid="onboarding-panel" aria-label={t('设备设置向导')} tabIndex={-1}>
-    <div className="onboarding-panel__content">
+    <div key={activeStep} className="onboarding-panel__content">
     <header className="onboarding-panel__header">
       <span className="muted">{t('第 {0} 步，共 {1} 步', [current + 1, ONBOARDING_STEPS.length])}</span>
       <Button variant="text" data-testid="onboarding-skip" onClick={() => onChange({ type: 'dismiss' })}>{t('保存并退出')}</Button>
@@ -30,6 +31,10 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
         {scenes.map(item => <TaskTile key={item.id} title={item.title} description={item.description} selected={state.goal === item.id}
           data-testid={`onboarding-goal-${item.id}`} onClick={() => onChange({ type: 'goal', goal: item.id })} />)}
       </div>}
+      {activeStep === 'mapping' && <div className="stack">
+        <p className="caption">{savedMappingCount ? t('已保存 {0} 条轴映射', [savedMappingCount]) : t('尚未保存轴映射')}</p>
+        <Button tone="primary" data-testid="onboarding-edit-mappings" onClick={onEditMappings}>{t('编辑轴映射')}</Button>
+      </div>}
       {activeStep === 'axes' && <div className="stack">
         <Button data-testid="onboarding-create-profile" disabled={disabled} onClick={onCreateProfile}>{t('新增轴配置')}</Button>
       </div>}
@@ -41,7 +46,7 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
       {activeStep === 'input' && scene && <div className="stack">
         <Badge tone={inputPrepared ? 'success' : 'default'}>{inputPrepared ? t('输入已准备') : t('输入待准备')}</Badge>
         <div className="actions"><Button tone="primary" data-testid="onboarding-prepare-input" onClick={() => onNavigate(scene.destination)}>{t('打开输入设置')}</Button>
-          {state.goal === 'osc' && <Button onClick={() => go('mapping')}>{t('选择映射预设')}</Button>}
+          {state.goal === 'osc' && <Button onClick={() => go('mapping')}>{t('编辑轴映射')}</Button>}
           {actualMode !== state.goal && <Button data-testid="onboarding-apply-input" disabled={disabled} onClick={() => onApplyInput(state.goal)}>{t('应用输入方式')}</Button>}
         </div>
       </div>}
@@ -51,13 +56,15 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
         <ul className="onboarding-checklist" role="list">
           <li><Badge tone={inputPrepared ? 'success' : 'warning'}>{inputPrepared ? t('输入已准备') : t('输入待准备')}</Badge>
             {!inputPrepared && <Button data-testid="onboarding-review-input" onClick={() => go('input')}>{t('准备输入')}</Button>}</li>
+          {needsMapping && <li><Badge tone="warning">{t('尚未保存轴映射')}</Badge>
+            <Button data-testid="onboarding-review-mapping" onClick={() => go('mapping')}>{t('编辑轴映射')}</Button></li>}
           <li><Badge tone={availableOutputs > 0 ? 'success' : 'warning'}>{t('可用输出 {0}/{1}', [availableOutputs, outputCount])}</Badge>
             {availableOutputs === 0 && <Button data-testid="onboarding-review-device" onClick={() => go('device')}>{t('连接设备')}</Button>}</li>
         </ul>
         <p>{inputActive ? t('输入已启用，继续通过顶部开关控制。') : t('检查高亮的输入启用开关。完成引导不会启用输入，准备好后由你打开。')}</p>
       </div>}
     </div>
-    <details key={activeStep} className="onboarding-jump">
+    <details className="onboarding-jump">
       <summary>{t('跳转步骤')}</summary>
     <ol className="guided-steps" aria-label={t('首次设置步骤')}>
       {ONBOARDING_STEPS.map((step, index) => <li key={step} className={`guided-step${index === current ? ' guided-step--active' : index < current ? ' guided-step--completed' : ''}`}>
@@ -70,7 +77,7 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
     <footer className="onboarding-panel__footer actions">
       {current > 0 && <Button data-testid="onboarding-back" onClick={() => go(ONBOARDING_STEPS[current - 1])}>{t('上一步')}</Button>}
       {current < ONBOARDING_STEPS.length - 1 ? <Button tone="primary" data-testid="onboarding-next" disabled={!canContinue} onClick={() => go(ONBOARDING_STEPS[current + 1])}>{t('下一步')}</Button>
-        : <Button tone="primary" data-testid="onboarding-complete" onClick={() => onChange({ type: 'complete' })}>{t('完成引导')}</Button>}
+        : <Button tone="primary" data-testid="onboarding-complete" onClick={() => onChange({ type: canFinish ? 'complete' : 'dismiss' })}>{canFinish ? t('完成引导') : t('稍后继续')}</Button>}
     </footer>
   </section>;
 }

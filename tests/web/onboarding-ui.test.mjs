@@ -116,3 +116,16 @@ test('each preparation step gives ordered instructions in both languages', () =>
     }
   }
 });
+
+test('OSC review links missing saved mappings back to the axis mapping editor', () => {
+  const state = { status: 'active', step: 'ready', goal: 'osc' };
+  const props = { ...defaultProps, state, inputPrepared: true, availableOutputs: 1 };
+  const actions = [];
+  const review = Onboarding({ ...props, onChange: action => actions.push(action) });
+  byTestId(review, 'onboarding-complete').props.onClick();
+  assert.deepEqual(actions.splice(0), [{ type: 'dismiss' }]);
+  assert.equal(byTestId(review, 'onboarding-review-input'), undefined);
+  byTestId(review, 'onboarding-review-mapping').props.onClick();
+  assert.deepEqual(actions, [{ type: 'step', step: 'mapping' }]);
+  assert.equal(byTestId(Onboarding({ ...props, savedMappingCount: 1 }), 'onboarding-review-mapping'), undefined);
+});

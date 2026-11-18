@@ -46,11 +46,11 @@ export function onboardingReducer(state, action) {
   return current;
 }
 
-export function guideInputPrepared(goal, { mode, scriptLoaded = false, listening = false, mappingCount = 0, protocolInputs = [] } = {}) {
+export function guideInputPrepared(goal, { mode, scriptLoaded = false, listening = false, protocolInputs = [] } = {}) {
   if (mode !== goal) return false;
   if (goal === 'manual') return true;
   if (goal === 'script') return scriptLoaded;
-  if (goal === 'osc') return listening && mappingCount > 0;
+  if (goal === 'osc') return listening;
   if (goal === 'protocol') return protocolInputs.some(input => input.enabled && input.listening && input.connected);
   return false;
 }
@@ -70,7 +70,7 @@ export function onboardingInstructions(step, goal) {
     osc: [
       t("在“输入 → OSC”检查监听地址和端口，让发送端将参数发到这里。"),
       t("启用并保存 OSC 接收设置，确认“监听中”，再查看接收到的参数和来源。"),
-      t("下一步在“映射与变换”选择映射、校准并保存，最后应用 OSC 输入方式。"),
+      t("点击“应用输入方式”选择 OSC，再到下一步把收到的参数映射到目标轴。"),
     ],
     protocol: [
       t("在“输入 → 协议”添加协议来源，填写监听地址、端口和设备能力。"),
@@ -78,14 +78,14 @@ export function onboardingInstructions(step, goal) {
       t("应用协议输入方式；连接成功不会自动启用输入。"),
     ],
     oscMapping: [
-      t("在“轴映射”选择适合 Avatar 的 SPS、Contact 或 PhysBone 预设。"),
-      t("“追加草稿”保留现有映射；“替换草稿”替换映射。检查来源、目标轴、量程和方向。"),
-      t("确认预览数值符合预期后点击“保存更改”；载入模板本身不会保存或启用输入。"),
+      t("添加映射，或追加适合 Avatar 的预设。为每行选择输入类型并填写实际参数路径。"),
+      t("选择目标轴，例如深度对应 L0、振动对应 V0。检查输入量程、输出范围和方向，使用预览核对结果。"),
+      t("点击“保存更改”后继续到轴配置，设置设备实际允许的行程。"),
     ],
     mapping: [
-      t("手动和脚本可直接驱动动作轴，没有变换需求时可以跳过本页。"),
-      t("需要平滑、混合或阈值时，在“计算信号”的“常用变换”选择示例。"),
-      t("检查计算来源与参数，再把计算结果连接到目标轴或输出，并保存更改。"),
+      t("手动、脚本和协议输入可以直接提供动作轴。已有所需轴时，点击“下一步”继续。"),
+      t("需要把计算结果送到另一条轴时，打开“编辑轴映射”，在“计算信号”创建计算并映射到轴。"),
+      t("在轴映射行选择目标轴，检查范围和方向，然后保存更改。"),
     ],
     axes: [
       t("TCode 设备需要轴配置；其他输出可以跳过这一步。"),
