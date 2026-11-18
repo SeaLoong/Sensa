@@ -2,7 +2,27 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { encodeOscMessage, parseOscPacket, OscParameterStore } from '../../src/core/protocols/osc.ts';
 import { RuntimeEngine } from '../../src/core/runtime/runtime.ts';
-import { axisRoutePresets, buildAxisRoute, routeDependencies } from '../../src/web/axis-routes.js';
+import { axisRoutePresets, appendRouteSteps, previousMappingSource, routeDependencies } from '../../src/web/axis-routes.js';
+
+import { stripComputedDraft } from '../../src/web/computed-signals.js';
+import { makeSignalDraft } from '../../src/web/configuration.js';
+
+function buildAxisRoute(path, steps, role, existing) {
+  return appendRouteSteps(makeSignalDraft({ oscPath: path, role }), steps, existing);
+}
+
+test('adding processing to an existing calculated mapping keeps its calibration and upstream identity', () => {
+  const draft = makeSignalDraft({ oscPath: 'Blend', sourceMode: 'Computed', role: 'V0', mappedMin: 200, invertDirection: true });
+  const route = appendRouteSteps(draft, axisRoutePresets()[1].steps, [{ id: 'Blend' }]);
+  assert.deepEqual(route.mapping, { ...draft, oscPath: route.steps[0].id });
+  assert.deepEqual({ ...route.mapping, ...previousMappingSource(route.mapping, route.steps) }, draft);
+  assert.partialDeepStrictEqual(route.steps[0].inputs, [{ sourceMode: 'Computed', oscPath: 'Blend' }]);
+});
+
+test('editing an OSC address inside a step preserves VRChat path resolution when saved', () => {
+  const step = stripComputedDraft({ inputs: [{ sourceMode: 'Direct', oscPath: '/avatar/parameters/Depth' }] });
+  assert.equal(step.inputs[0].oscPath, 'Depth');
+});
 
 test('each route preset connects the OSC input through precisely its ordered steps to L0', () => {
   const presets = axisRoutePresets();

@@ -103,10 +103,15 @@ for (const locale of ['zh-CN', 'en-US']) {
             await page.getByTestId('onboarding-edit-mappings').click();
             await expect(page.getByTestId('guided-mapping-editor')).toBeVisible();
             await expect(page.getByTestId('guided-tour')).toHaveCount(0);
-            await page.getByTestId('route-source').fill('/avatar/parameters/GuideDepth');
-            await expect(page.getByTestId('route-axis')).toHaveValue('Depth');
-            await page.getByTestId('route-preset').selectOption('filtered');
-            await page.getByTestId('add-axis-route').click();
+            await page.locator('#add-axis-mapping').click();
+            const mapping = page.locator('.mapping-row').last();
+            await mapping.locator('.mapping-row__path input').fill('/avatar/parameters/GuideDepth');
+            await expect(mapping.locator('.mapping-row__target select')).toHaveValue('Depth');
+            await mapping.getByRole('combobox', { name: await text(page, '追加计算步骤') }).selectOption('filtered');
+            const calculation = mapping.getByTestId('computed-signal-card');
+            await expect(calculation.getByTestId('computed-operation')).toHaveValue('Smooth');
+            await calculation.getByRole('textbox', { name: await text(page, '信号名称'), exact: true }).fill('Guide smoothing');
+            await attachState(page, info, 'inline-axis-mapping-' + locale, { target: 'L0', steps: ['DeadZone', 'Smooth'] }, mapping);
             await unchanged(page, rig, prepared);
             await expect(page.getByTestId('guided-mapping-continue')).toBeDisabled();
             await page.getByTestId('save-signal-drafts').click();
@@ -114,7 +119,7 @@ for (const locale of ['zh-CN', 'en-US']) {
             const saved = await configuration(page, rig);
             const [zone, smooth] = saved.computedSignals.slice(-2);
             expect(zone).toMatchObject({ operation: 'DeadZone', threshold: 0.05, inputs: [{ sourceMode: 'Direct', oscPath: 'GuideDepth' }] });
-            expect(smooth).toMatchObject({ operation: 'Smooth', timeMs: 250, inputs: [{ sourceMode: 'Computed', oscPath: zone.id }] });
+            expect(smooth).toMatchObject({ name: 'Guide smoothing', operation: 'Smooth', timeMs: 250, inputs: [{ sourceMode: 'Computed', oscPath: zone.id }] });
             expect(saved.signals.at(-1)).toMatchObject({ role: 'Depth', sourceMode: 'Computed', oscPath: smooth.id });
             await page.getByTestId('guided-mapping-continue').click();
           } else {
@@ -284,7 +289,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.getByTestId('onboarding-goal-osc').click();
         await page.getByTestId('onboarding-next').click();
         await page.getByTestId('onboarding-next').click();
-        await expect(page.locator('#mapping-tabs-mappings')).toHaveAttribute('aria-selected', 'true');
+        await expect(page.getByTestId('axis-mappings-panel')).toBeVisible();
         await page.getByTestId('onboarding-edit-mappings').click();
         const library = page.getByTestId('axis-mappings-panel');
         await library.getByRole('combobox', { name: await text(page, '预设方案'), exact: true }).selectOption('ogb-depth');

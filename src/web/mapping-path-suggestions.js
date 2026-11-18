@@ -21,3 +21,7 @@ export function mappingPathSuggestions(paths, value, { focused = false, limit = 
   }
   return matches;
 }
+
+export function routeParameterPath(path) {
+  return path.split(/[;\n]/u).map(part => part.trim().replace(/^\/avatar\/parameters(?:\/|$)/u, '')).filter(Boolean).join(';');
+}

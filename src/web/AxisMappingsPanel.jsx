@@ -3,17 +3,21 @@ import { Button, Notice } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { SignalMappingRow } from './configuration-views.jsx';
 import OscFlowStatus from './OscFlowStatus.jsx';
-import { routeDependencies } from './axis-routes.js';
-import { computedOperationOptions } from './computed-signals.js';
+import { ComputedSignalCard } from './ComputedSignalsPanel.jsx';
+import { previousMappingSource, routeDependencies, routeStepChoices } from './axis-routes.js';
+import { COMPUTED_SIGNAL_LIMIT, computedOperationOptions } from './computed-signals.js';
 import { t } from './i18n.js';
 
-export default function AxisMappingsPanel({ builder, onEditStep, toolbar, signalDrafts = [], computedDrafts = [],
+export default function AxisMappingsPanel({ inlineStep, onEditStep, onAppendSteps, onUpdateStep, graphDirty, runtimeSignals = [], toolbar, signalDrafts = [], computedDrafts = [],
   oscMappingPresets = [], selectedOscPreset = '', selectedOscPresetConfig, busy = false,
-  onSelectPreset, onApplyPreset, onOpenPreset, onDeletePreset, onOpenComputations,
+  onSelectPreset, onApplyPreset, onOpenPreset, onDeletePreset, onOpenComputations, showComputations,
   savedMappings = [], runtime = {}, actualInputMode = '', listening = false, hasUnsavedMappings = false,
   signalOverlapWarnings = [], latestForDraft, pathOptions = [], onUpdateMapping, onRemoveMapping, onAddMapping, onClearMappings }) {
+  const choices = routeStepChoices();
   return <div className="axis-mappings-panel stack" data-testid="axis-mappings-panel">
-    {builder}
+    <div className="workspace-header"><h3>{t('轴映射')}</h3>
+      <Button id="add-axis-mapping" tone="primary" onClick={() => onAddMapping()}>{t('新增映射')}</Button>
+    </div>
     <div className="preset-strip">
       <SelectField label={t('预设方案')} value={selectedOscPreset}
         options={oscMappingPresets.map(preset => ({ value: preset.id, label: preset.name }))} onChange={onSelectPreset} />
@@ -23,9 +27,6 @@ export default function AxisMappingsPanel({ builder, onEditStep, toolbar, signal
       </div>
     </div>
     {toolbar}
-    <div className="computed-signals-bridge actions">
-      <Button data-testid="edit-computations" variant="text" onClick={onOpenComputations}>{t('计算编辑器')}</Button>
-    </div>
     <details className="inline-details">
       <summary>{t('管理预设')}</summary>
       <div className="actions">
@@ -44,18 +45,35 @@ export default function AxisMappingsPanel({ builder, onEditStep, toolbar, signal
     {signalOverlapWarnings.length > 0 && <Notice>{t('同一目标轴按归一化优先级选择输入；需要混合时可先建立计算信号。')}</Notice>}
     {signalDrafts.length === 0 ? <p className="empty-state">{t('还没有轴映射')}</p> : <div className="mapping-list">
       {signalDrafts.map(draft => <div key={draft._draftId} data-mapping-draft-id={draft._draftId}>
-        {draft.sourceMode === 'Computed' && <ol className="route-steps" aria-label={t('这条路线的计算步骤')}>
-          {routeDependencies(draft, computedDrafts).map(node => <li key={node.id}>
-            <span>{node.inputs.map(input => input.sourceMode === 'Constant' ? String(input.value) : input.oscPath).join(' · ')}</span>{' → '}
-            <Button variant="text" onClick={() => onEditStep(node.id)}>{node.name || node.id} · {computedOperationOptions().find(op => op.value === node.operation)?.label || node.operation}</Button>
-          </li>)}
-        </ol>}
         <SignalMappingRow draft={draft} latestEntry={latestForDraft?.(draft)} pathOptions={pathOptions} computedSignals={computedDrafts}
-          onChange={patch => onUpdateMapping(draft._draftId, patch)} onRemove={() => onRemoveMapping(draft._draftId)} />
+          onChange={patch => onUpdateMapping(draft._draftId, patch)} onRemove={() => onRemoveMapping(draft._draftId)}>
+          {['Direct', 'Computed', 'SensaPose', 'SensaPoint'].includes(draft.sourceMode) &&
+            <div className="mapping-processing stack">
+              {routeDependencies(draft, computedDrafts).map(node => inlineStep?.mappingId === draft._draftId && inlineStep.id === node.id
+                ? <div key={node.id}>
+                  <p className="caption muted">{t('此处修改计算信号，引用它的映射和输出会一起使用新结果。')}</p>
+                  <ComputedSignalCard draft={node} signals={computedDrafts} runtime={runtimeSignals.find(signal => signal.id === node.id)}
+                    open selected graphDirty={graphDirty} pathOptions={pathOptions} pointOptions={[]}
+                    onToggle={open => { if (!open) onEditStep(null); }} onChange={patch => onUpdateStep(node.id, patch)} />
+                </div>
+                : <Button key={node.id} variant="text" onClick={() => onEditStep({ mappingId: draft._draftId, id: node.id })}>
+                  {node.inputs.map(input => input.sourceMode === 'Constant' ? String(input.value) : input.oscPath).join(' · ')} → {node.name || node.id} · {computedOperationOptions().find(op => op.value === node.operation)?.label || node.operation}
+                </Button>)}
+              <SelectField label={t('追加计算步骤')} value="" disabled={!draft.oscPath}
+                options={[{ value: '', label: draft.sourceMode === 'Computed' ? t('选择要追加的步骤') : t('直接映射') },
+                  ...choices.map(preset => ({ ...preset,
+                    disabled: computedDrafts.length + preset.steps.length > COMPUTED_SIGNAL_LIMIT }))]}
+                onChange={value => { const preset = choices.find(item => item.value === value);
+                  if (preset?.steps.length) onAppendSteps(draft, preset.steps); }} />
+              {previousMappingSource(draft, computedDrafts) && <Button variant="text"
+                onClick={() => { onUpdateMapping(draft._draftId, previousMappingSource(draft, computedDrafts)); onEditStep(null); }}>
+                {t('在此映射跳过末步')}</Button>}
+            </div>}
+        </SignalMappingRow>
       </div>)}
     </div>}
     <div className="actions mapping-actions">
-      <Button onClick={() => onAddMapping()}>{t('新增映射')}</Button>
+      <Button data-testid="edit-computations" aria-expanded={Boolean(showComputations)} onClick={onOpenComputations}>{t('管理计算信号')}</Button>
       <Button tone="danger" disabled={!signalDrafts.length} onClick={onClearMappings}>{t('清空映射')}</Button>
     </div>
   </div>;

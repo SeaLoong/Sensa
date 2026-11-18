@@ -77,7 +77,7 @@ export function tourShades(targets, viewport) {
 
 export function tourTarget(step, goal) {
   if (step === 'input') return { manual: '.manual-primary', script: '.script-player__header', osc: '.osc-receiver-settings', protocol: '[data-testid="protocol-inputs-panel"]' }[goal] || '.input-toolbar';
-  if (step === 'mapping') return '#mapping-tabs-mappings';
+  if (step === 'mapping') return '#add-axis-mapping';
   return { input: '.input-toolbar', axes: '.axis-profiles-section > .section__header',
     device: '.outputs-section > .section__header', diagnostics: '.log-section > .section__header', ready: '.header-actions' }[step] || null;
 }

@@ -16,7 +16,7 @@ Use this map to find a control. [Guides](start.en.md) helps you choose a task; [
 
 **Start setup guide** follows seven steps: **Choose a scene → Prepare input → Axis mappings → Axis profiles → Connect device → View logs → Review setup**. Each step opens its page, gives concrete instructions and highlights both the current navigation tab and actual controls. You can operate those controls directly; arrow-key navigation from the highlighted tab also updates the guide to the corresponding step. Opening an editor pauses the tour until you close it. **Escape** or **Save and exit** keeps your place. The emergency stop remains available in the tour. If input, a required OSC mapping or an output is missing, open the corresponding setup step or choose **Continue later**. When ready, **Finish tour** records completion without enabling input or changing the configuration.
 
-Configuration templates live in the preset selector under **Mapping & transforms → Parameter to axis**, in **Calculation editor → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
+Configuration templates live in the preset selector under **Mapping & transforms → Axis mapping**, in **Manage computed signals → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
 
 Use the input tabs on the control page to open manual, script or OSC settings.
 
@@ -66,11 +66,11 @@ Check reception and sender port first, then source selection, saved mapping, out
 
 ### Turn an input into motion (mapping)
 
-Choose an OSC preset directly in **Mapping & transforms → Parameter to axis**, then append or replace the mapping drafts. Select a parameter or computed result, calibrate its range/direction and **Save changes**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps) · [Template reference](presets.en.md)
+Choose an OSC preset directly in **Mapping & transforms → Axis mapping**, then append or replace the mapping drafts. Select a parameter or computed result, calibrate its range/direction and **Save changes**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps) · [Template reference](presets.en.md)
 
 ### Combine inputs first (computed signals)
 
-Choose **Mapping & transforms → Calculation editor** when you need blending, smoothing or a condition. Start with a transform preset or create a calculation, then select its result in **Axis mapping**. [Calculation examples](computed-signals.en.md)
+Add a step inside an axis mapping, expand it to choose blending, smoothing or another operation, then set its inputs and save. Use **Manage computed signals** for standalone calculations. [Calculation examples](computed-signals.en.md)
 
 ### Reception, discovery and forwarding
 

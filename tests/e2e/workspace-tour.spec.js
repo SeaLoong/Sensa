@@ -88,9 +88,9 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.locator('#workspace-tabs-pipeline')).toBeFocused();
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
         await expect(page.getByTestId('axis-mappings-panel')).toBeVisible();
-        await captureSpotlight(page, info, '#mapping-tabs-mappings', 'spotlight-mapping-' + locale);
+        await captureSpotlight(page, info, '#add-axis-mapping', 'spotlight-mapping-' + locale);
         await guideCard.focus(); await page.keyboard.press('Shift+Tab');
-        await expect(page.locator('#mapping-tabs-mappings')).toBeFocused();
+        await expect(page.locator('#add-axis-mapping')).toBeFocused();
         await page.keyboard.press('Tab');
         await expect(page.getByTestId('onboarding-skip')).toBeFocused();
         await page.getByTestId('onboarding-next').click();

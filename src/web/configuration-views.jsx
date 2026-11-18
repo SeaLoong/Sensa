@@ -181,7 +181,7 @@ export function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], 
   );
 }
 
-export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSignals = [], allowComputed = true, onChange, onRemove }) {
+export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSignals = [], allowComputed = true, children, onChange, onRemove }) {
   const pathListId = useId();
   const [pathFocused, setPathFocused] = useState(false);
   const pathSuggestions = useMemo(() => mappingPathSuggestions(pathOptions, draft.oscPath, { focused: pathFocused }),
@@ -242,6 +242,7 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSign
             <option key={path} value={path} />
           ))}
         </datalist>
+        {children}
         <SelectField
           className="mapping-row__target"
           label={t('目标轴')}

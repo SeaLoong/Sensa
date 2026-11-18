@@ -40,7 +40,7 @@ export function pruneComputedView(current, drafts = []) {
     ? current : { selectedId, expandedIds };
 }
 
-function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, open, pathOptions, pointOptions, onToggle, onChange, onRemove, onMap }) {
+export function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, open, pathOptions, pointOptions, onToggle, onChange, onRemove, onMap }) {
   const valid = runtime?.valid && Number.isFinite(runtime.value);
   const others = useMemo(() => signals.filter(signal => signal.id !== draft.id), [signals, draft.id]);
   const reason = graphDirty || !runtime ? t('保存后查看结果') : diagnostic(runtime.reason) || t('等待完整输入');
@@ -78,8 +78,8 @@ function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, ope
           onRemove={() => onChange({ inputs: draft.inputs.filter((_, inputIndex) => inputIndex !== index) })} />)}</div>}</div>
         <div className="actions">
           {!groups.length && <Button disabled={draft.inputs.length >= computedInputLimit(draft.operation)} onClick={() => onChange({ inputs: [...draft.inputs, makeComputedInput()] })}>{t('新增输入')}</Button>}
-          <Button onClick={onMap}>{t('用于轴映射')}</Button>
-          <Button tone="danger" onClick={onRemove}>{t('移除计算信号')}</Button>
+          {onMap && <Button onClick={onMap}>{t('用于轴映射')}</Button>}
+          {onRemove && <Button tone="danger" onClick={onRemove}>{t('移除计算信号')}</Button>}
         </div>
         <p className="caption muted" data-testid="computed-signal-status">{valid && !graphDirty ? t('已保存计算的实时结果：{0}', [result]) : reason}</p>
       </div>}

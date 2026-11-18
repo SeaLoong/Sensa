@@ -90,7 +90,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         }
         await card.getByRole('button', { name: await text(page, '用于轴映射'), exact: true }).click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
-        await expect(page.locator('#mapping-tabs-mappings')).toHaveAttribute('aria-selected', 'true');
+        await expect(page.getByTestId('axis-mappings-panel')).toBeVisible();
         const mappings = page.locator('.mapping-row');
         await expect(mappings).toHaveCount(beforeDrafts.signals.length + 1);
         await expect(mappings.last().getByRole('combobox', { name: await text(page, '计算信号'), exact: true })).toHaveValue('Signal1');
@@ -117,7 +117,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
         await expect.poll(async () => (await computation(rig, 'Signal1'))?.value).toBeCloseTo(.65, 5);
         await expect(card.getByTestId('computed-signal-value')).toContainText('0.65');
-        await checkpointViewport(page, 'computed-signal-editor-' + locale);
+        await checkpointViewport(page, 'computed-signal-editor-' + locale, page.getByTestId('computed-signals-editor'));
         await checkpoint(page, card.locator('.computed-signal__configuration'), 'computed-signal-settings-' + locale);
         await checkpoint(page, rows.first(), 'computed-signal-input-' + locale);
         const report = createUiQualityReport(page, info, { kind: 'computed-editor',
