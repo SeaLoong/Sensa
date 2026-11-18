@@ -2291,7 +2291,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     setSignalDrafts(previous => [...previous, draft]);
     setWorkspace('pipeline');
     setMappingTab('mappings');
-    setNavigationTarget('[data-mapping-draft-id="' + draft._draftId + '"]');
+    setNavigationTarget('[data-mapping-draft-id="' + draft._draftId + '"] .mapping-row__target select');
     notify(t('已添加计算信号的轴映射，请调整目标轴与量程后保存。'), 'info');
   }
 
@@ -2300,7 +2300,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     if (!route) return;
     if (route.steps.length) setComputedDrafts(previous => [...previous, ...route.steps]);
     setSignalDrafts(previous => [...previous, route.mapping]);
-    setNavigationTarget('[data-mapping-draft-id="' + route.mapping._draftId + '"]');
+    setNavigationTarget('[data-mapping-draft-id="' + route.mapping._draftId + '"] .mapping-row__target select');
   }
 
   function editRouteStep(id) {
