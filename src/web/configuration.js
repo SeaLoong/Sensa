@@ -1,3 +1,4 @@
+import { routeParameterPath } from './axis-routes.js';
 import { roundToStep } from './numeric.js';
 import { outputTargetsOverlap } from '../core/runtime/configuration.ts';
 import { localized, t } from './i18n.js';
@@ -736,7 +737,7 @@ function stripSignalDraft(signal) {
   const mappedMax = Math.max(mappedMin, mappedMaxCandidate);
   return {
     ...rest,
-    oscPath: (rest.oscPath || '').trim(),
+    oscPath: rest.sourceMode === 'Direct' ? routeParameterPath(rest.oscPath || '') : (rest.oscPath || '').trim(),
     vrchatMin: Number(rest.vrchatMin || 0),
     vrchatMax: Number(rest.vrchatMax || 0),
     mappedMin,

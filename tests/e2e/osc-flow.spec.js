@@ -128,7 +128,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           await inputs.nth(index).getByRole('spinbutton', { name: await text(page, '固定数值'), exact: true }).fill(value);
         }
         await calculation.getByRole('button', { name: await text(page, '用于轴映射'), exact: true }).click();
-        await expect(page.locator('#mapping-tabs-mappings')).toHaveAttribute('aria-selected', 'true');
+        await expect(page.getByTestId('axis-mappings-panel')).toBeVisible();
         const mappings = page.locator('.mapping-row');
         await expect(mappings).toHaveCount(initial.config.signals.length + 1);
         await expect(mappings.last().getByRole('combobox', { name: await text(page, '计算信号'), exact: true })).toHaveValue('Signal1');

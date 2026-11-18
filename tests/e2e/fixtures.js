@@ -109,11 +109,13 @@ export async function workspace(page, name) {
   if (destination) await page.locator('#workspace-tabs-' + destination).click();
   else await page.getByRole('tablist', { name: await text(page, '主导航'), exact: true }).getByRole('tab', { name: await text(page, name), exact: true }).click();
   if (name === 'OSC') await page.locator('#input-tabs-osc').click();
-  if (name === '流程') await page.locator('#mapping-tabs-computations').click();
+  if (name === '流程' && !await page.getByTestId('computed-signals-editor').isVisible()) await page.getByTestId('edit-computations').click();
 }
 export async function oscWorkspace(page, name) {
   if (name === '映射') {
-    await workspace(page, '映射与变换'); await page.locator('#mapping-tabs-mappings').click(); return;
+    await workspace(page, '映射与变换');
+    if (await page.getByTestId('computed-signals-editor').isVisible()) await page.getByTestId('edit-computations').click();
+    return;
   }
   await workspace(page, 'OSC');
   await page.getByRole('tablist', { name: await text(page, 'OSC 工作区'), exact: true }).getByRole('tab', { name: await text(page, name), exact: true }).click();
@@ -187,9 +189,10 @@ async function assertScrollLayout(page) {
   expect(evidence.port.bottom).toBeLessThanOrEqual(evidence.height + 1);
   return evidence;
 }
-export async function checkpointViewport(page, name) {
+export async function checkpointViewport(page, name, anchor) {
   await clearScreenshotNotice(page);
-  await page.locator('.workspace-scroll').evaluate(element => element.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+  if (anchor) await anchor.evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }));
+  else await page.locator('.workspace-scroll').evaluate(element => element.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
   await expect(page).toHaveScreenshot(name + '.png', { stylePath: 'tests/e2e/screenshot.css' });
   await attachCurrentCatalogCapture(page, name);
   await assertScrollLayout(page);

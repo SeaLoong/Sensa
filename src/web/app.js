@@ -121,8 +121,7 @@ import { VENDOR_OUTPUT_TYPES } from './protocol-inputs.js';
 import { prepareDeviceScript } from './device-script-requests.js';
 import IntifaceFeatureFields from './IntifaceFeatureFields.jsx';
 import { intifaceFeatureErrors } from './intiface-feature-routing.js';
-import AxisRouteBuilder from './AxisRouteBuilder.jsx';
-import { buildAxisRoute } from './axis-routes.js';
+import { appendRouteSteps } from './axis-routes.js';
 import GettingStarted from './GettingStarted.jsx';
 import ManualControls from './ManualControls.jsx';
 import Onboarding from './Onboarding.jsx';
@@ -213,7 +212,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const [parameterDetail, setParameterDetail] = useState(null);
   const [oscPreviewSearch, setOscPreviewSearch] = useState('');
   const [workspace, setWorkspace] = useState(initialWorkspace);
-  const [mappingTab, setMappingTab] = useState('mappings');
+  const [showComputations, setShowComputations] = useState(false);
+  const [inlineStep, setInlineStep] = useState(null);
   const [oscWorkspaceTab, setOscWorkspaceTab] = useState('parameters');
   const [newOutputType, setNewOutputType] = useState(platform.outputTypes?.[0] || 'TCodeSerial');
   const [helpOpen, setHelpOpen] = useState(false);
@@ -662,7 +662,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
         }),
       ),
     );
-    setWorkspace('pipeline'); setMappingTab('mappings');
+    setWorkspace('pipeline'); setShowComputations(false);
     notify(t('已替换映射草稿；实验空间输入需单独允许。'), 'info');
   }
 
@@ -704,7 +704,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   function usePointRig(point, calibrated = null) {
     setSelectedOscPreset('');
-    setWorkspace('pipeline'); setMappingTab('mappings');
+    setWorkspace('pipeline'); setShowComputations(false);
     setSignalDrafts([
       makeSignalDraft(
         calibrated || {
@@ -964,7 +964,10 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   }
 
   function addSignalDraft(prefillPath = '') {
-    setSignalDrafts((previous) => [...previous, makeSignalDraft({ oscPath: prefillPath })]);
+    const draft = makeSignalDraft({ oscPath: prefillPath });
+    setSignalDrafts(previous => [...previous, draft]);
+    setNavigationTarget('[data-mapping-draft-id="' + draft._draftId + '"] .mapping-row__path input');
+    if (onboarding.status === 'active' && onboarding.step === 'mapping') setEditingGuideMappings(true);
   }
 
   function removeSignalDraft(draftId) {
@@ -1876,13 +1879,13 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       selectInputTab('protocol');
       setNavigationTarget('[data-testid="protocol-inputs-panel"]');
     } else if (destination === 'osc-mappings') {
-      setWorkspace('pipeline'); setMappingTab('mappings');
+      setWorkspace('pipeline'); setShowComputations(false);
       setNavigationTarget(tourTarget('mapping'));
     } else if (destination === 'pipeline') {
-      setWorkspace('pipeline'); setMappingTab('computations');
+      setWorkspace('pipeline'); setShowComputations(true); setInlineStep(null);
       setNavigationTarget(computedView.expandedIds.includes(computedView.selectedId)
         && computedDrafts.some(signal => signal.id === computedView.selectedId)
-        ? `[data-signal-id="${computedView.selectedId}"] summary` : '.computed-signals');
+        ? `.computed-signals [data-signal-id="${window.CSS.escape(computedView.selectedId)}"] summary` : '.computed-signals');
     } else if (destination === 'axes' || destination === 'logs') {
       setWorkspace(destination === 'axes' ? 'axes' : 'settings');
       setNavigationTarget(destination === 'axes' ? '.axis-profiles-section' : '.log-section');
@@ -1916,7 +1919,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     }
     (region.classList.contains('recording-panel') ? region : region.closest('.input-section') || region).scrollIntoView({ block: 'start', behavior: 'instant' });
     setNavigationTarget(null);
-  }, [navigationTarget, workspace, mappingTab, selectedInputTab, oscWorkspaceTab, helpOpen, onboarding.status, onboarding.step]);
+  }, [navigationTarget, workspace, showComputations, inlineStep, selectedInputTab, oscWorkspaceTab, helpOpen, onboarding.status, onboarding.step]);
 
   useEffect(() => {
     if (!dialog?.focusBindings) return;
@@ -2290,31 +2293,35 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     const draft = makeSignalDraft({ sourceMode: 'Computed', oscPath: signal.id });
     setSignalDrafts(previous => [...previous, draft]);
     setWorkspace('pipeline');
-    setMappingTab('mappings');
+    setShowComputations(false);
     setNavigationTarget('[data-mapping-draft-id="' + draft._draftId + '"] .mapping-row__target select');
     notify(t('已添加计算信号的轴映射，请调整目标轴与量程后保存。'), 'info');
   }
 
-  function addAxisRoute(path, steps, role) {
-    const route = buildAxisRoute(path, steps, role, computedDrafts);
-    if (!route) return;
-    if (route.steps.length) setComputedDrafts(previous => [...previous, ...route.steps]);
-    setSignalDrafts(previous => [...previous, route.mapping]);
-    setNavigationTarget('[data-mapping-draft-id="' + route.mapping._draftId + '"] .mapping-row__target select');
+  function editRouteStep(selection) {
+    setInlineStep(selection);
+    if (selection) {
+      setShowComputations(false);
+      setNavigationTarget('[data-mapping-draft-id="' + selection.mappingId + '"] .computed-signal summary');
+    }
   }
 
-  function editRouteStep(id) {
-    setMappingTab('computations');
-    setComputedView({ selectedId: id, expandedIds: [id] });
-    setNavigationTarget('[data-signal-id="' + window.CSS.escape(id) + '"] summary');
+  function appendSteps(draft, settings) {
+    const route = appendRouteSteps(draft, settings, computedDrafts);
+    if (!route?.steps.length) return;
+    setComputedDrafts(previous => [...previous, ...route.steps]);
+    updateSignalDraft(draft._draftId, route.mapping);
+    editRouteStep({ mappingId: draft._draftId, id: route.steps.at(-1).id });
   }
 
   function renderMappings() {
-    return <AxisMappingsPanel onEditStep={editRouteStep} builder={platform.supportsListeners !== false && <AxisRouteBuilder pathOptions={oscPathSuggestions} computedCount={computedDrafts.length} onAdd={addAxisRoute} />} signalDrafts={signalDrafts} computedDrafts={computedDrafts}
+    return <AxisMappingsPanel inlineStep={inlineStep} onEditStep={editRouteStep} onAppendSteps={appendSteps}
+      onUpdateStep={(id, patch) => setComputedDrafts(previous => previous.map(node => node.id === id ? { ...node, ...patch } : node))}
+      graphDirty={computedGraphDirty} runtimeSignals={overview?.computedSignals} signalDrafts={signalDrafts} computedDrafts={computedDrafts}
       oscMappingPresets={oscMappingPresets} selectedOscPreset={selectedOscPreset}
       selectedOscPresetConfig={selectedOscPresetConfig} busy={Boolean(busyKey)} onSelectPreset={setSelectedOscPreset}
       onApplyPreset={applyOscPreset} onOpenPreset={openPresetDialog} onDeletePreset={deleteSelectedPreset}
-      onOpenComputations={() => navigateWorkflow('pipeline')} savedMappings={config?.signals || []}
+      showComputations={showComputations} onOpenComputations={() => showComputations ? setShowComputations(false) : navigateWorkflow('pipeline')} savedMappings={config?.signals || []}
       runtime={runtimeOverview || {}} actualInputMode={actualInputMode} listening={Boolean(overview?.osc?.listening)}
       hasUnsavedMappings={hasUnsavedMappings} signalOverlapWarnings={signalOverlapWarnings} latestForDraft={latestForDraft}
       pathOptions={oscPathSuggestions} onUpdateMapping={updateSignalDraft} onRemoveMapping={removeSignalDraft}
@@ -2808,27 +2815,20 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             )}
             {workspace === 'pipeline' && <section className="section mapping-workspace" aria-label={t('映射与变换')}>
               {editingGuideMappings && <div className="stack" data-testid="guided-mapping-editor">
-                <p>{t('在下方编辑来源和目标轴。轴映射与计算信号一起保存，保存后可继续设置设备行程。')}</p>
+                <p>{t('点击“新增映射”或编辑已有映射。先选来源，再按需追加计算步骤，确认 L0 和量程后保存。')}</p>
                 <div className="actions">
                   <Button tone="primary" data-testid="guided-mapping-continue" disabled={hasUnsavedMappings || hasIncompleteMappings || (onboarding.goal === 'osc' && !config?.signals?.length)} onClick={() => changeGuide({ type: 'step', step: 'axes' })}>{t('继续到轴配置')}</Button>
                   <Button variant="text" onClick={() => changeGuide({ type: 'dismiss' })}>{t('保存并退出')}</Button>
                 </div>
               </div>}
-              <Tabs id="mapping-tabs" label={t('映射与变换')} value={mappingTab} onChange={next => {
-                setMappingTab(next);
-                if (onboarding.status === 'active' && onboarding.step === 'mapping') setEditingGuideMappings(true);
-              }}
-                options={[{ value: 'mappings', label: t('参数到轴') }, { value: 'computations', label: t('计算编辑器') }]} />
-              {renderSignalDraftToolbar(mappingTab === 'mappings' ? 'osc' : 'pipeline')}
-              <div id="mapping-tabs-panel" role="tabpanel" aria-labelledby={`mapping-tabs-${mappingTab}`}>
-                {mappingTab === 'mappings' && renderMappings()}
-            {mappingTab === 'computations' && <SignalPipelineWorkspace
+              {renderSignalDraftToolbar('osc')}
+              {renderMappings()}
+              {showComputations && <SignalPipelineWorkspace
               computedDrafts={computedDrafts} runtimeSignals={overview?.computedSignals || EMPTY_OSC_CATALOG}
               observations={overview?.poseTracking?.spsRoots || EMPTY_OSC_CATALOG} selectedSourceKey={selectedOscSourceKey}
               computedGraphDirty={computedGraphDirty} pathOptions={oscPathSuggestions} onComputedChange={setComputedDrafts}
               onMapCalculation={mapComputedSignal} computedView={computedView} onComputedViewChange={setComputedView}
               onSetCombinedInput={() => { setWorkspace('control'); selectInputTab('combined'); }} />}
-              </div>
               <SignalPlanPanel config={config} onApply={applySignalPlan} disabled={!online || Boolean(busyKey)} emergencyAction={emergencyAction} />
             </section>}
             {workspace === 'outputs' && <>{renderOutputs()}
@@ -2966,7 +2966,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
         onDismiss={() => changeGuide({ type: 'dismiss' })} emergencyAction={emergencyAction}>
         <Onboarding state={onboarding} platform={platform} outputCount={outputs.length} availableOutputs={availableOutputCount}
           savedMappingCount={config?.signals?.length || 0} inputPrepared={guidePrepared}
-          onEditMappings={() => { setEditingGuideMappings(true); setNavigationTarget(platform.supportsListeners !== false ? '[data-testid="route-source"]' : '.mapping-actions button'); }} actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
+          onEditMappings={() => { setEditingGuideMappings(true); setNavigationTarget('#add-axis-mapping'); }} actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
           onChange={changeGuide} onNavigate={navigateWorkflow} onCreateProfile={openNewProfileDialog}
           onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />
       </GuidedTour>}
@@ -3272,7 +3272,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                 const tab = mapPreviewParameter(visibleParameterDetail.entry);
                 setParameterDetail(null);
                 if (tab === 'experimental' || tab === 'parameters') { setWorkspace('control'); selectInputTab('osc'); setOscWorkspaceTab(tab); }
-                else { setWorkspace('pipeline'); setMappingTab('mappings'); }
+                else { setWorkspace('pipeline'); setShowComputations(false); }
               }}
             >
               {t('添加映射草稿')}

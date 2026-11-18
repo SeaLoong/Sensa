@@ -1,5 +1,4 @@
 import { COMPUTED_SIGNAL_LIMIT, makeComputedInput, newComputedDraft } from './computed-signals.js';
-import { makeSignalDraft } from './configuration.js';
 import { t } from './i18n.js';
 
 export function axisRoutePresets() {
@@ -14,17 +13,42 @@ export function routeParameterPath(path) {
   return path.split(/[;\n]/u).map(part => part.trim().replace(/^\/avatar\/parameters(?:\/|$)/u, '')).filter(Boolean).join(';');
 }
 
-export function buildAxisRoute(path, steps, role, existing) {
-  const parameter = routeParameterPath(path);
-  if (!parameter || steps.length > 16 || existing.length + steps.length > COMPUTED_SIGNAL_LIMIT) return null;
-  let source = { sourceMode: 'Direct', oscPath: parameter };
+export function routeStepChoices() {
+  return [
+    ...axisRoutePresets().filter(preset => preset.steps.length),
+    { value: 'blend', label: t('加权平均'), steps: [{ operation: 'WeightedAverage' }] },
+    { value: 'delay', label: t('延迟'), steps: [{ operation: 'Delay' }] },
+    { value: 'peak', label: t('峰值保持'), steps: [{ operation: 'PeakHold' }] },
+  ];
+}
+
+// Bypass only this mapping's final edge. Other users keep the named calculation.
+export function previousMappingSource(mapping, signals) {
+  if (mapping.sourceMode !== 'Computed') return null;
+  const last = signals.find(node => node.id === mapping.oscPath);
+  const input = last?.inputs.length === 1 && last.inputs[0];
+  if (!input || !['Direct', 'Computed', 'SensaPose', 'SensaPoint'].includes(input.sourceMode)) return null;
+  const { sourceMode, oscPath, pointMetric, poseMetric } = input;
+  const source = { sourceMode, oscPath };
+  if (sourceMode === 'SensaPoint') source.pointMetric = pointMetric;
+  if (sourceMode === 'SensaPose') source.poseMetric = poseMetric;
+  return source;
+}
+
+export function appendRouteSteps(mapping, steps, existing) {
+  const { sourceMode, pointMetric, poseMetric } = mapping;
+  const oscPath = sourceMode === 'Direct' ? routeParameterPath(mapping.oscPath) : mapping.oscPath;
+  if (!oscPath || !['Direct', 'Computed', 'SensaPose', 'SensaPoint'].includes(sourceMode)
+    || steps.length > 16 || existing.length + steps.length > COMPUTED_SIGNAL_LIMIT) return null;
+  let source = { sourceMode, oscPath, pointMetric, poseMetric };
   const signals = [];
   for (const settings of steps) {
     const signal = { ...newComputedDraft([...existing, ...signals]), ...settings, inputs: [makeComputedInput(source)] };
+    if (signal.operation === 'WeightedAverage') signal.inputs.push(makeComputedInput());
     signals.push(signal);
     source = { sourceMode: 'Computed', oscPath: signal.id };
   }
-  return { steps: signals, mapping: makeSignalDraft({ ...source, role }) };
+  return { steps: signals, mapping: { ...mapping, ...source } };
 }
 
 // Show each shared dependency once, in input order, even while editing an invalid graph.
