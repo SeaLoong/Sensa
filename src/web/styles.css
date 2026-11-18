@@ -825,17 +825,6 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
 .task-tile--selected .task-tile__title, .task-tile[aria-pressed="true"] .task-tile__title { color: var(--accent); }
 .task-tile:disabled .task-tile__description, .task-tile:disabled .task-tile__arrow { color: inherit; }
 
-.scene-launchpad { gap: 16px; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
-.scene-launchpad--welcome { border-color: var(--td-brand-color-focus); background: linear-gradient(135deg, var(--accent-soft), var(--surface) 62%); }
-.scene-launchpad--welcome .workspace-header__title { font-size: 21px; line-height: 29px; }
-.scene-launchpad--compact { gap: 12px; padding: 16px 20px; }
-.scene-launchpad--compact .workspace-header__title { font-size: 16px; line-height: 24px; }
-.scene-launchpad__shortcuts { display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px; min-width: 0; }
-.scene-launchpad__shortcuts .task-tile { flex: 0 1 auto; align-items: center; width: auto; min-height: 36px; padding: 6px 12px; gap: 8px; border-color: var(--border); border-radius: 8px; }
-.scene-launchpad__shortcuts .task-tile__title { font-size: 13px; font-weight: 500; line-height: 22px; }
-.scene-launchpad__shortcuts .task-tile__arrow { width: 14px; height: 14px; margin-top: 0; }
-.scene-launchpad__shortcuts .task-tile[aria-pressed="true"] { border-color: var(--accent); }
-.scene-launchpad__footer { padding-top: 4px; }
 
 /* Only the active guide is expanded; its steps remain ordinary keyboard buttons. */
 .onboarding-panel { display: grid; gap: 20px; min-width: 0; padding: 20px; border: 1px solid var(--td-brand-color-focus); border-radius: 12px; background: var(--surface); }
@@ -908,25 +897,20 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .workspace-header { gap: 12px; }
   .workspace-header__content { flex-basis: 100%; }
   .workspace-header__actions { justify-content: flex-start; width: 100%; margin-left: 0; }
-  .scene-launchpad, .onboarding-panel { gap: 16px; padding: 16px; }
-  .scene-launchpad--compact { gap: 12px; padding: 14px 16px; }
-  .scene-launchpad--welcome .workspace-header__title { font-size: 19px; line-height: 27px; }
+  .onboarding-panel { gap: 16px; padding: 16px; }
   .task-tiles { grid-template-columns: minmax(0, 1fr); gap: 8px; }
   .task-tile { min-height: 80px; padding: 14px; }
-  .scene-launchpad__shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .scene-launchpad__shortcuts .task-tile { min-width: 0; width: 100%; padding: 8px 10px; }
   .onboarding-panel__footer > .button { flex: 1 1 auto; }
   .workbench-main { gap: 16px; }
   .manual-primary .value-field { padding: 12px; }
 }
 @media (pointer: coarse) {
-  .scene-launchpad__shortcuts .task-tile { min-height: 44px; }
 }
 @media (max-width: 340px) {
   .axis-profile-editor .axis-profile-navigation { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (forced-colors: active) {
-  .task-tile, .guided-step > .button, .scene-launchpad, .onboarding-panel { border-color: CanvasText; }
+  .task-tile, .guided-step > .button, .onboarding-panel { border-color: CanvasText; }
   .task-tile--selected, .task-tile[aria-pressed="true"], .guided-step--active > .button { outline: 2px solid Highlight; outline-offset: -2px; }
   .task-tile:focus-visible, .guided-step > .button:focus-visible { outline: 3px solid Highlight; outline-offset: 3px; }
 }
@@ -960,3 +944,9 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
 
 .onboarding-instructions { display: grid; gap: 10px; margin: 0 0 12px; padding-left: 22px; font-size: 13px; line-height: 1.6; }
 .onboarding-location { margin: 0 0 12px; }
+
+.route-builder { border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+.route-builder__fields { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(0, 1fr)); gap: 12px; }
+.route-steps { margin: 0; padding-inline-start: 24px; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .route-builder__fields { grid-template-columns: minmax(0, 1fr); } }
+.route-preview { overflow-wrap: anywhere; font-weight: 600; color: var(--accent); }

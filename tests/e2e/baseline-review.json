@@ -660,44 +660,42 @@
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/combined-input-en-US.png",
-      "sha256": "d3624334c48c669339213c47f3161c3f639e59aad3fa544a7d65f3d65cdb1798",
+      "sha256": "269f23818fa39d03f7160b7d7e95d6bf431d73c20f61f270ff1f481ec34863f3",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Scene-presets entry removed; combined-input status and tabs remain legible; narrow layout stacks the cards.",
+      "selection": "reviewed_actual",
+      "notes": "The Combined tab and manual input section remain visible after removing the scene chooser.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "d3624334c48c669339213c47f3161c3f639e59aad3fa544a7d65f3d65cdb1798",
-        "notes": "Scene-presets entry removed; combined-input status and tabs remain legible; narrow layout stacks the cards."
+        "sha256": "269f23818fa39d03f7160b7d7e95d6bf431d73c20f61f270ff1f481ec34863f3",
+        "notes": "The Combined tab and manual input section remain visible after removing the scene chooser."
       }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/combined-input-zh-CN.png",
-      "sha256": "5ca3cec34e4308be70895554a8b261c1a9655121056cf0eb9c0888c261bb5495",
+      "sha256": "764e3bfeb827d9c1424134b4a39d208dcddf3057d1f8e00c493c20834fb505a5",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Scene-presets entry removed; combined-input status and tabs remain legible; narrow layout stacks the cards.",
+      "selection": "reviewed_actual",
+      "notes": "The Combined tab and manual input section remain visible after removing the scene chooser.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "5ca3cec34e4308be70895554a8b261c1a9655121056cf0eb9c0888c261bb5495",
-        "notes": "Scene-presets entry removed; combined-input status and tabs remain legible; narrow layout stacks the cards."
+        "sha256": "764e3bfeb827d9c1424134b4a39d208dcddf3057d1f8e00c493c20834fb505a5",
+        "notes": "The Combined tab and manual input section remain visible after removing the scene chooser."
       }
     },
     {
@@ -864,23 +862,22 @@
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/control-page.png",
-      "sha256": "7cb90ce680fbc7996e684f7a15a685bcc0ece03f8a111601cae950fc979959c3",
+      "sha256": "2cdda2532fac6ec4fc929b32cf0c07278415d8279d9132fd974385c0c989b478",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Scene presets entry removed; scene shortcuts and guide remain, manual slider layout readable.",
+      "selection": "reviewed_actual",
+      "notes": "The removed scene chooser leaves the manual L0 control visible beneath the input tabs.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "7cb90ce680fbc7996e684f7a15a685bcc0ece03f8a111601cae950fc979959c3",
-        "notes": "Scene presets entry removed; scene shortcuts and guide remain, manual slider layout readable."
+        "sha256": "2cdda2532fac6ec4fc929b32cf0c07278415d8279d9132fd974385c0c989b478",
+        "notes": "The removed scene chooser leaves the manual L0 control visible beneath the input tabs."
       }
     },
     {
@@ -1083,23 +1080,22 @@
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/osc-gate-stopped.png",
-      "sha256": "4d69eb6b03b2b9d395fe42a45bbd93d38a04c9b374e11b1f85d34c4d71eab67a",
+      "sha256": "06690c28903c2e009386d712e8f80c4bc89500d1c62b12e85a957249a1b3a6ed",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Scene-presets entry removed; closed-gate warning and Configure mappings action remain visible.",
+      "selection": "reviewed_actual",
+      "notes": "The closed-gate notice remains visible above the OSC workspace.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "4d69eb6b03b2b9d395fe42a45bbd93d38a04c9b374e11b1f85d34c4d71eab67a",
-        "notes": "Scene-presets entry removed; closed-gate warning and Configure mappings action remain visible."
+        "sha256": "06690c28903c2e009386d712e8f80c4bc89500d1c62b12e85a957249a1b3a6ed",
+        "notes": "The closed-gate notice remains visible above the OSC workspace."
       }
     },
     {
@@ -1116,23 +1112,22 @@
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/osc-mappings-page.png",
-      "sha256": "56bf7234855c7de856829f9772f6b4dc5bf88954822a8f8df0920e4197a5e172",
+      "sha256": "b18e857975ae72c3743cc04eadd86b85041987bdf90727cf233e4ac97c275d48",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Actual OSC preset selector, replace/append draft buttons and calculation link remain on the mapping page without the extra modal action.",
+      "selection": "reviewed_actual",
+      "notes": "The route builder presents OSC source, calculation preset and destination axis in order.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "56bf7234855c7de856829f9772f6b4dc5bf88954822a8f8df0920e4197a5e172",
-        "notes": "Actual OSC preset selector, replace/append draft buttons and calculation link remain on the mapping page without the extra modal action."
+        "sha256": "b18e857975ae72c3743cc04eadd86b85041987bdf90727cf233e4ac97c275d48",
+        "notes": "The route builder presents OSC source, calculation preset and destination axis in order."
       }
     },
     {
@@ -1593,23 +1588,22 @@
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pose-landmark-lost.png",
-      "sha256": "b4eaea00704f68875be6cbec619e47b251b14082437e34ffd03292707ce11ffa",
+      "sha256": "221412802f037df9394f8376cf62a358137464c12ee03006e5c2c2c8605df654",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Scene-presets entry removed; emergency latch and disabled input are still prominent; experimental diagnostics stays on the OSC page.",
+      "selection": "reviewed_actual",
+      "notes": "The emergency state remains visible above the OSC experimental diagnostics.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "b4eaea00704f68875be6cbec619e47b251b14082437e34ffd03292707ce11ffa",
-        "notes": "Scene-presets entry removed; emergency latch and disabled input are still prominent; experimental diagnostics stays on the OSC page."
+        "sha256": "221412802f037df9394f8376cf62a358137464c12ee03006e5c2c2c8605df654",
+        "notes": "The emergency state remains visible above the OSC experimental diagnostics."
       }
     },
     {
@@ -1731,44 +1725,42 @@
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/combined-input-en-US.png",
-      "sha256": "1129000e32ab8aab0587ec8937b2d4a5d1d65e4130378f7c2b72c9a4d8f5ee1d",
+      "sha256": "8600d5fd0e9334589ffc648e429d7dbc10469ce4c77e12009fe62eec904ebdab",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Scene-presets entry removed; combined-input status and tabs remain legible; narrow layout stacks the cards.",
+      "selection": "reviewed_actual",
+      "notes": "The Combined tab and manual input section remain visible after removing the scene chooser.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "1129000e32ab8aab0587ec8937b2d4a5d1d65e4130378f7c2b72c9a4d8f5ee1d",
-        "notes": "Scene-presets entry removed; combined-input status and tabs remain legible; narrow layout stacks the cards."
+        "sha256": "8600d5fd0e9334589ffc648e429d7dbc10469ce4c77e12009fe62eec904ebdab",
+        "notes": "The Combined tab and manual input section remain visible after removing the scene chooser."
       }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/combined-input-zh-CN.png",
-      "sha256": "ba9cdac6a3f19f336fd199cda2a819b81b0ec919468c86d7ce251cc9362c449c",
+      "sha256": "cb66d8a42f34c901f7e4ff0036ef4dd59f1d03ba363717e11e0fa0899bc6f7d3",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Scene-presets entry removed; combined-input status and tabs remain legible; narrow layout stacks the cards.",
+      "selection": "reviewed_actual",
+      "notes": "The Combined tab and manual input section remain visible after removing the scene chooser.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "ba9cdac6a3f19f336fd199cda2a819b81b0ec919468c86d7ce251cc9362c449c",
-        "notes": "Scene-presets entry removed; combined-input status and tabs remain legible; narrow layout stacks the cards."
+        "sha256": "cb66d8a42f34c901f7e4ff0036ef4dd59f1d03ba363717e11e0fa0899bc6f7d3",
+        "notes": "The Combined tab and manual input section remain visible after removing the scene chooser."
       }
     },
     {
@@ -1935,23 +1927,22 @@
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/control-page.png",
-      "sha256": "ae0de8a3d650ce7764c78d2d8490d0232784d6bf51eaf04b2c94cee66b1265b1",
+      "sha256": "aa5210bba738ef42123c7952460d3ece3f7975b748364fd63f5707648a133f9b",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Scene presets entry removed; scene shortcuts and guide remain, manual slider layout readable.",
+      "selection": "reviewed_actual",
+      "notes": "The removed scene chooser leaves the manual L0 control visible beneath the input tabs.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "ae0de8a3d650ce7764c78d2d8490d0232784d6bf51eaf04b2c94cee66b1265b1",
-        "notes": "Scene presets entry removed; scene shortcuts and guide remain, manual slider layout readable."
+        "sha256": "aa5210bba738ef42123c7952460d3ece3f7975b748364fd63f5707648a133f9b",
+        "notes": "The removed scene chooser leaves the manual L0 control visible beneath the input tabs."
       }
     },
     {
@@ -2145,23 +2136,22 @@
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-gate-stopped.png",
-      "sha256": "c91e48122cf26320443a53787d8a1a74d0b2513f797f0c421596f5423c08857b",
+      "sha256": "eaeb1c2da87e36dcd842d890b0f2f93d7347d1306ae53ba93e4f7885d36b28fe",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Scene-presets entry removed; closed-gate warning and Configure mappings action remain visible.",
+      "selection": "reviewed_actual",
+      "notes": "The closed-gate notice remains visible above the OSC workspace.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "c91e48122cf26320443a53787d8a1a74d0b2513f797f0c421596f5423c08857b",
-        "notes": "Scene-presets entry removed; closed-gate warning and Configure mappings action remain visible."
+        "sha256": "eaeb1c2da87e36dcd842d890b0f2f93d7347d1306ae53ba93e4f7885d36b28fe",
+        "notes": "The closed-gate notice remains visible above the OSC workspace."
       }
     },
     {
@@ -2190,23 +2180,22 @@
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-mappings-page.png",
-      "sha256": "9e6782b0b12f533f82d9d9408384cbe8c3128f83e70ceeae8cd0d08ea58273ae",
+      "sha256": "d92220cd7493f83dad7caa9a934762dd174899875f290c1ff58bca93d8c58a1d",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Actual OSC preset selector, replace/append draft buttons and calculation link remain on the mapping page without the extra modal action.",
+      "selection": "reviewed_actual",
+      "notes": "The route builder presents OSC source, calculation preset and destination axis in order.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "9e6782b0b12f533f82d9d9408384cbe8c3128f83e70ceeae8cd0d08ea58273ae",
-        "notes": "Actual OSC preset selector, replace/append draft buttons and calculation link remain on the mapping page without the extra modal action."
+        "sha256": "d92220cd7493f83dad7caa9a934762dd174899875f290c1ff58bca93d8c58a1d",
+        "notes": "The route builder presents OSC source, calculation preset and destination axis in order."
       }
     },
     {
@@ -2679,23 +2668,22 @@
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/pose-landmark-lost.png",
-      "sha256": "3c3f1171cf08bc59c4ff336c735e5d11a2545638ae77ed09884d2e29a59760d4",
+      "sha256": "6365197e011dd887b79f68e77f63c7e9dc979d34e5c74022a6be92882d39ba8b",
       "outcome": "visually_ok",
-      "selection": "reviewed_candidate",
-      "notes": "Scene-presets entry removed; emergency latch and disabled input are still prominent; experimental diagnostics stays on the OSC page.",
+      "selection": "reviewed_actual",
+      "notes": "The emergency state remains visible above the OSC experimental diagnostics.",
       "capture": {
-        "commit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "commit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1"
       },
       "reviewEvidence": {
-        "method": "original_opened",
-        "reviewer": "/root",
-        "sourceCommit": "bf35742613299174758666392fcbb2e09888abf5",
-        "runId": "44107180755",
+        "method": "reviewed_actual_screenshots",
+        "sourceCommit": "6734942b09bfe82fe37b43b944c19af28e819aa2",
+        "runId": "44305650239",
         "attempt": "1",
-        "sha256": "3c3f1171cf08bc59c4ff336c735e5d11a2545638ae77ed09884d2e29a59760d4",
-        "notes": "Scene-presets entry removed; emergency latch and disabled input are still prominent; experimental diagnostics stays on the OSC page."
+        "sha256": "6365197e011dd887b79f68e77f63c7e9dc979d34e5c74022a6be92882d39ba8b",
+        "notes": "The emergency state remains visible above the OSC experimental diagnostics."
       }
     },
     {

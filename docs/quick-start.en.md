@@ -12,9 +12,9 @@ For **VRChat/OSC**, [download Sensa](https://github.com/SeaLoong/Sensa/releases/
 
 Current Desktop/CLI builds are also available in [development previews](https://github.com/SeaLoong/Sensa/releases); Download opens the latest stable release. Choose **x64** for Intel/AMD or **ARM64** for Apple Silicon/Windows ARM. [All download formats and Linux setup](features.en.md#configuration-and-development)
 
-Click **Start setup guide**. Choose the scene you want, such as **VRChat / SPS control**, **Play a funscript** or **Manual device control**, then continue. WebSensa shows the scenes supported by the browser host.
+Open **Guided tour** in the Input header. The desktop guide starts with OSC and an L0 example. You can choose another supported input. WebSensa defaults to manual.
 
-The guide stays available as **Guided setup**. **Save and exit** keeps your place; **Resume setup** returns to it. Scene shortcuts open the relevant controls directly.
+**Save and exit** records your place. **Resume setup** returns to that step. To browse controls directly, use the input tabs.
 
 ![Manual controls in Sensa](screenshots/desktop/english-manual.png)
 
@@ -35,7 +35,7 @@ Prepare your source in **Input**. Opening a tab does not apply its input mode:
 
 ## 3. Choose mappings, transforms and axis profiles
 
-**Mapping & transforms** has **Axis mapping** and **Computed signals** subtabs. Use templates directly on their relevant page:
+Under **Mapping & transforms → Parameter to axis**, select a received OSC parameter, keep **Pass through** and **L0**, then select **Add to draft → Save changes**. Use 250 ms smoothing for jitter, or a 5% dead zone followed by smoothing for noise around zero. Expand **Customize processing steps** to append or remove operations. Select a calculation in the draft to edit its inputs and values. Other routes can reuse the same result.
 
 - **VRChat / OSC mappings:** SPS depth, vibration, combined depth/vibration and other templates. Append or replace drafts, then check actual paths and ranges.
 - **Transforms:** manual smoothing, manual/script mixing, a threshold switch or a slow wave. After loading a calculation, select its result in an axis mapping or output binding.

@@ -3,14 +3,17 @@ import { Button, Notice } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { SignalMappingRow } from './configuration-views.jsx';
 import OscFlowStatus from './OscFlowStatus.jsx';
+import { routeDependencies } from './axis-routes.js';
+import { computedOperationOptions } from './computed-signals.js';
 import { t } from './i18n.js';
 
-export default function AxisMappingsPanel({ toolbar, signalDrafts = [], computedDrafts = [],
+export default function AxisMappingsPanel({ builder, onEditStep, toolbar, signalDrafts = [], computedDrafts = [],
   oscMappingPresets = [], selectedOscPreset = '', selectedOscPresetConfig, busy = false,
   onSelectPreset, onApplyPreset, onOpenPreset, onDeletePreset, onOpenComputations,
   savedMappings = [], runtime = {}, actualInputMode = '', listening = false, hasUnsavedMappings = false,
   signalOverlapWarnings = [], latestForDraft, pathOptions = [], onUpdateMapping, onRemoveMapping, onAddMapping, onClearMappings }) {
   return <div className="axis-mappings-panel stack" data-testid="axis-mappings-panel">
+    {builder}
     <div className="preset-strip">
       <SelectField label={t('预设方案')} value={selectedOscPreset}
         options={oscMappingPresets.map(preset => ({ value: preset.id, label: preset.name }))} onChange={onSelectPreset} />
@@ -21,7 +24,7 @@ export default function AxisMappingsPanel({ toolbar, signalDrafts = [], computed
     </div>
     {toolbar}
     <div className="computed-signals-bridge actions">
-      <Button data-testid="edit-computations" variant="text" onClick={onOpenComputations}>{t('计算信号')}</Button>
+      <Button data-testid="edit-computations" variant="text" onClick={onOpenComputations}>{t('计算编辑器')}</Button>
     </div>
     <details className="inline-details">
       <summary>{t('管理预设')}</summary>
@@ -41,6 +44,12 @@ export default function AxisMappingsPanel({ toolbar, signalDrafts = [], computed
     {signalOverlapWarnings.length > 0 && <Notice>{t('同一目标轴按归一化优先级选择输入；需要混合时可先建立计算信号。')}</Notice>}
     {signalDrafts.length === 0 ? <p className="empty-state">{t('还没有轴映射')}</p> : <div className="mapping-list">
       {signalDrafts.map(draft => <div key={draft._draftId} data-mapping-draft-id={draft._draftId}>
+        {draft.sourceMode === 'Computed' && <ol className="route-steps" aria-label={t('这条路线的计算步骤')}>
+          {routeDependencies(draft, computedDrafts).map(node => <li key={node.id}>
+            <span>{node.inputs.map(input => input.sourceMode === 'Constant' ? String(input.value) : input.oscPath).join(' · ')}</span>{' → '}
+            <Button variant="text" onClick={() => onEditStep(node.id)}>{node.name || node.id} · {computedOperationOptions().find(op => op.value === node.operation)?.label || node.operation}</Button>
+          </li>)}
+        </ol>}
         <SignalMappingRow draft={draft} latestEntry={latestForDraft?.(draft)} pathOptions={pathOptions} computedSignals={computedDrafts}
           onChange={patch => onUpdateMapping(draft._draftId, patch)} onRemove={() => onRemoveMapping(draft._draftId)} />
       </div>)}

@@ -24,7 +24,7 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
     </header>
     <div className="onboarding-panel__body">
       {pageLabel && <p className="caption muted onboarding-location">{t('当前页面：{0}', [pageLabel])}</p>}
-      {activeStep === 'goal' && <p>{t('按实际输入方式选择用法，随后逐页完成设置。引导只保存进度，配置需要在对应页面明确保存。')}</p>}
+      {activeStep === 'goal' && <p>{(platform.supportsListeners === false ? t('从手动控制 L0 主轴开始，也可以选择脚本。') : t('第一次设置可跟随 OSC → L0 示例：接收一个参数，选择计算步骤，把结果送到主轴。也可以改用其他输入。'))}</p>}
       {instructions.length > 0 && <h3>{activeStep === 'input' ? t('准备 {0}', [scene?.title]) : labels[current]}</h3>}
       {instructions.length > 0 && <ol className="onboarding-instructions">{instructions.map(instruction => <li key={instruction}>{instruction}</li>)}</ol>}
       {activeStep === 'goal' && <div className="task-tiles">

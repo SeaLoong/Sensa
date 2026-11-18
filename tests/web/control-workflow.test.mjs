@@ -20,10 +20,6 @@ const compiled = await build({
 });
 const { GettingStarted, ManualControls, Workbench, setLocale, t } = await import('data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64'));
 const render = (Component, props) => renderToStaticMarkup(React.createElement(Component, props));
-function elements(node) {
-  if (!React.isValidElement(node)) return [];
-  return [node, ...React.Children.toArray(node.props.children).flatMap(elements)];
-}
 
 const output = { id: 'udp', type: 'TCodeUdp', enabled: true };
 const base = { online: true, runtime: { inputActive: true, manualOverrideEnabled: true },
@@ -144,21 +140,15 @@ test('disabled binding drafts preserve legacy readiness wording and never supply
 });
 
 for (const locale of ['zh-CN', 'en-US']) {
-  test('scene entrypoints stay visible while the richer first-run invitation stays compact for saved setups in ' + locale, () => {
+  test('the header offers a guide without a scene card in ' + locale, () => {
     setLocale(locale);
-    const props = { onNavigate() {} };
-    const firstRun = render(GettingStarted, props);
-    assert.match(firstRun, /data-testid="getting-started"/);
-    assert.doesNotMatch(firstRun, /<details/);
-    for (const task of ['osc', 'script', 'manual', 'protocol']) assert.ok(firstRun.includes(`data-testid="setup-task-${task}"`), task);
-    assert.match(firstRun, /onboarding-invitation/);
-    assert.match(firstRun, /data-testid="onboarding-start"/);
-    assert.match(firstRun, /data-testid="setup-connect-device"/);
-    const saved = render(GettingStarted, { ...props, hasOutputs: true });
-    assert.match(saved, /scene-launchpad--compact/);
-    assert.doesNotMatch(saved, /onboarding-invitation|data-testid="quick-setup"/);
-    assert.doesNotMatch(saved, /data-testid="open-scene-presets"/);
-    for (const task of ['osc', 'script', 'manual', 'protocol']) assert.ok(saved.includes(`data-testid="setup-task-${task}"`), task);
+    const fresh = render(GettingStarted, { hasOutputs: false, onboarding: { status: 'new' } });
+    assert.match(fresh, /onboarding-start/);
+    assert.match(fresh, /setup-connect-device/);
+    const saved = render(GettingStarted, { hasOutputs: true, onboarding: { status: 'dismissed' } });
+    assert.match(saved, /onboarding-resume/);
+    assert.doesNotMatch(fresh + saved, /scene-launchpad|setup-task-/);
+    assert.doesNotMatch(saved, /setup-connect-device/);
   });
 
   test('manual axis details keep all drafts and browser axis selection behind one collapsed control in ' + locale, () => {
@@ -182,18 +172,6 @@ for (const locale of ['zh-CN', 'en-US']) {
     assert.equal(JSON.stringify(draft), before);
   });
 }
-
-test('task choices only request navigation and filter unavailable host inputs', () => {
-  const navigated = [];
-  const tree = GettingStarted({ inputModes: ['manual', 'script'], onNavigate: destination => navigated.push(destination) });
-  const controls = elements(tree).filter(element => element.props['data-testid']?.startsWith('setup-'));
-  assert.deepEqual(controls.map(element => element.props['data-testid']), ['setup-task-script', 'setup-task-manual', 'setup-connect-device']);
-  for (const control of controls) control.props.onClick();
-  assert.deepEqual(navigated, ['script', 'manual', 'outputs']);
-  const empty = render(GettingStarted, { inputModes: [], onNavigate() {} });
-  assert.doesNotMatch(empty, /data-testid="setup-task-/);
-  assert.match(empty, /data-testid="setup-connect-device"/);
-});
 
 test('shared workbench keeps one actual readiness status and visible errors beside the input and device columns', () => {
   setLocale('en-US');

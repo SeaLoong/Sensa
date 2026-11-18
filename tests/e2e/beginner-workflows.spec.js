@@ -14,11 +14,6 @@ async function unchanged(page, rig, config, mutations) {
   expect(Object.values(rig.wire).every(lane => lane.length === 0)).toBe(true);
 }
 
-async function requireSceneLaunchpad(page) {
-  await expect(page.getByTestId('getting-started')).toBeVisible();
-  await expect(page.getByTestId('setup-task-script')).toBeVisible();
-}
-
 for (const locale of ['zh-CN', 'en-US']) {
   test.describe('Beginner task paths / 新手任务路径 ' + locale, () => {
     test.use({ locale });
@@ -28,33 +23,31 @@ for (const locale of ['zh-CN', 'en-US']) {
       test('first-run tasks reach usable setup without applying a mode or enabling input / 首次使用任务可直达设置且不应用或启用输入',
         { tag: ['@beginner', '@config', '@quality', '@i18n', '@osc-flow-preflight'] }, async ({ page, rig }, info) => {
           const config = await configuration(page, rig), mutations = rig.commands.filter(command => command.method !== 'GET').length;
-          const chooser = page.getByTestId('getting-started');
-          await expect(chooser).toBeVisible();
-          await expect(chooser).toHaveClass(/scene-launchpad--welcome/);
-          await expect(chooser.locator('[data-testid^="setup-task-"]')).toHaveCount(4);
-          for (const task of ['osc', 'script', 'manual', 'protocol']) await expect(chooser.getByTestId('setup-task-' + task)).toBeVisible();
-          await chooser.getByTestId('setup-task-script').click();
+          await expect(page.getByTestId('onboarding-start')).toBeVisible();
+          await expect(page.locator('.scene-launchpad')).toHaveCount(0);
+          for (const mode of ['osc', 'script', 'manual', 'protocol']) await expect(page.locator('#input-tabs-' + mode)).toBeVisible();
+          await page.locator('#input-tabs-script').click();
           await expect(page.locator('#input-tabs-script')).toBeFocused();
           await expect(page.locator('#input-tabs-script')).toHaveAttribute('aria-selected', 'true');
           await expect(page.getByRole('button', { name: await text(page, '应用输入方式'), exact: true })).toBeVisible();
           expect((await rig.overview()).input.mode).toBe('manual');
 
-          await chooser.getByTestId('setup-task-osc').click();
+          await page.locator('#input-tabs-osc').click();
           await expect(page.locator('#workspace-tabs-control')).toHaveAttribute('aria-selected', 'true');
           await expect(page.locator('#input-tabs-osc')).toHaveAttribute('aria-selected', 'true');
           await expect(page.locator('#input-tabs-osc')).toBeFocused();
           await workspace(page, '控制');
-          await chooser.getByTestId('setup-task-protocol').click();
+          await page.locator('#input-tabs-protocol').click();
           await expect(page.locator('#workspace-tabs-control')).toHaveAttribute('aria-selected', 'true');
           const protocol = page.getByTestId('protocol-inputs-panel');
-          await expect(protocol).toBeInViewport();
-          expect(await protocol.evaluate(region => region.contains(document.activeElement))).toBe(true);
+          await expect(protocol).toBeVisible();
+          await expect(page.locator('#input-tabs-protocol')).toBeFocused();
           expect((await rig.overview()).input.mode).toBe('manual');
           await workspace(page, '控制');
-          await chooser.getByTestId('setup-task-manual').click();
+          await page.locator('#input-tabs-manual').click();
           await expect(page.locator('#input-tabs-manual')).toBeFocused();
           await expect(page.getByRole('slider', { name: await text(page, 'L0 主轴'), exact: true })).toBeVisible();
-          await chooser.getByTestId('setup-connect-device').click();
+          await page.getByTestId('setup-connect-device').click();
           await expect(page.getByTestId('output-type')).toBeFocused();
           if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
           await expect(page.getByTestId('add-output')).toBeInViewport();
@@ -64,18 +57,15 @@ for (const locale of ['zh-CN', 'en-US']) {
         });
     });
 
-    test('existing connections keep task shortcuts compact and return to the selected output without enabling it / 已有连接保留紧凑任务入口且可定位输出而不启用',
+    test('existing connections use input tabs and navigate to the selected output without enabling it / 已有连接可从输入页定位到输出而不启用',
       { tag: ['@beginner', '@config', '@quality', '@i18n'] }, async ({ page, rig }, info) => {
         const config = await configuration(page, rig), mutations = rig.commands.filter(command => command.method !== 'GET').length;
-        const launchpad = page.getByTestId('getting-started');
-        await expect(launchpad).toHaveClass(/scene-launchpad--compact/);
-        await requireSceneLaunchpad(page);
-        const script = launchpad.getByTestId('setup-task-script');
+        await expect(page.locator('.scene-launchpad')).toHaveCount(0);
+        const script = page.locator('#input-tabs-script');
         await script.focus(); await script.press('Enter');
         await expect(page.locator('#input-tabs-script')).toBeFocused();
         await expect(page.getByRole('button', { name: await text(page, '应用输入方式'), exact: true })).toBeVisible();
         expect((await rig.overview()).input.mode).toBe('manual');
-        await requireSceneLaunchpad(page);
         await workspace(page, '输出');
         await expect(page.locator('#workspace-tabs-outputs')).toBeFocused();
         if (await page.locator('#workspace-tabs-outputs').getAttribute('aria-selected') !== 'true') await page.locator('#workspace-tabs-outputs').click();
@@ -109,8 +99,8 @@ for (const locale of ['zh-CN', 'en-US']) {
         await summary.focus(); await summary.press('Enter');
         await expect(l1).toHaveValue('735');
         await expect(manual.locator('input[type=number]').nth(3)).toHaveValue('285');
-        await requireSceneLaunchpad(page); await page.getByTestId('setup-task-script').click();
-        await requireSceneLaunchpad(page); await page.getByTestId('setup-task-manual').click();
+        await page.locator('#input-tabs-script').click();
+        await page.locator('#input-tabs-manual').click();
         await expect(l0).toHaveValue('615');
         if (await details.getAttribute('open') === null) await summary.click();
         await expect(l1).toHaveValue('735');
