@@ -87,7 +87,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           expect(initial.config.outputs).toEqual([]);
           await page.getByTestId('onboarding-start').click();
           await step(page, 'goal');
-          await expect(page.getByTestId('onboarding-next')).toBeDisabled();
+          await expect(page.getByTestId('onboarding-goal-osc')).toHaveAttribute('aria-pressed', 'true');
           await page.getByTestId('onboarding-goal-' + goal).click();
           const next = page.getByTestId('onboarding-next');
           await next.click();
@@ -103,15 +103,19 @@ for (const locale of ['zh-CN', 'en-US']) {
             await page.getByTestId('onboarding-edit-mappings').click();
             await expect(page.getByTestId('guided-mapping-editor')).toBeVisible();
             await expect(page.getByTestId('guided-tour')).toHaveCount(0);
-            await page.getByRole('button', { name: await text(page, '新增映射'), exact: true }).click();
-            const row = page.locator('.mapping-row').last();
-            await row.locator('.mapping-row__path input').fill('/avatar/parameters/GuideDepth');
-            await row.locator('.mapping-row__target select').selectOption('Depth');
+            await page.getByTestId('route-source').fill('/avatar/parameters/GuideDepth');
+            await expect(page.getByTestId('route-axis')).toHaveValue('Depth');
+            await page.getByTestId('route-preset').selectOption('filtered');
+            await page.getByTestId('add-axis-route').click();
             await unchanged(page, rig, prepared);
             await expect(page.getByTestId('guided-mapping-continue')).toBeDisabled();
             await page.getByTestId('save-signal-drafts').click();
             await expect.poll(async () => (await configuration(page, rig)).signals.length).toBe(prepared.config.signals.length + 1);
-            expect((await configuration(page, rig)).signals.at(-1)).toMatchObject({ role: 'Depth', oscPath: expect.stringMatching(/GuideDepth$/) });
+            const saved = await configuration(page, rig);
+            const [zone, smooth] = saved.computedSignals.slice(-2);
+            expect(zone).toMatchObject({ operation: 'DeadZone', threshold: 0.05, inputs: [{ sourceMode: 'Direct', oscPath: expect.stringMatching(/GuideDepth$/) }] });
+            expect(smooth).toMatchObject({ operation: 'Smooth', timeMs: 250, inputs: [{ sourceMode: 'Computed', oscPath: zone.id }] });
+            expect(saved.signals.at(-1)).toMatchObject({ role: 'Depth', sourceMode: 'Computed', oscPath: smooth.id });
             await page.getByTestId('guided-mapping-continue').click();
           } else {
             await next.click();
@@ -186,7 +190,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           await expect(page.getByTestId('onboarding-panel')).toHaveCount(0);
           expect((await storedGuide(page)).state).toMatchObject({ status: 'complete', goal, step: 'ready' });
           await page.reload();
-          await expect(page.getByTestId('getting-started')).toHaveClass(/scene-launchpad--compact/);
+          await expect(page.getByTestId('onboarding-start')).toBeVisible();
           await expect(page.getByTestId('onboarding-panel')).toHaveCount(0);
           await unchanged(page, rig, connected);
           await page.getByTestId('onboarding-start').click();

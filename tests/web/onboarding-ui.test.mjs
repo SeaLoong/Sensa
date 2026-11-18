@@ -97,11 +97,11 @@ test('browser guide hides native listeners and recovers a saved unavailable goal
   assert.match(html, /data-testid="onboarding-next" disabled=""/);
 });
 
-test('dismissed first-run invitation becomes compact but keeps guide and scene entrypoints available', () => {
+test('dismissed guide resumes from the header without duplicating input tabs', () => {
   const html = render(GettingStarted, { onboarding: { status: 'dismissed', goal: 'script', step: 'input' }, onNavigate() {} });
-  assert.match(html, /scene-launchpad--compact/); assert.match(html, /data-testid="onboarding-resume"/);
+  assert.match(html, /data-testid="onboarding-resume"/);
   assert.doesNotMatch(html, /data-testid="open-scene-presets"/); assert.doesNotMatch(html, /onboarding-invitation/);
-  assert.equal((html.match(/data-testid="setup-task-/g) || []).length, 4);
+  assert.doesNotMatch(html, /scene-launchpad|setup-task-/);
 });
 
 test('each preparation step gives ordered instructions in both languages', () => {

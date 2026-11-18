@@ -121,6 +121,8 @@ import { VENDOR_OUTPUT_TYPES } from './protocol-inputs.js';
 import { prepareDeviceScript } from './device-script-requests.js';
 import IntifaceFeatureFields from './IntifaceFeatureFields.jsx';
 import { intifaceFeatureErrors } from './intiface-feature-routing.js';
+import AxisRouteBuilder from './AxisRouteBuilder.jsx';
+import { buildAxisRoute } from './axis-routes.js';
 import GettingStarted from './GettingStarted.jsx';
 import ManualControls from './ManualControls.jsx';
 import Onboarding from './Onboarding.jsx';
@@ -1826,7 +1828,12 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     setEditingGuideMappings(false);
     setHelpOpen(false);
     setWorkspace('control');
-    setOnboarding(previous => onboardingReducer(previous, { type: 'start' }));
+    setOnboarding(previous => {
+      const scenes = onboardingScenes(platform);
+      const goal = scenes.some(scene => scene.id === previous.goal) ? previous.goal
+        : scenes.find(scene => scene.id === 'osc')?.id || scenes.find(scene => scene.id === 'manual')?.id || scenes[0]?.id;
+      return onboardingReducer({ ...previous, goal }, { type: 'start' });
+    });
 
   }
 
@@ -1839,11 +1846,6 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     if (onboarding.step === 'diagnostics') navigateWorkflow('logs');
     if (onboarding.step === 'ready' || onboarding.step === 'goal') setWorkspace('control');
   }, [onboarding.status, onboarding.step, onboarding.goal]);
-
-  function navigateScene(destination, goal) {
-    if (goal) changeGuide({ type: 'goal', goal });
-    navigateWorkflow(destination);
-  }
 
   function useTransformPreset(id) {
     const draft = createTransformPreset(id, computedDrafts);
@@ -2293,8 +2295,22 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     notify(t('已添加计算信号的轴映射，请调整目标轴与量程后保存。'), 'info');
   }
 
+  function addAxisRoute(path, steps, role) {
+    const route = buildAxisRoute(path, steps, role, computedDrafts);
+    if (!route) return;
+    if (route.steps.length) setComputedDrafts(previous => [...previous, ...route.steps]);
+    setSignalDrafts(previous => [...previous, route.mapping]);
+    setNavigationTarget('[data-mapping-draft-id="' + route.mapping._draftId + '"]');
+  }
+
+  function editRouteStep(id) {
+    setMappingTab('computations');
+    setComputedView({ selectedId: id, expandedIds: [id] });
+    setNavigationTarget('[data-signal-id="' + window.CSS.escape(id) + '"] summary');
+  }
+
   function renderMappings() {
-    return <AxisMappingsPanel signalDrafts={signalDrafts} computedDrafts={computedDrafts}
+    return <AxisMappingsPanel onEditStep={editRouteStep} builder={platform.supportsListeners !== false && <AxisRouteBuilder pathOptions={oscPathSuggestions} computedCount={computedDrafts.length} onAdd={addAxisRoute} />} signalDrafts={signalDrafts} computedDrafts={computedDrafts}
       oscMappingPresets={oscMappingPresets} selectedOscPreset={selectedOscPreset}
       selectedOscPresetConfig={selectedOscPresetConfig} busy={Boolean(busyKey)} onSelectPreset={setSelectedOscPreset}
       onApplyPreset={applyOscPreset} onOpenPreset={openPresetDialog} onDeletePreset={deleteSelectedPreset}
@@ -2550,7 +2566,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   const workspaceIntroduction = {
     control: { title: t('输入'), description: t('选择信号来源，准备好后应用输入方式。'), number: '01' },
-    pipeline: { title: t('映射与变换'), description: t('先选择映射或计算，再按需展开细节。'), number: '02' },
+    pipeline: { title: t('映射与变换'), description: t('把一个来源送到目标轴。中间可以直接通过，也可以串联多个计算步骤。'), number: '02' },
     axes: { title: t('轴配置'), description: t('选择设备预设，再校准行程、方向与速度。'), number: '03' },
     outputs: { title: t('输出'), description: t('连接设备、应用或录制，选择要发送的结果。'), number: '04' },
     settings: { title: t('诊断'), description: t('查看运行日志，排查连接和信号问题。'), number: '05' },
@@ -2619,6 +2635,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             className={`workspace-panel workspace-panel--${workspace}`}
           >
             <header className="workspace-intro"><span className="workspace-intro__number" aria-hidden="true">{workspaceIntroduction.number}</span><div><h2>{workspaceIntroduction.title}</h2>{workspaceIntroduction.description && <p>{workspaceIntroduction.description}</p>}</div>
+                  {workspace === 'control' && onboarding.status !== 'active' && <GettingStarted hasOutputs={outputs.length > 0} onboarding={onboarding}
+                    onStartGuide={startGuide} onConnect={() => navigateWorkflow('outputs')} />}
                   {workspace !== 'control' && <div className="actions workspace-header__actions"><Button data-testid="workspace-start-guide" onClick={startGuide}>{t('操作引导')}</Button></div>}
                 </header>
             {!online && workspace !== 'control' && (
@@ -2638,9 +2656,6 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
               {t('其他输出连接继续使用各自的有效输入。')}</Notice>}
             {workspace === 'control' && (
               <>
-                {onboarding.status !== 'active' && <GettingStarted hasOutputs={outputs.length > 0} inputModes={platform.inputModes}
-                  supportsListeners={platform.supportsListeners !== false} onboarding={onboarding} onNavigate={navigateScene}
-                  onStartGuide={startGuide} onDismissGuide={() => changeGuide({ type: 'dismiss' })} />}
                 <div className="workspace-status">
                   <ControlFlowStatus online={online} runtime={runtimeOverview || {}} mode={actualInputMode}
                     selectedMode={selectedInputTab} script={scriptState || {}} outputs={outputs}
@@ -2795,7 +2810,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
               {editingGuideMappings && <div className="stack" data-testid="guided-mapping-editor">
                 <p>{t('在下方编辑来源和目标轴。轴映射与计算信号一起保存，保存后可继续设置设备行程。')}</p>
                 <div className="actions">
-                  <Button tone="primary" data-testid="guided-mapping-continue" disabled={hasUnsavedMappings || hasIncompleteMappings} onClick={() => changeGuide({ type: 'step', step: 'axes' })}>{t('继续到轴配置')}</Button>
+                  <Button tone="primary" data-testid="guided-mapping-continue" disabled={hasUnsavedMappings || hasIncompleteMappings || (onboarding.goal === 'osc' && !config?.signals?.length)} onClick={() => changeGuide({ type: 'step', step: 'axes' })}>{t('继续到轴配置')}</Button>
                   <Button variant="text" onClick={() => changeGuide({ type: 'dismiss' })}>{t('保存并退出')}</Button>
                 </div>
               </div>}
@@ -2803,7 +2818,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                 setMappingTab(next);
                 if (onboarding.status === 'active' && onboarding.step === 'mapping') setEditingGuideMappings(true);
               }}
-                options={[{ value: 'mappings', label: t('轴映射') }, { value: 'computations', label: t('计算信号') }]} />
+                options={[{ value: 'mappings', label: t('参数到轴') }, { value: 'computations', label: t('计算编辑器') }]} />
               {renderSignalDraftToolbar(mappingTab === 'mappings' ? 'osc' : 'pipeline')}
               <div id="mapping-tabs-panel" role="tabpanel" aria-labelledby={`mapping-tabs-${mappingTab}`}>
                 {mappingTab === 'mappings' && renderMappings()}
@@ -2951,7 +2966,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
         onDismiss={() => changeGuide({ type: 'dismiss' })} emergencyAction={emergencyAction}>
         <Onboarding state={onboarding} platform={platform} outputCount={outputs.length} availableOutputs={availableOutputCount}
           savedMappingCount={config?.signals?.length || 0} inputPrepared={guidePrepared}
-          onEditMappings={() => { setEditingGuideMappings(true); setNavigationTarget(signalDrafts.length ? '.mapping-row__source select' : '.mapping-actions button'); }} actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
+          onEditMappings={() => { setEditingGuideMappings(true); setNavigationTarget(platform.supportsListeners !== false ? '[data-testid="route-source"]' : '.mapping-actions button'); }} actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
           onChange={changeGuide} onNavigate={navigateWorkflow} onCreateProfile={openNewProfileDialog}
           onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />
       </GuidedTour>}

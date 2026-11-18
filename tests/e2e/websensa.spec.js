@@ -136,14 +136,12 @@ for (const locale of ['zh-CN', 'en-US']) {
       await page.goto(base + '/Sensa/websensa/?lang=' + locale);
       await expect(page.getByRole('heading', { name: 'WebSensa', exact: true })).toBeVisible();
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
-      const chooser = page.getByTestId('getting-started');
-      await expect(chooser).toBeVisible();
-      await expect(chooser.locator('[data-testid^="setup-task-"]')).toHaveCount(2);
-      await expect(chooser.getByTestId('setup-task-osc')).toHaveCount(0);
-      await chooser.getByTestId('setup-task-script').click();
+      await expect(page.locator('.scene-launchpad')).toHaveCount(0);
+      await expect(page.locator('#input-tabs-osc')).toHaveCount(0);
+      await page.locator('#input-tabs-script').click();
       await expect(page.locator('#input-tabs-script')).toBeFocused();
       await expect(page.getByRole('button', { name: label('应用输入方式'), exact: true })).toBeVisible();
-      await chooser.getByTestId('setup-task-manual').click();
+      await page.locator('#input-tabs-manual').click();
       await expect(page.locator('#input-tabs-manual')).toBeFocused();
       const manual = page.locator('.manual-workspace'), details = manual.getByTestId('manual-more-axes'), summary = details.locator('summary');
       await expect(manual.getByRole('slider')).toHaveCount(1);
