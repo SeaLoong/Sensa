@@ -1,3 +1,4 @@
+import { routeParameterPath } from './mapping-path-suggestions.js';
 import { COMPUTED_SIGNAL_LIMIT, makeComputedInput, newComputedDraft } from './computed-signals.js';
 import { t } from './i18n.js';
 
@@ -7,10 +8,6 @@ export function axisRoutePresets() {
     { value: 'smooth', label: t('平滑 250 ms'), steps: [{ operation: 'Smooth', timeMs: 250 }] },
     { value: 'filtered', label: t('5% 死区 → 平滑 250 ms'), steps: [{ operation: 'DeadZone', threshold: 0.05 }, { operation: 'Smooth', timeMs: 250 }] },
   ];
-}
-
-export function routeParameterPath(path) {
-  return path.split(/[;\n]/u).map(part => part.trim().replace(/^\/avatar\/parameters(?:\/|$)/u, '')).filter(Boolean).join(';');
 }
 
 export function routeStepChoices() {

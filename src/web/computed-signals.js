@@ -1,3 +1,4 @@
+import { routeParameterPath } from './mapping-path-suggestions.js';
 import { diagnostic, localized, t } from './i18n.js';
 
 export const COMPUTED_SIGNAL_LIMIT = 64;
@@ -70,7 +71,7 @@ export function stripComputedDraft(signal) {
     operation: signal.operation || 'WeightedAverage', maxAgeMs: Number(signal.maxAgeMs ?? 0),
     ...Object.fromEntries(Object.entries(COMPUTED_TIME_DEFAULTS).map(([key, fallback]) => [key, Number(signal[key] ?? fallback)])),
     inputs: (signal.inputs || []).map(input => ({ sourceMode: input.sourceMode || 'Direct',
-      oscPath: String(input.oscPath || '').trim(), pointMetric: input.pointMetric || 'Z', poseMetric: input.poseMetric || 'Depth',
+      oscPath: (input.sourceMode || 'Direct') === 'Direct' ? routeParameterPath(input.oscPath || '') : String(input.oscPath || '').trim(), pointMetric: input.pointMetric || 'Z', poseMetric: input.poseMetric || 'Depth',
       weight: Number(input.weight ?? 1), value: Number(input.value ?? 0) })) };
 }
 

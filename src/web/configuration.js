@@ -1,4 +1,4 @@
-import { routeParameterPath } from './axis-routes.js';
+import { routeParameterPath } from './mapping-path-suggestions.js';
 import { roundToStep } from './numeric.js';
 import { outputTargetsOverlap } from '../core/runtime/configuration.ts';
 import { localized, t } from './i18n.js';

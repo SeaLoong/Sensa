@@ -111,6 +111,7 @@ for (const locale of ['zh-CN', 'en-US']) {
             const calculation = mapping.getByTestId('computed-signal-card');
             await expect(calculation.getByTestId('computed-operation')).toHaveValue('Smooth');
             await calculation.getByRole('textbox', { name: await text(page, '信号名称'), exact: true }).fill('Guide smoothing');
+            await attachState(page, info, 'inline-axis-mapping-' + locale, { target: 'L0', steps: ['DeadZone', 'Smooth'] }, mapping);
             await unchanged(page, rig, prepared);
             await expect(page.getByTestId('guided-mapping-continue')).toBeDisabled();
             await page.getByTestId('save-signal-drafts').click();
