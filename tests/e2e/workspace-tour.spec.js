@@ -87,10 +87,10 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.locator('#workspace-tabs-pipeline')).toBeFocused();
         await expect(page.getByTestId('tour-highlight')).toBeVisible();
-        await expect(page.locator('.transform-presets')).toHaveAttribute('open', '');
-        await captureSpotlight(page, info, '.transform-presets .preset-card:first-child', 'spotlight-mapping-' + locale);
+        await expect(page.getByTestId('axis-mappings-panel')).toBeVisible();
+        await captureSpotlight(page, info, '#mapping-tabs-mappings', 'spotlight-mapping-' + locale);
         await guideCard.focus(); await page.keyboard.press('Shift+Tab');
-        await expect(page.locator('.transform-presets .preset-card:first-child')).toBeFocused();
+        await expect(page.locator('#mapping-tabs-mappings')).toBeFocused();
         await page.keyboard.press('Tab');
         await expect(page.getByTestId('onboarding-skip')).toBeFocused();
         await page.getByTestId('onboarding-next').click();
@@ -163,7 +163,10 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.getByTestId('onboarding-review-device').click();
         await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step', 'device');
         await expect(page.locator('#workspace-tabs-outputs')).toHaveAttribute('aria-selected', 'true');
-        await review(); await page.getByTestId('onboarding-complete').click();
+        await review();
+        await expect(page.getByTestId('onboarding-complete')).toHaveText(await text(page, '稍后继续'));
+        await page.getByTestId('onboarding-complete').click();
+        await expect(page.getByTestId('onboarding-resume')).toBeVisible();
         await expect(page.getByTestId('guided-tour')).toHaveCount(0);
         await expect(page.getByRole('switch', { name: await text(page, '输入启用'), exact: true })).not.toBeChecked();
         expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(mutations);

@@ -77,9 +77,7 @@ export function tourShades(targets, viewport) {
 
 export function tourTarget(step, goal) {
   if (step === 'input') return { manual: '.manual-primary', script: '.script-player__header', osc: '.osc-receiver-settings', protocol: '[data-testid="protocol-inputs-panel"]' }[goal] || '.input-toolbar';
-  // Focus one actionable example: the full expanded grid is taller than the
-  // space shared by the target and its instructions on a narrow screen.
-  if (step === 'mapping') return goal === 'osc' ? '.preset-strip' : '.transform-presets .preset-card:first-child';
+  if (step === 'mapping') return '#mapping-tabs-mappings';
   return { input: '.input-toolbar', axes: '.axis-profiles-section > .section__header',
     device: '.outputs-section > .section__header', diagnostics: '.log-section > .section__header', ready: '.header-actions' }[step] || null;
 }

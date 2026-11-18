@@ -1,4 +1,4 @@
-import { test, expect, text, workspace, oscWorkspace, card, observePageCommands } from './fixtures.js';
+import { test, expect, text, workspace, card, observePageCommands } from './fixtures.js';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
@@ -65,11 +65,6 @@ async function attachOutcome(info, details) {
   await info.attach('onboarding-outcome', { path: output, contentType: 'application/json' });
 }
 
-async function openPresets(page) {
-  await oscWorkspace(page, '映射');
-  return page.locator('.axis-mappings-panel');
-}
-
 async function profilePreset(page) {
   await workspace(page, '轴配置');
   const presets = page.locator('.axis-profiles-section details').filter({ has: page.locator('summary', { hasText: await text(page, '设备动作预设') }) });
@@ -86,25 +81,55 @@ for (const locale of ['zh-CN', 'en-US']) {
 
     test.describe('first use / 首次使用', () => {
       test.use({ scenario: 'first-run' });
-      test('a guide configures a device explicitly and completes without enabling input / 引导需明确配置设备且完成不启用输入',
+      for (const goal of ['manual', 'osc']) test(goal + ': a guide configures a device explicitly and completes without enabling input / 引导需明确配置设备且完成不启用输入',
         { tag: ['@onboarding', '@config', '@i18n'] }, async ({ page, rig }, info) => {
           const initial = await passiveSnapshot(page, rig);
           expect(initial.config.outputs).toEqual([]);
           await page.getByTestId('onboarding-start').click();
           await step(page, 'goal');
           await expect(page.getByTestId('onboarding-next')).toBeDisabled();
-          await page.getByTestId('onboarding-goal-manual').click();
-          await jumpToStep(page, 'input');
+          await page.getByTestId('onboarding-goal-' + goal).click();
+          const next = page.getByTestId('onboarding-next');
+          await next.click();
           await step(page, 'input');
-          await expect(page.getByTestId('tour-highlight')).toBeVisible();
-          await jumpToStep(page, 'device');
+          if (goal === 'osc') {
+            await page.getByTestId('onboarding-apply-input').click();
+            await expect.poll(async () => (await rig.overview()).input.mode).toBe('osc');
+          }
+          const prepared = await passiveSnapshot(page, rig);
+          await next.click();
+          await step(page, 'mapping');
+          if (goal === 'osc') {
+            await page.getByTestId('onboarding-edit-mappings').click();
+            await expect(page.getByTestId('guided-mapping-editor')).toBeVisible();
+            await expect(page.getByTestId('guided-tour')).toHaveCount(0);
+            await page.getByRole('button', { name: await text(page, '新增映射'), exact: true }).click();
+            const row = page.locator('.mapping-row').last();
+            await row.locator('.mapping-row__path input').fill('/avatar/parameters/GuideDepth');
+            await row.locator('.mapping-row__target select').selectOption('Depth');
+            await unchanged(page, rig, prepared);
+            await expect(page.getByTestId('guided-mapping-continue')).toBeDisabled();
+            await page.getByTestId('save-signal-drafts').click();
+            await expect.poll(async () => (await configuration(page, rig)).signals.length).toBe(prepared.config.signals.length + 1);
+            expect((await configuration(page, rig)).signals.at(-1)).toMatchObject({ role: 'Depth', oscPath: expect.stringMatching(/GuideDepth$/) });
+            await page.getByTestId('guided-mapping-continue').click();
+          } else {
+            await next.click();
+            await unchanged(page, rig, initial);
+          }
+          await step(page, 'axes');
+          await page.getByTestId('onboarding-create-profile').click();
+          const profileEditor = page.getByRole('dialog', { name: await text(page, '轴配置'), exact: true });
+          const profileName = 'Guided travel ' + locale;
+          await profileEditor.getByRole('textbox', { name: await text(page, '配置名称'), exact: true }).fill(profileName);
+          await profileEditor.getByRole('button', { name: await text(page, '保存轴配置'), exact: true }).click();
+          await expect(profileEditor).toBeHidden();
+          const profileId = (await configuration(page, rig)).axisProfiles.find(profile => profile.name === profileName).id;
+          await next.click();
           await step(page, 'device');
-          await jumpToStep(page, 'ready');
-          await expect(page.getByTestId('onboarding-complete')).toBeEnabled();
-          await jumpToStep(page, 'device');
           await page.getByTestId('onboarding-connect-device').click();
           await expect(page.getByTestId('output-type')).toBeFocused();
-          await unchanged(page, rig, initial);
+          await disarmed(page, rig);
 
           await page.getByTestId('output-type').selectOption('TCodeUdp');
           await page.getByTestId('add-output').click();
@@ -117,11 +142,12 @@ for (const locale of ['zh-CN', 'en-US']) {
           await dialog.getByRole('textbox', { name: await text(page, '名称'), exact: true }).fill(deviceName);
           await dialog.getByRole('textbox', { name: await text(page, '目标地址'), exact: true }).fill('127.0.0.1');
           await dialog.getByRole('spinbutton', { name: await text(page, '目标端口'), exact: true }).fill('19999');
+          await dialog.getByRole('combobox', { name: await text(page, '轴配置'), exact: true }).selectOption(profileId);
           await unchanged(page, rig, added);
           await dialog.getByRole('button', { name: await text(page, '保存输出'), exact: true }).click();
           await expect(dialog).toBeHidden();
           const configured = await configuration(page, rig);
-          expect(configured.outputs[0]).toMatchObject({ name: deviceName, host: '127.0.0.1', port: 19999, enabled: false });
+          expect(configured.outputs[0]).toMatchObject({ name: deviceName, host: '127.0.0.1', port: 19999, enabled: false, motionProfileId: profileId });
           await disarmed(page, rig);
           const enable = card(page, deviceName).getByRole('button', { name: await text(page, '启用'), exact: true });
           await expect.poll(() => enable.evaluate(element => {
@@ -140,10 +166,15 @@ for (const locale of ['zh-CN', 'en-US']) {
           await page.getByTestId('onboarding-connect-device').click();
           await expect.poll(() => card(page, deviceName).locator('.output-actions')
             .evaluate(element => element.contains(document.activeElement))).toBe(true);
+          await next.click();
+          await step(page, 'diagnostics');
+          await expect(page.locator('#logs-panel')).toBeVisible();
+          await next.click();
+          await step(page, 'ready');
           await jumpToStep(page, 'input');
           await step(page, 'input');
           await page.getByTestId('onboarding-prepare-input').click();
-          await expect(page.locator('#input-tabs-manual')).toBeFocused();
+          await expect(page.locator('#input-tabs-' + goal)).toBeFocused();
           await expect(page.getByTestId('onboarding-apply-input')).toHaveCount(0);
           await jumpToStep(page, 'ready');
           await step(page, 'ready');
@@ -153,16 +184,16 @@ for (const locale of ['zh-CN', 'en-US']) {
             explicitDeviceEnable: true, guideNavigationMutations: 0 }, page.getByTestId('onboarding-panel'));
           await page.getByTestId('onboarding-complete').click();
           await expect(page.getByTestId('onboarding-panel')).toHaveCount(0);
-          expect((await storedGuide(page)).state).toMatchObject({ status: 'complete', goal: 'manual', step: 'ready' });
+          expect((await storedGuide(page)).state).toMatchObject({ status: 'complete', goal, step: 'ready' });
           await page.reload();
           await expect(page.getByTestId('getting-started')).toHaveClass(/scene-launchpad--compact/);
           await expect(page.getByTestId('onboarding-panel')).toHaveCount(0);
           await unchanged(page, rig, connected);
           await page.getByTestId('onboarding-start').click();
           await step(page, 'goal');
-          await expect(page.getByTestId('onboarding-goal-manual')).toHaveAttribute('aria-pressed', 'true');
+          await expect(page.getByTestId('onboarding-goal-' + goal)).toHaveAttribute('aria-pressed', 'true');
           await unchanged(page, rig, connected);
-          await attachOutcome(info, { workflow: 'guide-device-complete', locale, goal: 'manual', completedPersisted: true,
+          await attachOutcome(info, { workflow: 'guide-device-complete', locale, goal, completedPersisted: true,
             restartStep: 'goal', inputActive: (await rig.overview()).runtime.inputActive,
             configuredOutput: (await configuration(page, rig)).outputs[0], guideNavigationMutations: 0 });
         });
@@ -245,7 +276,13 @@ for (const locale of ['zh-CN', 'en-US']) {
     test('real OSC presets replace and append drafts before a separate explicit save / 真实OSC预设先替换追加草稿再另行明确保存',
       { tag: ['@osc-flow-preflight', '@onboarding', '@config', '@i18n'] }, async ({ page, rig }, info) => {
         const initial = await passiveSnapshot(page, rig);
-        let library = await openPresets(page);
+        await page.getByTestId('onboarding-start').click();
+        await page.getByTestId('onboarding-goal-osc').click();
+        await page.getByTestId('onboarding-next').click();
+        await page.getByTestId('onboarding-next').click();
+        await expect(page.locator('#mapping-tabs-mappings')).toHaveAttribute('aria-selected', 'true');
+        await page.getByTestId('onboarding-edit-mappings').click();
+        const library = page.getByTestId('axis-mappings-panel');
         await library.getByRole('combobox', { name: await text(page, '预设方案'), exact: true }).selectOption('ogb-depth');
         await unchanged(page, rig, initial);
         await attachState(page, info, 'scene-preset-library', { locale, selectedPreset: 'ogb-depth', draftOnly: true }, library);
@@ -261,7 +298,6 @@ for (const locale of ['zh-CN', 'en-US']) {
         const depth = await passiveSnapshot(page, rig);
         expect(depth.config.computedSignals).toEqual(initial.config.computedSignals);
         expect(depth.config.outputs).toEqual(initial.config.outputs);
-        library = await openPresets(page);
         await library.getByRole('combobox', { name: await text(page, '预设方案'), exact: true }).selectOption('ogb-touch');
         await library.getByRole('button', { name: await text(page, '追加草稿'), exact: true }).click();
         await expect(page.locator('.mapping-row')).toHaveCount(2);
