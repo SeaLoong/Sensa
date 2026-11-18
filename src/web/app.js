@@ -125,6 +125,7 @@ import GettingStarted from './GettingStarted.jsx';
 import ManualControls from './ManualControls.jsx';
 import Onboarding from './Onboarding.jsx';
 import GuidedTour from './GuidedTour.jsx';
+import { tourTarget } from './tour-layout.js';
 import { createTransformPreset } from './transform-presets.js';
 import { guideInputPrepared, loadOnboarding, onboardingReducer, onboardingScenes, saveOnboarding } from './onboarding.js';
 
@@ -1874,7 +1875,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       setNavigationTarget('[data-testid="protocol-inputs-panel"]');
     } else if (destination === 'osc-mappings') {
       setWorkspace('pipeline'); setMappingTab('mappings');
-      setNavigationTarget('.preset-strip');
+      setNavigationTarget(tourTarget('mapping'));
     } else if (destination === 'pipeline') {
       setWorkspace('pipeline'); setMappingTab('computations');
       setNavigationTarget(computedView.expandedIds.includes(computedView.selectedId)
