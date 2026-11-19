@@ -100,11 +100,14 @@ for (const locale of ['zh-CN', 'en-US']) {
           await next.click();
           await step(page, 'mapping');
           if (goal === 'osc') {
-            await page.getByTestId('onboarding-edit-mappings').click();
+            await expect(page.locator('.mapping-row')).toHaveCount(prepared.config.signals.length);
+            await page.getByTestId('onboarding-append-l0').click();
             await expect(page.getByTestId('guided-mapping-editor')).toBeVisible();
             await expect(page.getByTestId('guided-tour')).toHaveCount(0);
-            await page.locator('#add-axis-mapping').click();
+            await expect(page.locator('.mapping-row')).toHaveCount(prepared.config.signals.length + 1);
             const mapping = page.locator('.mapping-row').last();
+            await expect(mapping.locator('.mapping-row__path input')).toHaveValue('Depth');
+            await expect(mapping.locator('.mapping-row__path input')).toBeFocused();
             await mapping.locator('.mapping-row__path input').fill('/avatar/parameters/GuideDepth');
             await expect(mapping.locator('.mapping-row__target select')).toHaveValue('Depth');
             await mapping.getByRole('combobox', { name: await text(page, '追加计算步骤') }).selectOption('filtered');
