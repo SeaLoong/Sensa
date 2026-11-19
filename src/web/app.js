@@ -1009,15 +1009,19 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     }).catch((error) => notify(error.message || t('保存更改失败'), 'error'));
   }
 
-  function applyOscPreset(mode = 'replace') {
-    const preset = getOscMappingPreset(config, selectedOscPreset);
+  function applyOscPreset(mode = 'replace', presetId = selectedOscPreset) {
+    const preset = getOscMappingPreset(config, presetId);
     if (!preset) {
       notify(t('请选择一个预设方案'), 'warning');
       return;
     }
 
-    const nextDrafts = preset.mappings.map((mapping) => makeSignalDraft(mapping));
-    setSignalDrafts((previous) => (mode === 'append' ? [...previous, ...nextDrafts] : nextDrafts));
+    const nextDrafts = buildSignalDrafts(preset.mappings);
+    setSignalDrafts(previous => mode === 'append' ? [...previous, ...nextDrafts] : nextDrafts);
+    if (preset.id === 'osc-l0' && mode === 'append') {
+      if (onboarding.status === 'active' && onboarding.step === 'mapping') setEditingGuideMappings(true);
+      setNavigationTarget('[data-mapping-draft-id="' + nextDrafts[0]._draftId + '"] .mapping-row__path input');
+    }
     notify(
       mode === 'append'
         ? t('已在当前页面追加预设：{0}；保存后才会真正应用', [preset.name])
@@ -1843,7 +1847,10 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   useEffect(() => {
     if (onboarding.status !== 'active') return;
     if (onboarding.step === 'input') navigateWorkflow(onboarding.goal === 'protocol' ? 'protocol-settings' : onboarding.goal || 'manual');
-    if (onboarding.step === 'mapping') navigateWorkflow('osc-mappings');
+    if (onboarding.step === 'mapping') {
+      if (onboarding.goal === 'osc') setSelectedOscPreset('osc-l0');
+      navigateWorkflow('osc-mappings');
+    }
     if (onboarding.step === 'axes') { setWorkspace('axes'); setNavigationTarget('.axis-profiles-section'); }
     if (onboarding.step === 'device') navigateWorkflow('outputs');
     if (onboarding.step === 'diagnostics') navigateWorkflow('logs');
@@ -1880,7 +1887,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       setNavigationTarget('[data-testid="protocol-inputs-panel"]');
     } else if (destination === 'osc-mappings') {
       setWorkspace('pipeline'); setShowComputations(false);
-      setNavigationTarget(tourTarget('mapping'));
+      setNavigationTarget(tourTarget('mapping', onboarding.status === 'active' ? onboarding.goal : null));
     } else if (destination === 'pipeline') {
       setWorkspace('pipeline'); setShowComputations(true); setInlineStep(null);
       setNavigationTarget(computedView.expandedIds.includes(computedView.selectedId)
@@ -2966,6 +2973,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
         onDismiss={() => changeGuide({ type: 'dismiss' })} emergencyAction={emergencyAction}>
         <Onboarding state={onboarding} platform={platform} outputCount={outputs.length} availableOutputs={availableOutputCount}
           savedMappingCount={config?.signals?.length || 0} inputPrepared={guidePrepared}
+          onAppendL0={() => applyOscPreset('append', 'osc-l0')}
           onEditMappings={() => { setEditingGuideMappings(true); setNavigationTarget('#add-axis-mapping'); }} actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
           onChange={changeGuide} onNavigate={navigateWorkflow} onCreateProfile={openNewProfileDialog}
           onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />

@@ -4,12 +4,13 @@
 
 Configuration templates live in the preset selector under **Mapping & transforms → Axis mapping**, in **Computed signals → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
 
-## Six built-in mapping templates
+## Seven built-in mapping templates
 
 A mapping preset fills common paths and motion roles so you can build a mapping quickly. Choose the matching Avatar feature, select its live source, capture your input endpoints and save. The rows remain editable for your own paths, direction, range and conditions.
 
 | Template ID | Purpose | Default destination |
 | --- | --- | --- |
+| `osc-l0` | Replace Depth with a received OSC parameter, optionally add a dead zone and smoothing | 0–1 → L0 0–999 |
 | `ogb-depth` | SPS2/SPS3 paired estimate, SPS1 or Plug depth trend | Depth → L0 |
 | `ogb-depth-touch` | Prepare SPS depth and touch-strength mappings together | Depth → L0; Touch → V0 |
 | `ogb-touch` | Touch/Frot or standalone VFH Touch Zone | V0 |

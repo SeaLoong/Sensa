@@ -4,7 +4,7 @@ import { ONBOARDING_STEPS, onboardingScenes, onboardingInstructions } from './on
 import { t } from './i18n.js';
 
 export default function Onboarding({ state, platform = {}, outputCount = 0, availableOutputs = 0, inputPrepared = false,
-  onEditMappings, savedMappingCount = 0, actualMode, inputActive = false, disabled = false, onChange, onNavigate, onApplyInput, onCreateProfile }) {
+  onAppendL0, onEditMappings, savedMappingCount = 0, actualMode, inputActive = false, disabled = false, onChange, onNavigate, onApplyInput, onCreateProfile }) {
   const scenes = onboardingScenes(platform);
   const scene = scenes.find(item => item.id === state.goal);
   const activeStep = scene ? state.step : 'goal';
@@ -33,7 +33,8 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
       </div>}
       {activeStep === 'mapping' && <div className="stack">
         <p className="caption">{savedMappingCount ? t('已保存 {0} 条轴映射', [savedMappingCount]) : t('尚未保存轴映射')}</p>
-        <Button tone="primary" data-testid="onboarding-edit-mappings" onClick={onEditMappings}>{t('编辑轴映射')}</Button>
+        {state.goal === 'osc' && <Button tone="primary" data-testid="onboarding-append-l0" onClick={onAppendL0}>{t('追加 L0 示例')}</Button>}
+        <Button tone={state.goal === 'osc' ? undefined : 'primary'} data-testid="onboarding-edit-mappings" onClick={onEditMappings}>{t('编辑轴映射')}</Button>
       </div>}
       {activeStep === 'axes' && <div className="stack">
         <Button data-testid="onboarding-create-profile" disabled={disabled} onClick={onCreateProfile}>{t('新增轴配置')}</Button>

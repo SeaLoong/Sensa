@@ -20,7 +20,7 @@ test('tour cards stay reachable at desktop, narrow and short viewports with clip
 test('guide highlights the selected source controls and each separate configuration stage', () => {
   assert.equal(tourTarget('input', 'manual'), '.manual-primary');
   assert.equal(tourTarget('input', 'script'), '.script-player__header');
-  assert.equal(tourTarget('mapping', 'osc'), '#add-axis-mapping');
+  assert.equal(tourTarget('mapping', 'osc'), '#append-mapping-preset');
   for (const goal of ['manual', 'script', 'protocol']) assert.equal(tourTarget('mapping', goal), '#add-axis-mapping');
   assert.match(tourTarget('axes'), /axis-profiles/);
   assert.match(tourTarget('device'), /outputs-section/);

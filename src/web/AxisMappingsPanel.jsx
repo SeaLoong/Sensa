@@ -23,7 +23,7 @@ export default function AxisMappingsPanel({ inlineStep, onEditStep, onAppendStep
         options={oscMappingPresets.map(preset => ({ value: preset.id, label: preset.name }))} onChange={onSelectPreset} />
       <div className="actions">
         <Button onClick={() => onApplyPreset('replace')} disabled={!selectedOscPresetConfig}>{t('替换草稿')}</Button>
-        <Button onClick={() => onApplyPreset('append')} disabled={!selectedOscPresetConfig}>{t('追加草稿')}</Button>
+        <Button id="append-mapping-preset" onClick={() => onApplyPreset('append')} disabled={!selectedOscPresetConfig}>{t('追加草稿')}</Button>
       </div>
     </div>
     {toolbar}
