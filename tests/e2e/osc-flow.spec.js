@@ -104,9 +104,9 @@ for (const locale of ['zh-CN', 'en-US']) {
         await oscWorkspace(page, '映射');
         await expectMappingTab(page, 'mappings');
         const mapTabs = page.getByRole('tablist', { name: await text(page, '映射与变换'), exact: true });
-        await expect(mapTabs.getByRole('tab')).toHaveText([await text(page, '参数到轴'), await text(page, '计算编辑器')]);
-        const computationsTab = mapTabs.getByRole('tab', { name: await text(page, '计算编辑器'), exact: true });
-        await mapTabs.getByRole('tab', { name: await text(page, '参数到轴'), exact: true }).press('ArrowRight');
+        await expect(mapTabs.getByRole('tab')).toHaveText([await text(page, '轴映射'), await text(page, '计算信号')]);
+        const computationsTab = mapTabs.getByRole('tab', { name: await text(page, '计算信号'), exact: true });
+        await mapTabs.getByRole('tab', { name: await text(page, '轴映射'), exact: true }).press('ArrowRight');
         await expect(computationsTab).toBeFocused();
         await expectMappingTab(page, 'computations');
         const editor = page.getByTestId('computed-signals-editor');

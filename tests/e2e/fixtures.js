@@ -113,7 +113,10 @@ export async function workspace(page, name) {
 }
 export async function expectMappingTab(page, tab) {
   const mappings = tab === 'mappings';
-  await expect(page.locator('#mapping-tabs-' + tab)).toHaveAttribute('aria-selected', 'true');
+  const tabs = page.getByRole('tablist', { name: await text(page, '映射与变换'), exact: true });
+  const active = tabs.getByRole('tab', { name: await text(page, mappings ? '轴映射' : '计算信号'), exact: true });
+  await expect(active).toHaveId('mapping-tabs-' + tab);
+  await expect(active).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#mapping-tabs-panel')).toHaveAttribute('aria-labelledby', 'mapping-tabs-' + tab);
   await expect(page.getByTestId(mappings ? 'axis-mappings-panel' : 'computed-signals-editor')).toBeVisible();
   await expect(page.getByTestId(mappings ? 'computed-signals-editor' : 'axis-mappings-panel')).toHaveCount(0);

@@ -92,16 +92,42 @@ for (const locale of ['zh-CN', 'en-US']) {
           const next = page.getByTestId('onboarding-next');
           await next.click();
           await step(page, 'input');
+          let observedPath, guideFeed;
           if (goal === 'osc') {
+            const instructions = page.getByTestId('onboarding-panel').locator('.onboarding-instructions');
+            await expect(instructions).toContainText(`${await text(page, '输入')} → OSC → ${await text(page, '参数')}`);
+            await expect(instructions).toContainText(locale === 'zh-CN' ? /数值.*变化.*参数路径/ : /path.*value changes/i);
+            // The UDP receiver listens after applying OSC mode; input activation is separate.
             await page.getByTestId('onboarding-apply-input').click();
+            await expect.poll(async () => (await rig.overview()).osc.listening).toBe(true);
             await expect.poll(async () => (await rig.overview()).input.mode).toBe('osc');
+            await disarmed(page, rig);
+            await page.getByTestId('onboarding-view-parameters').click();
+            await expect(page.locator('#workspace-tabs-control')).toHaveAttribute('aria-selected', 'true');
+            await expect(page.locator('#input-tabs-osc')).toHaveAttribute('aria-selected', 'true');
+            await expect(page.locator('#osc-tabs-parameters')).toHaveAttribute('aria-selected', 'true');
+            guideFeed = await rig.startFeed([['Guide/Travel', .25]]);
+            const table = page.getByRole('table', { name: await text(page, 'OSC 参数表'), exact: true });
+            const row = table.getByRole('row').filter({ has: page.getByRole('button', { name: 'Guide/Travel', exact: true }) });
+            await expect(row.locator('.parameter-value')).toHaveText('0.25');
+            await guideFeed.set([['Guide/Travel', .75]]);
+            await expect(row.locator('.parameter-value')).toHaveText('0.75');
+            observedPath = await row.locator('.parameter-link').innerText();
+            await expect(row).toBeInViewport();
+            await attachState(page, info, 'osc-guide-parameter-list-' + locale,
+              { path: observedPath, readings: [.25, .75], inputActive: false });
           }
           const prepared = await passiveSnapshot(page, rig);
           await next.click();
           await step(page, 'mapping');
           if (goal === 'osc') {
-            await expect(page.locator('.mapping-row')).toHaveCount(prepared.config.signals.length);
-            await page.getByTestId('onboarding-append-l0').click();
+            expect(prepared.config.signals).toEqual([]);
+            const panel = page.getByTestId('onboarding-panel');
+            for (const label of ['追加 L0 示例', '参数路径', '目标轴', '实时输入', '预估位置', '未命中', '保存更改', '继续到轴配置']) {
+              await expect(panel.locator('.onboarding-instructions')).toContainText(await text(page, label));
+            }
+            await expect(page.locator('.mapping-row')).toHaveCount(0);
+            await panel.getByRole('button', { name: await text(page, '追加 L0 示例'), exact: true }).click();
             await expect(page.getByTestId('guided-mapping-editor')).toBeVisible();
             await expect(page.getByTestId('guided-tour')).toHaveCount(0);
             await expect(page.locator('.mapping-row')).toHaveCount(prepared.config.signals.length + 1);
@@ -110,52 +136,38 @@ for (const locale of ['zh-CN', 'en-US']) {
             const mapping = page.locator(`[data-mapping-draft-id="${mappingId}"] .mapping-row`);
             await expect(mapping.locator('.mapping-row__path input')).toHaveValue('Depth');
             await expect(mapping.locator('.mapping-row__path input')).toBeFocused();
-            await mapping.locator('.mapping-row__path input').fill('/avatar/parameters/GuideDepth');
-            await expect(mapping.locator('.mapping-row__target select')).toHaveValue('Depth');
-            const steps = mapping.locator('details').filter({ has: page.locator('summary', { hasText: locale === 'zh-CN' ? '计算步骤' : 'Processing steps' }) });
-            const summary = steps.locator(':scope > summary');
-            await expect(summary).toBeVisible();
-            await expect(steps).toHaveJSProperty('open', false);
-            await attachState(page, info, 'axis-mapping-before-steps-' + locale, { target: 'L0', stepsCollapsed: true }, mapping);
-            await summary.click();
-            await steps.getByRole('combobox', { name: await text(page, '追加计算步骤'), exact: true }).selectOption('filtered');
-            await expectMappingTab(page, 'computations');
-            const editor = page.getByTestId('computed-signals-editor');
-            const smoothCard = editor.locator('[data-signal-id="Signal2"]');
-            await expect(smoothCard.locator(':scope > summary')).toBeFocused();
-            await expect(smoothCard.getByTestId('computed-operation')).toHaveValue('Smooth');
-            await smoothCard.getByRole('textbox', { name: await text(page, '信号名称'), exact: true }).fill('Guide smoothing');
-            await attachState(page, info, 'mapping-calculation-editor-' + locale, { signalId: 'Signal2', operation: 'Smooth' });
-
-            const returnAndCheck = async card => {
-              await expect(card.getByRole('button', { name: await text(page, '用于轴映射'), exact: true })).toHaveCount(0);
-              await card.getByRole('button', { name: await text(page, '返回当前映射'), exact: true }).click();
-              await expectMappingTab(page, 'mappings');
-              await expect(page.locator('.mapping-row')).toHaveCount(prepared.config.signals.length + 1);
-              await expect(mapping.locator('.mapping-row__target select')).toBeFocused();
-              await expect(mapping.getByRole('combobox', { name: await text(page, '计算信号'), exact: true })).toHaveValue('Signal2');
-            };
-            await returnAndCheck(smoothCard);
-            if (!await steps.evaluate(element => element.open)) await summary.click();
-            await expect(steps.getByRole('button', { name: /Guide smoothing/ })).toBeVisible();
-            await attachState(page, info, 'mapping-calculation-steps-' + locale, { target: 'L0', steps: ['DeadZone', 'Smooth'] }, steps);
-            await steps.getByRole('button', { name: new RegExp(await text(page, '死区')) }).click();
-            await expectMappingTab(page, 'computations');
-            const zoneCard = editor.locator('[data-signal-id="Signal1"]');
-            await expect(zoneCard.locator(':scope > summary')).toBeFocused();
-            await expect(zoneCard.getByTestId('computed-operation')).toHaveValue('DeadZone');
-            await expect(editor.getByTestId('computed-signal-card')).toHaveCount(2);
-            await returnAndCheck(zoneCard);
+            const path = mapping.getByLabel(await text(page, '参数路径'), { exact: true });
+            await expect(mapping.getByRole('combobox', { name: await text(page, '目标轴'), exact: true })).toHaveValue('Depth');
+            const preview = mapping.locator('.mapping-row__status');
+            const live = preview.locator('span').filter({ hasText: await text(page, '实时输入') }).locator('strong');
+            const position = preview.locator('span').filter({ hasText: await text(page, '预估位置') }).locator('strong');
+            await expect(live).toHaveText(await text(page, '未命中'));
+            await expect(position).toHaveText('—');
+            const reading = mapping.getByTestId('guided-mapping-reading');
+            await expect(reading).toContainText(await text(page, '未命中'));
+            await path.fill(observedPath);
+            await expect(live).toHaveText('0.75');
+            await expect(position).toHaveText('749');
+            await expect(reading).toContainText(await text(page, '实时输入'));
+            await expect(reading).toContainText(await text(page, '预估位置'));
+            await expect(reading).not.toContainText(await text(page, '未命中'));
+            await guideFeed.set([[observedPath, .25]]);
+            await expect(live).toHaveText('0.25');
+            await expect(position).toHaveText('250');
+            await expect(mapping.locator('.mapping-processing')).toHaveJSProperty('open', false);
+            await attachState(page, info, 'first-direct-l0-' + locale,
+              { path: observedPath, input: .25, estimatedPosition: 250, target: 'L0' }, mapping);
             await unchanged(page, rig, prepared);
-            await expect(page.getByTestId('guided-mapping-continue')).toBeDisabled();
-            await page.getByTestId('save-signal-drafts').click();
-            await expect.poll(async () => (await configuration(page, rig)).signals.length).toBe(prepared.config.signals.length + 1);
-            const saved = await configuration(page, rig);
-            const [zone, smooth] = saved.computedSignals.slice(-2);
-            expect(zone).toMatchObject({ operation: 'DeadZone', threshold: 0.05, inputs: [{ sourceMode: 'Direct', oscPath: 'GuideDepth' }] });
-            expect(smooth).toMatchObject({ name: 'Guide smoothing', operation: 'Smooth', timeMs: 250, inputs: [{ sourceMode: 'Computed', oscPath: zone.id }] });
-            expect(saved.signals.at(-1)).toMatchObject({ role: 'Depth', sourceMode: 'Computed', oscPath: smooth.id });
-            await page.getByTestId('guided-mapping-continue').click();
+            const proceed = page.getByRole('button', { name: await text(page, '继续到轴配置'), exact: true });
+            await expect(proceed).toBeDisabled();
+            await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
+            await expect.poll(async () => (await configuration(page, rig)).signals).toMatchObject([
+              { role: 'Depth', sourceMode: 'Direct', oscPath: observedPath },
+            ]);
+            expect((await configuration(page, rig)).computedSignals).toEqual(prepared.config.computedSignals);
+            await expect(proceed).toBeEnabled();
+            await guideFeed.stop();
+            await proceed.click();
           } else {
             await next.click();
             await unchanged(page, rig, initial);
@@ -241,6 +253,59 @@ for (const locale of ['zh-CN', 'en-US']) {
             configuredOutput: (await configuration(page, rig)).outputs[0], guideNavigationMutations: 0 });
         });
     });
+
+    test('processing is optional: a mapping can open and return from each shared calculation / 轴映射可选追加步骤并从计算信号返回原行',
+      { tag: ['@onboarding', '@config', '@i18n'] }, async ({ page, rig }, info) => {
+        const initial = await passiveSnapshot(page, rig);
+        await workspace(page, '映射与变换');
+        await page.locator('#add-axis-mapping').click();
+        const mappingId = await page.locator('[data-mapping-draft-id]').last().getAttribute('data-mapping-draft-id');
+        const mapping = page.locator(`[data-mapping-draft-id="${mappingId}"] .mapping-row`);
+        await mapping.locator('.mapping-row__path input').fill('/avatar/parameters/GuideDepth');
+        const steps = mapping.locator('details').filter({ has: page.locator('summary', { hasText: locale === 'zh-CN' ? '计算步骤' : 'Processing steps' }) });
+        const summary = steps.locator(':scope > summary');
+        await expect(summary).toBeVisible();
+        await expect(steps).toHaveJSProperty('open', false);
+        await attachState(page, info, 'axis-mapping-before-steps-' + locale, { target: 'L0', stepsCollapsed: true }, mapping);
+        await summary.click();
+        await steps.getByRole('combobox', { name: await text(page, '追加计算步骤'), exact: true }).selectOption('filtered');
+        await expectMappingTab(page, 'computations');
+        const editor = page.getByTestId('computed-signals-editor');
+        const smoothCard = editor.locator('[data-signal-id="Signal2"]');
+        await expect(smoothCard.locator(':scope > summary')).toBeFocused();
+        await expect(smoothCard.getByTestId('computed-operation')).toHaveValue('Smooth');
+        await smoothCard.getByRole('textbox', { name: await text(page, '信号名称'), exact: true }).fill('Guide smoothing');
+        await attachState(page, info, 'mapping-calculation-editor-' + locale, { signalId: 'Signal2', operation: 'Smooth' });
+
+        const returnAndCheck = async card => {
+          await expect(card.getByRole('button', { name: await text(page, '用于轴映射'), exact: true })).toHaveCount(0);
+          await card.getByRole('button', { name: await text(page, '返回当前映射'), exact: true }).click();
+          await expectMappingTab(page, 'mappings');
+          await expect(page.locator('.mapping-row')).toHaveCount(initial.config.signals.length + 1);
+          await expect(mapping.locator('.mapping-row__target select')).toBeFocused();
+          await expect(mapping.getByRole('combobox', { name: await text(page, '计算信号'), exact: true })).toHaveValue('Signal2');
+        };
+        await returnAndCheck(smoothCard);
+        if (!await steps.evaluate(element => element.open)) await summary.click();
+        await expect(steps.getByRole('button', { name: /Guide smoothing/ })).toBeVisible();
+        await attachState(page, info, 'mapping-calculation-steps-' + locale, { target: 'L0', steps: ['DeadZone', 'Smooth'] }, steps);
+        await steps.getByRole('button', { name: new RegExp(await text(page, '死区')) }).click();
+        await expectMappingTab(page, 'computations');
+        const zoneCard = editor.locator('[data-signal-id="Signal1"]');
+        await expect(zoneCard.locator(':scope > summary')).toBeFocused();
+        await expect(zoneCard.getByTestId('computed-operation')).toHaveValue('DeadZone');
+        await expect(editor.getByTestId('computed-signal-card')).toHaveCount(2);
+        await returnAndCheck(zoneCard);
+        await unchanged(page, rig, initial);
+        await page.getByTestId('save-signal-drafts').click();
+        await expect.poll(async () => (await configuration(page, rig)).signals.length).toBe(initial.config.signals.length + 1);
+        const saved = await configuration(page, rig);
+        const [zone, smooth] = saved.computedSignals.slice(-2);
+        expect(zone).toMatchObject({ operation: 'DeadZone', threshold: 0.05, inputs: [{ sourceMode: 'Direct', oscPath: 'GuideDepth' }] });
+        expect(smooth).toMatchObject({ name: 'Guide smoothing', operation: 'Smooth', timeMs: 250, inputs: [{ sourceMode: 'Computed', oscPath: zone.id }] });
+        expect(saved.signals.at(-1)).toMatchObject({ role: 'Depth', sourceMode: 'Computed', oscPath: smooth.id });
+        await disarmed(page, rig);
+      });
 
     test('goal routing, skip and resume preserve progress while actual readiness stays truthful / 场景导航跳过续接保留进度且就绪状态来自实际输入',
       { tag: ['@onboarding', '@config', '@i18n'] }, async ({ page, rig, browser }, info) => {

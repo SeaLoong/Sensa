@@ -38,7 +38,7 @@ Available output types appear in the menu. Unavailable entries explain the missi
 
 ## Calculations, recordings and explorer input
 
-Once one output works, **Mapping & transforms → Calculation editor** can combine inputs, smooth values or send a result to several outputs. A **Signal recording** output saves funscript tracks, CSV or JSON Lines. [Calculations and recordings](signal-pipeline.en.md)
+Once one output works, **Mapping & transforms → Computed signal** can combine inputs, smooth values or send a result to several outputs. A **Signal recording** output saves funscript tracks, CSV or JSON Lines. [Calculations and recordings](signal-pipeline.en.md)
 
 The [parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) can send simulated readings to WebSensa: select **Send to WebSensa**, then **Connect parameter explorer** in the workbench. Check the preview and enable input when ready.
 

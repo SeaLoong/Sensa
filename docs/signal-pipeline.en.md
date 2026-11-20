@@ -42,7 +42,7 @@ This flow demonstrates source, conversion, output and replay. Next, choose an OS
 
 Manual, OSC, Script and Protocol retain quick input modes; Combined lets several kinds of source contribute to output bindings. Prepare and save the setup, apply the required input mode, then enable input.
 
-Create and edit computed signals in **Mapping & transforms → Calculation editor**. If you opened a step from **Parameter to axis**, choose **Return to current mapping** to go back to its row. Use **Map to an axis** only to create another mapping for that result. **Save changes** saves the calculation graph and axis mappings together; **Restore changes** restores the drafts on both tabs to their saved state.
+Create and edit computed signals in **Mapping & transforms → Computed signal**. If you opened a step from **Axis mapping**, choose **Return to current mapping** to go back to its row. Use **Map to an axis** only to create another mapping for that result. **Save changes** saves the calculation graph and axis mappings together; **Restore changes** restores the drafts on both tabs to their saved state.
 
 | Source | Available reading | Example use |
 | --- | --- | --- |
@@ -92,7 +92,7 @@ OSC, network, MIDI, Recording and motion-axis bindings offer three sending modes
 
 ## One result, several outputs
 
-For example, create a Product calculation in Mapping & transforms → Calculation editor with the actual OSC touch value and Manual → L0 as an overall intensity, both using 0–1. Click **Save changes**, then select that saved calculation as the source in each output:
+For example, create a Product calculation in Mapping & transforms → Computed signal with the actual OSC touch value and Manual → L0 as an overall intensity, both using 0–1. Click **Save changes**, then select that saved calculation as the source in each output:
 
 | Output | Target and range | Result use |
 | --- | --- | --- |

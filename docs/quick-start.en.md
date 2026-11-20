@@ -24,26 +24,20 @@ Open **Guided tour** in the Input header. The desktop guide starts with OSC and 
 
 The guide follows **Choose a scene → Prepare input → Axis mappings → Axis profiles → Connect device → View logs → Review setup**. Each step gives an ordered checklist and highlights both the current sidebar tab (top navigation on narrow screens) and the live controls. Use **Tab / Shift+Tab** between the guide, navigation and controls; arrow-key navigation from the highlighted tab also changes the guide step. Mapping, transform and device-motion templates are on their own pages. Expand **Jump to step** for direct navigation. Longer instructions scroll separately while **Back / Next** and emergency stop remain available. Editors suspend the guide and closing them resumes it. **Escape** saves progress and leaves. **Diagnostics** opens with logs expanded on every visit; you can collapse them manually.
 
-At step three, choose **Edit axis mappings** to work directly in the editor. Select a source type and parameter path or computed signal, choose the target axis, check the ranges and direction, and select **Save changes**. Continue to **Axis profiles** to set device travel and assign that profile in the output. Manual, script and protocol inputs can skip mapping when they already supply the required axes.
-
 Prepare your source in **Input**. Opening a tab does not apply its input mode:
 
 - **Manual:** check L0. For an Intiface vibrator using its default source, use V0 under **More motion axes**; WebSensa also requires V0 under **Motion axes**.
 - **Script:** choose a `.funscript` file. For an Intiface vibrator, its output can use **L0 · depth to vibration** as the vibration source.
-- **VRChat / SPS:** inspect received parameters and sources in **Input → OSC**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps)
+- **VRChat / SPS:** leave **Input enabled** off. In **Input → OSC**, check **Enable OSC** and the receiving address and port. If you changed them, choose **Save OSC settings**. Choose **Apply input mode** to use OSC. Once you see **Listening**, select **View received parameters** in the guide. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps)
 - **Website or software:** configure a source under **Input → Protocol**, then connect the upstream application. [Protocol inputs](protocol-inputs.en.md)
 
 ## 3. Choose mappings, transforms and axis profiles
 
-In the guide, choose **Append L0 example**. On the example row in **Mapping & transforms → Parameter to axis**, replace `Depth` with a received OSC parameter and keep L0 as the target axis. Check the range before saving. If the reading is steady, leave the processing steps collapsed.
+1. Leave **Input enabled** off. In **Input → OSC → Parameters**, find a value that changes when you perform an action and note its path.
+2. For a first mapping, choose **Append L0 example** in the guide. If you already have a mapping, choose **Edit axis mappings** instead. Under **Mapping & transforms → Axis mapping**, enter the path you just saw (`Depth` is the example) and select L0 as the target. Repeat the action: **Live input** should show the received value, and **Estimated position** should change within the configured range. This is a preview, not feedback from the device.
+3. If you see **No match**, check the parameter list: is the selected source still sending, and does the path match the one in the mapping row? If the list is empty too, check that OSC is enabled in VRChat and that the sender targets the address and port where Sensa is listening. Once the preview looks right, choose **Save changes**. Input stays off after saving.
 
-If the reading jitters, expand the steps on that row and append 250 ms smoothing. Appending a step or clicking an existing one opens the **Calculation editor**. After adjusting it, choose **Return to current mapping** to go back to the original L0 row. You do not need to add another mapping.
-
-- **VRChat / OSC mappings:** SPS depth, vibration, combined depth/vibration and other templates. Append or replace drafts, then check actual paths and ranges.
-- **Transforms:** manual smoothing, manual/script mixing, a threshold switch or a slow wave. After loading a calculation, select its result in an axis mapping or output binding.
-- **Device axis profiles:** TCode first-run short travel, OSR2/SR6, L0-only or V0-only. Review direction, travel and speed in the editor before saving.
-
-**Save changes** saves axis mappings and calculations together; **Restore changes** restores both. Manual and script inputs can drive motion axes directly, so skip transforms when unnecessary. TCode profiles live on the separate **Axis profiles** page; select a saved profile on the output to use it. [Preset reference](presets.en.md)
+That is all a direct mapping needs. Use **Computed signal** only if you want to smooth a jittery reading or blend several values with a weighted average. Manual, script and protocol inputs can skip mapping if they already provide the axes you need. For TCode, review travel, direction and speed under **Axis profiles**, save the profile and select it on the output. [Preset reference](presets.en.md)
 
 ## 4. Connect outputs, review and enable
 

@@ -195,6 +195,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const [logDetailsOpen, setLogDetailsOpen] = useState(true);
   const [studio, setStudio] = useState(initialState.studio);
   const onboardingPath = typeof window === 'undefined' ? '/' : window.location.pathname;
+  const [guideShowsParameters, setGuideShowsParameters] = useState(false);
+  const [guidedMappingId, setGuidedMappingId] = useState(null);
   const [editingGuideMappings, setEditingGuideMappings] = useState(false);
   const [onboarding, setOnboarding] = useState(() => loadOnboarding(realtime.kind, onboardingPath));
   const [serialPorts, setSerialPorts] = useState(initialState.serialPorts);
@@ -702,6 +704,16 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     }
   }
 
+  function openParameterMapping(entry) {
+    const tab = mapPreviewParameter(entry);
+    if (tab) {
+      setWorkspace('control'); selectInputTab('osc'); setOscWorkspaceTab(tab);
+    } else if (onboarding.status === 'active' && onboarding.step === 'input' && onboarding.goal === 'osc') {
+      setGuidedMappingId(null);
+      changeGuide({ type: 'step', step: 'mapping' });
+    } else navigateWorkflow('osc-mappings');
+  }
+
   function usePointRig(point, calibrated = null) {
     setSelectedOscPreset('');
     setWorkspace('pipeline'); selectMappingTab('mappings');
@@ -967,7 +979,10 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     const draft = makeSignalDraft({ oscPath: prefillPath });
     setSignalDrafts(previous => [...previous, draft]);
     setNavigationTarget('[data-mapping-draft-id="' + draft._draftId + '"] .mapping-row__path input');
-    if (onboarding.status === 'active' && onboarding.step === 'mapping') setEditingGuideMappings(true);
+    if (onboarding.status === 'active' && onboarding.step === 'mapping') {
+      setGuidedMappingId(draft._draftId);
+      setEditingGuideMappings(true);
+    }
   }
 
   function removeSignalDraft(draftId) {
@@ -1021,7 +1036,10 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     const nextDrafts = buildSignalDrafts(preset.mappings);
     setSignalDrafts(previous => mode === 'append' ? [...previous, ...nextDrafts] : nextDrafts);
     if (preset.id === 'osc-l0' && mode === 'append') {
-      if (onboarding.status === 'active' && onboarding.step === 'mapping') setEditingGuideMappings(true);
+      if (onboarding.status === 'active' && onboarding.step === 'mapping') {
+        setGuidedMappingId(nextDrafts[0]._draftId);
+        setEditingGuideMappings(true);
+      }
       setNavigationTarget('[data-mapping-draft-id="' + nextDrafts[0]._draftId + '"] .mapping-row__path input');
     }
     notify(
@@ -1765,6 +1783,11 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   );
   const updateOsc = (patch) => setOscDraft((previous) => ({ ...previous, ...patch }));
   const updateOutput = (patch) => setDialog((previous) => ({ ...previous, draft: { ...previous.draft, ...patch } }));
+  const guideDraft = editingGuideMappings || (onboarding.status === 'active' && onboarding.step === 'mapping')
+    ? signalDrafts.find(row => row._draftId === guidedMappingId) || signalDrafts.at(-1) : null;
+  const guidePathTarget = guideDraft ? `[data-mapping-draft-id="${guideDraft._draftId}"] .mapping-row__path :is(input, select)` : null;
+  const guideTarget = onboarding.goal !== 'osc' ? null : onboarding.step === 'mapping' ? guidePathTarget
+    : onboarding.step === 'input' && guideShowsParameters ? '.table-scroll:has(.parameter-table)' : null;
   const latestForDraft = (draft) =>
     draft.sourceMode === 'Computed'
       ? computedPreviewById.get(draft.oscPath)
@@ -1817,6 +1840,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   }, [workspace]);
 
   function changeGuide(action) {
+    setGuideShowsParameters(false);
     setEditingGuideMappings(false);
     setOnboarding(previous => onboardingReducer(previous, action));
 
@@ -1834,6 +1858,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   }, [editingGuideMappings, workspace]);
 
   function startGuide() {
+    setGuideShowsParameters(false);
     setEditingGuideMappings(false);
     setHelpOpen(false);
     setWorkspace('control');
@@ -2333,7 +2358,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   }
 
   function renderMappings() {
-    return <AxisMappingsPanel onEditStep={editRouteStep} onAppendSteps={appendSteps}
+    return <AxisMappingsPanel guidedMappingId={editingGuideMappings && onboarding.goal === 'osc' ? guidedMappingId : null} onEditStep={editRouteStep} onAppendSteps={appendSteps}
       signalDrafts={signalDrafts} computedDrafts={computedDrafts}
       oscMappingPresets={oscMappingPresets} selectedOscPreset={selectedOscPreset}
       selectedOscPresetConfig={selectedOscPresetConfig} busy={Boolean(busyKey)} onSelectPreset={setSelectedOscPreset}
@@ -2388,12 +2413,16 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           filterKey={JSON.stringify([oscPreviewSearch, previewSourceTab, previewCategory, showFaceTracking])}
           onTogglePinned={togglePinned}
           onInspect={entry => { clearErrorNotification(); setParameterDetail(entry); }}
-          onMap={entry => { const tab = mapPreviewParameter(entry); if (tab) setOscWorkspaceTab(tab); else navigateWorkflow('osc-mappings'); }} />
+          onMap={openParameterMapping} />
       </div>
     );
   }
 
   function renderOscSettings() {
+    const guidingReceiver = onboarding.status === 'active' && onboarding.goal === 'osc' && onboarding.step === 'input';
+    const saveButton = <div className="actions osc-settings-save"><Button tone="primary" disabled={!online || Boolean(busyKey)} onClick={saveOscConfig}>
+      {t('保存 OSC 设置')}
+    </Button></div>;
     return (
       <details className="advanced-settings">
         <summary>{t('接收与转发设置')}</summary>
@@ -2438,6 +2467,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                 onChange={(event) => updateOsc({ inputTimeoutMs: Number(event.target.value) })}
               />
             </div>
+            {guidingReceiver && saveButton}
             {overview?.osc?.listenerError && <Notice tone="error">{diagnostic(overview.osc.listenerError)}</Notice>}
           </div>
           <details className="ogb-control-settings">
@@ -2568,11 +2598,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                 </div>
               </div>
             </details>
-            <div className="actions osc-settings-save">
-              <Button tone="primary" disabled={!online || Boolean(busyKey)} onClick={saveOscConfig}>
-                {t('保存 OSC 设置')}
-              </Button>
-            </div>
+            {!guidingReceiver && saveButton}
           </div>
         </div>
       </details>
@@ -2832,16 +2858,17 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             )}
             {workspace === 'pipeline' && <section className="section mapping-workspace" aria-label={t('映射与变换')}>
               {editingGuideMappings && <div className="stack" data-testid="guided-mapping-editor">
-                <p>{t('点击“新增映射”或编辑已有映射。先选来源，再按需追加计算步骤，确认 L0 和量程后保存。')}</p>
+                <p>{!hasUnsavedMappings && !hasIncompleteMappings && config?.signals?.length
+                  ? t('更改已保存。下一步设置设备允许的行程。') : t('确认预览后点“保存更改”，再继续到轴配置。保存不会启动设备。')}</p>
                 <div className="actions">
                   <Button tone="primary" data-testid="guided-mapping-continue" disabled={hasUnsavedMappings || hasIncompleteMappings || (onboarding.goal === 'osc' && !config?.signals?.length)} onClick={() => changeGuide({ type: 'step', step: 'axes' })}>{t('继续到轴配置')}</Button>
-                  <Button variant="text" onClick={() => changeGuide({ type: 'dismiss' })}>{t('保存并退出')}</Button>
+                  <Button variant="text" onClick={() => changeGuide({ type: 'dismiss' })}>{t('退出引导')}</Button>
                 </div>
               </div>}
               <Tabs id="mapping-tabs" label={t('映射与变换')} value={mappingTab} onChange={tab => {
                 selectMappingTab(tab);
                 if (onboarding.status === 'active' && onboarding.step === 'mapping') setEditingGuideMappings(true);
-              }} options={[{ value: 'mappings', label: t('参数到轴') }, { value: 'computations', label: t('计算编辑器') }]} />
+              }} options={[{ value: 'mappings', label: t('轴映射') }, { value: 'computations', label: t('计算信号') }]} />
               {renderSignalDraftToolbar(mappingTab === 'mappings' ? 'osc' : 'pipeline')}
               <div id="mapping-tabs-panel" role="tabpanel" aria-labelledby={`mapping-tabs-${mappingTab}`}>
                 {mappingTab === 'mappings' ? renderMappings() : <SignalPipelineWorkspace
@@ -2985,14 +3012,25 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           </div>
         </div>
       </main>
-      {onboarding.status === 'active' && <GuidedTour step={onboarding.step} goal={onboarding.goal} workspace={workspace}
+      {onboarding.status === 'active' && <GuidedTour targetSelector={guideTarget} step={onboarding.step} goal={onboarding.goal} workspace={workspace}
         suspended={Boolean(editingGuideMappings || dialog || profileDialog || presetDialog || helpOpen || parameterDetail || confirmClearMappings)}
         onDismiss={() => changeGuide({ type: 'dismiss' })} emergencyAction={emergencyAction}>
         <Onboarding state={onboarding} platform={platform} outputCount={outputs.length} availableOutputs={availableOutputCount}
-          savedMappingCount={config?.signals?.length || 0} inputPrepared={guidePrepared}
+          draftMappingCount={signalDrafts.length} savedMappingCount={config?.signals?.length || 0} inputPrepared={guidePrepared}
           onAppendL0={() => applyOscPreset('append', 'osc-l0')}
-          onEditMappings={() => { setEditingGuideMappings(true); setNavigationTarget('#add-axis-mapping'); }} actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
-          onChange={changeGuide} onNavigate={navigateWorkflow} onCreateProfile={openNewProfileDialog}
+          onEditMappings={() => {
+            selectMappingTab('mappings');
+            setGuidedMappingId(guideDraft?._draftId);
+            setEditingGuideMappings(true);
+            setNavigationTarget(guidePathTarget || '#add-axis-mapping');
+          }} actualMode={actualInputMode} inputActive={inputActive} disabled={!online || Boolean(busyKey)}
+          onViewParameters={() => {
+            setOscWorkspaceTab('parameters');
+            setGuideShowsParameters(true);
+          }} onChange={changeGuide} onNavigate={destination => {
+            setGuideShowsParameters(false);
+            navigateWorkflow(destination);
+          }} onCreateProfile={openNewProfileDialog}
           onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />
       </GuidedTour>}
       <Modal
@@ -3294,10 +3332,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             <Button onClick={() => setParameterDetail(null)}>{t('关闭')}</Button>
             <Button
               onClick={() => {
-                const tab = mapPreviewParameter(visibleParameterDetail.entry);
+                openParameterMapping(visibleParameterDetail.entry);
                 setParameterDetail(null);
-                if (tab === 'experimental' || tab === 'parameters') { setWorkspace('control'); selectInputTab('osc'); setOscWorkspaceTab(tab); }
-                else { setWorkspace('pipeline'); selectMappingTab('mappings'); }
               }}
             >
               {t('添加映射草稿')}

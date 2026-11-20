@@ -109,7 +109,7 @@ python -X utf8 scripts/shader-osc-bridge.py --registration surface.json --regist
 
 最多可登记 16 个图块，ID 与区域分别唯一，ROI 总像素数不超过 400 万；外接截图不超过 1600 万像素，宽高各不超过 8192。组合计算沿用最旧参与样本的时间；多个图块的 Unity 几何更新时间仍需通过客户端测量确认。
 
-在工作台**映射与变换 → 计算编辑器**中添加计算，所有输入选择 **定位测量（SensaPoint）**。位置 P 使用 `Sensa/Shader/43/**` 的 X/Y/Z，参考原点 O 使用 `Sensa/Shader/42/**` 的 X/Y/Z。随后按需要选择：
+在工作台**映射与变换 → 计算信号**中添加计算，所有输入选择 **定位测量（SensaPoint）**。位置 P 使用 `Sensa/Shader/43/**` 的 X/Y/Z，参考原点 O 使用 `Sensa/Shader/42/**` 的 X/Y/Z。随后按需要选择：
 
 | 计算 | 其余输入 | 结果 |
 | --- | --- | --- |

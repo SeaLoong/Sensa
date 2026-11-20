@@ -2,7 +2,7 @@
 
 [简体中文](presets.md) | **English**
 
-Configuration templates live in the preset selector under **Mapping & transforms → Parameter to axis**, in **Calculation editor → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
+Configuration templates live in the preset selector under **Mapping & transforms → Axis mapping**, in **Computed signal → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
 
 ## Seven built-in mapping templates
 
@@ -50,15 +50,15 @@ Use `contact-position` or `contact-speed` after building the dedicated own-root 
 
 ## Apply and customize
 
-Replace loads the preset into the mapping draft; append adds its rows. Both preserve computed signals. Review the paths/roles, then **Save changes**: calculations and axis mappings save together, including edits made in Mapping & transforms → Calculation editor. **Restore changes** restores both sets of drafts. Saving disables input; enable it when ready. To detect your own targets, choose Self while keeping paired parameters on the same object.
+Replace loads the preset into the mapping draft; append adds its rows. Both preserve computed signals. Review the paths/roles, then **Save changes**: calculations and axis mappings save together, including edits made in Mapping & transforms → Computed signal. **Restore changes** restores both sets of drafts. Saving disables input; enable it when ready. To detect your own targets, choose Self while keeping paired parameters on the same object.
 
 Custom presets can be saved or removed. Generate experimental root mappings through endpoint calibration. Configure QuickStart steps and Shader diagnostics manually using the paths exposed by the experiment. [Mapping guide](guide.en.md) · [Dictionary](osc-parameters.en.md)
 
-Create [computed signals](computed-signals.en.md) in **Mapping & transforms → Calculation editor** for blending and intermediate calculations, **Save changes**, then select their results in **Mapping & transforms → Parameter to axis** or output bindings. Custom presets store OSC parameter and tracking mappings. A [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) exports saved axis mappings, axis profiles, computations and outputs together; save current edits first to include them.
+Create [computed signals](computed-signals.en.md) in **Mapping & transforms → Computed signal** for blending and intermediate calculations, **Save changes**, then select their results in **Mapping & transforms → Axis mapping** or output bindings. Custom presets store OSC parameter and tracking mappings. A [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) exports saved axis mappings, axis profiles, computations and outputs together; save current edits first to include them.
 
 ## Common transforms
 
-Expand **Common transforms** under **Mapping & transforms → Calculation editor** and select an example to load a calculation draft. Presets do not create target-axis mappings or change the input mode automatically.
+Expand **Common transforms** under **Mapping & transforms → Computed signal** and select an example to load a calculation draft. Presets do not create target-axis mappings or change the input mode automatically.
 
 | Preset | Default behavior | Next action |
 | --- | --- | --- |

@@ -108,7 +108,7 @@ Each cycle takes one screenshot, then crops and decodes one region at a time. Al
 
 Up to 16 registrations are supported, with unique IDs and rectangles and at most 4 million ROI pixels in total. The enclosing screenshot is limited to 16 million pixels and 8192 pixels per side. Calculations retain the oldest participating sample time. Unity geometry-update timing across tiles still requires client measurement.
 
-Add calculations in **Mapping & transforms → Calculation editor**, choosing **Tracking measurement (SensaPoint)** for every input. Position P uses X/Y/Z from `Sensa/Shader/43/**`; reference origin O uses X/Y/Z from `Sensa/Shader/42/**`. Select the operation you need:
+Add calculations in **Mapping & transforms → Computed signal**, choosing **Tracking measurement (SensaPoint)** for every input. Position P uses X/Y/Z from `Sensa/Shader/43/**`; reference origin O uses X/Y/Z from `Sensa/Shader/42/**`. Select the operation you need:
 
 | Operation | Remaining inputs | Result |
 | --- | --- | --- |

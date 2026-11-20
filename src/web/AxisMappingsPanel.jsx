@@ -28,7 +28,7 @@ function MappingSteps({ draft, signals, onEdit, onAppend, onChange }) {
   </details>;
 }
 
-export default function AxisMappingsPanel({ onEditStep, onAppendSteps, signalDrafts = [], computedDrafts = [],
+export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppendSteps, signalDrafts = [], computedDrafts = [],
   oscMappingPresets = [], selectedOscPreset = '', selectedOscPresetConfig, busy = false,
   onSelectPreset, onApplyPreset, onOpenPreset, onDeletePreset,
   savedMappings = [], runtime = {}, actualInputMode = '', listening = false, hasUnsavedMappings = false,
@@ -63,7 +63,7 @@ export default function AxisMappingsPanel({ onEditStep, onAppendSteps, signalDra
     {signalOverlapWarnings.length > 0 && <Notice>{t('同一目标轴按归一化优先级选择输入；需要混合时可先建立计算信号。')}</Notice>}
     {signalDrafts.length === 0 ? <p className="empty-state">{t('还没有轴映射')}</p> : <div className="mapping-list">
       {signalDrafts.map(draft => <div key={draft._draftId} data-mapping-draft-id={draft._draftId}>
-        <SignalMappingRow draft={draft} latestEntry={latestForDraft?.(draft)} pathOptions={pathOptions} computedSignals={computedDrafts}
+        <SignalMappingRow draft={draft} guided={draft._draftId === guidedMappingId} latestEntry={latestForDraft?.(draft)} pathOptions={pathOptions} computedSignals={computedDrafts}
           onChange={patch => onUpdateMapping(draft._draftId, patch)} onRemove={() => onRemoveMapping(draft._draftId)}>
           <MappingSteps draft={draft} signals={computedDrafts} onEdit={onEditStep} onAppend={onAppendSteps} onChange={onUpdateMapping} />
         </SignalMappingRow>

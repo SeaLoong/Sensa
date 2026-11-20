@@ -2,7 +2,7 @@
   {
     "id": "osc-l0",
     "name": "OSC 参数 → L0 主轴",
-    "description": "Depth 是示例参数。换成实际收到的参数后，输入 0～1 对应主轴 0～999，可在这条映射内追加计算步骤。",
+    "description": "Depth 只是示例路径。换成实际收到的参数后，输入 0～1 对应主轴的预估位置 0～999。",
     "mappings": [
       {
         "oscPath": "Depth",

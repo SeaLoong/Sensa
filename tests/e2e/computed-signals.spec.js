@@ -74,7 +74,8 @@ for (const locale of ['zh-CN', 'en-US']) {
         const beforeDrafts = await savedConfig(page, rig);
         const mutations = rig.commands.filter(command => command.method !== 'GET').length;
         await expect(page.getByTestId('computed-signals-editor')).toHaveCount(0);
-        await page.getByRole('tab', { name: await text(page, '计算编辑器'), exact: true }).click();
+        await page.getByRole('tablist', { name: await text(page, '映射与变换'), exact: true })
+          .getByRole('tab', { name: await text(page, '计算信号'), exact: true }).click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await page.getByRole('button', { name: await text(page, '新增计算信号'), exact: true }).click();
         const card = page.getByTestId('computed-signal-card').first();
