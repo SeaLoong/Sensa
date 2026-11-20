@@ -8,7 +8,7 @@ Choose a route below, inspect coordinates, then calibrate them into device motio
 
 | Route | What you obtain | What invalidates it |
 | --- | --- | --- |
-| Contact direct tracking (SDK Beta) | Selected root in AvatarRootMeters, with relative contact-point velocity | Leaving the dedicated Receiver, invalid complete fields or stopped activity |
+| Contact direct tracking | Selected root in AvatarRootMeters, with relative contact-point velocity | Leaving the dedicated Receiver, invalid complete fields or stopped activity |
 | SPS four-anchor tracking | Your selected root in AvatarRootLocal coordinates | Leaving the common receiver coverage, saturated proximity, stopped sampling or inconsistent geometry |
 | Shader capture | Root coordinates read from a screen code, also AvatarRootLocal | Out-of-range coordinates, failed code alignment/checks or frozen images |
 | Independent Point/Handle/Pose | Experimental position/orientation in its own reference frame | Expired participating parameters or unmet pairing/grab/geometry conditions |
@@ -20,7 +20,7 @@ The [shared tracking decoder](https://github.com/SeaLoong/Sensa/blob/main/src/co
 
 ## Contact direct tracking: position and velocity from one Receiver
 
-Sensa supports SDK **3.10.6-beta.3** advanced Contact reports and the Proximity interface from Beta.2. Sensa uses one tiny spherical Sender following the selected own root and one spherical Receiver at the Avatar root with zero offsets and aligned axes. A unique channel and Self-only selection identify the intended target. Explicit Sensa/native Contact roots can be used independently of VRCFury. [Beta setup and package evidence](contact-sdk.en.md)
+Sensa supports advanced Contact reports in **stable SDK 3.10.6**; a beta SDK is not required. Sensa uses one tiny spherical Sender following the selected own root and one spherical Receiver at the Avatar root with zero offsets and aligned axes. A unique channel and Self-only selection identify the intended target. Explicit Sensa/native Contact roots can be used independently of VRCFury. [Contact setup and package evidence](contact-sdk.en.md)
 
 The SDK reports the Sender shape midpoint relative to the Receiver shape midpoint, rotated into Receiver axes, in physical metres. With this setup the frame is **AvatarRootMeters**. Its radius-based coverage is centered at the Avatar origin; the authored Receiver radius is 2 local units and `Radius` publishes the current world radius. Avatar scaling changes the physical displacement and Radius together, and a guard stops measurement before the 3 m Contact radius limit.
 

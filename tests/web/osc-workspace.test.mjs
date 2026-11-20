@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { pointCalibrationProgress, capturePointEndpoint, calibratedPointDraft, pointPreviewEntry, pointMetricOptions, pointMetricValue, pointTrackingLabel, matchesOscPathPattern, getLatestOscPreviewEntry, createOscPreviewLookup, buildOscPathSuggestions, createOscPathSuggester, createOscPreviewRanker, compileOscPathPattern, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry, probePresentation } from '../../src/web/osc-preview.js';
+import { sps3MappingSuggestion } from '../../src/web/osc-preview.js';
 import { oscWorkflowHints } from '../../src/web/osc-workflow.js';
 import { editConfiguration, buildSignalDrafts } from '../../src/web/configuration.js';
 import { computeSignalPreviewOutput, formatPreviewTimestamp, paginateOscPreview, oscCatalogVisibility } from '../../src/web/osc-workspace.js';
@@ -18,6 +19,19 @@ test('OSC times keep a complete fixed-width 24-hour shape across locales / OSC �
       assert.equal(formatPreviewTimestamp(NaN), '—');
     }
   } finally { setLocale(previous); }
+});
+
+test('stable SPS3 preview maps concrete scalar readings without legacy pairing or metadata motion', () => {
+  for (const [path, sourceMode, role] of [
+    ['OGB/Socket/Main/DepthOthers', 'OgbDepth', 'Depth'], ['OGB/Plug/Main/DepthSelf', 'OgbDepth', 'Depth'],
+    ['OGB/Plug/Main/FrotOthers', 'OgbTouch', 'V0'], ['OGB/Touch/Hand/Others', 'OgbTouch', 'V0'],
+    ['OGB/Socket/Main/TouchSelf', 'OgbTouch', 'V0'], ['OGB/Plug/Main/DepthOthers_SenderVelocityMagnitude', 'Direct', 'V0'],
+  ]) {
+    assert.deepEqual(sps3MappingSuggestion(path), { oscPath: path, sourceMode, role });
+    assert.doesNotMatch(parameterMeaning(path), /Custom parameters|自定义参数由/);
+  }
+  for (const meta of ['Version/11', 'HapticsDisabled', 'Enabled', 'Socket/Main/DepthRadius', 'Plug/Main/LengthMult1']) assert.equal(sps3MappingSuggestion('OGB/' + meta), null);
+  for (const other of ['OGB/Orf/Main/PenOthersNewRoot', 'OGB/Plug/Main/TouchSelfClose', 'OGB/Socket/Main/FrotOthers', 'Custom/DepthOthers']) assert.equal(sps3MappingSuggestion(other), undefined);
 });
 
 const point = (z, options = {}) => ({ key: 'point', prefix: 'Sensa/Handle/v1/LabHandle/Self', sourceKey: 'local', kind: 'Handle', valid: true, position: { x: .02, y: 0, z }, sampleCount: 4, ...options });
@@ -91,7 +105,7 @@ test('Contact catalog retains native parameter names and ordinal prefix-first or
     ['Sample', /生产端仍在更新/], ['Radius', /世界覆盖半径.*米/],
   ]) assert.match(parameterMeaning('Sensa/Contact/Root/' + leaf), meaning);
   assert.equal(probePresentation('Sensa/Contact/Root/Proximity_SenderLocalPositionX'), null);
-  assert.equal(pointTrackingLabel(contact(.1)), 'Contact 直接定位（SDK Beta）');
+  assert.equal(pointTrackingLabel(contact(.1)), 'Contact 直接定位');
   assert.equal(pointTrackingLabel({ kind: 'SpsRoot' }), 'SPS 四点定位');
   setLocale('en-US');
   assert.equal(pointTrackingLabel({ kind: 'SpsRoot' }), 'SPS four-anchor tracking');

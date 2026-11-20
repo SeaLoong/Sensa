@@ -36,8 +36,8 @@ test('lookup recognizes full OSC addresses while custom names and unverified fie
   const handle = lookup('Sensa/Handle/v1/LabHandle/Self/Handle_Stretch', 'en');
   assert.equal(handle.sources.find(source => source.kind === 'official-doc').url,
     'https://creators.vrchat.com/common-components/physbones/#options');
-  for (const unknown of [null, 1, {}, '', 'X', 'Custom/X', 'Custom/VelocityX', 'Custom/Proximity_SenderType',
-    'Sensa/Contact/Root/Unknown', 'Sensa/Contact/Root/Proximity_CollisionTag_Custom',
+  for (const unknown of [null, 1, {}, '', 'X', 'Custom/X', 'Custom/VelocityX',
+    'Sensa/Contact/Root/Unknown',
     'Sensa/Shader/42/CRC', 'Sensa/SPS/Root/P4', 'Sensa/SPS/*/P0',
     'Sensa/Point/v1/Root/Self/Root/A4', 'Sensa/Handle/v1/Root/Self/Tip/A0',
     'OGB/Pen/Root/PenOthersNewRoot', 'OGB/Orf/Root/PenSelfClose',
@@ -47,7 +47,22 @@ test('lookup recognizes full OSC addresses while custom names and unverified fie
   }
 });
 
-test('SDK advanced reports cite the verified Beta and separate position, relative velocity and proximity rate', () => {
+test('native SDK fields accept an arbitrary receiver base without inheriting Sensa protocol requirements', () => {
+  for (const lang of ['zh-CN', 'en-US']) for (const [suffix, type] of [
+    ['PointSeparation','Float'], ['SenderLossyScaleX','Float'], ['SenderLossyScaleY','Float'], ['SenderLossyScaleZ','Float'],
+    ['SenderLocalPositionX','Float'], ['SenderVelocityZ','Float'], ['SenderVelocityMagnitude','Float'], ['ProximitySpeed','Float'],
+    ['CollisionTag_Finger','Bool'], ['SenderType','Int']]) {
+    const ref = lookup('/avatar/parameters/Hands/Left_Pad_' + suffix, lang);
+    assert.equal(ref.valueType, type); assert.ok(ref.usage.includes('Hands/Left_Pad'));
+    assert.ok(ref.sources.some(source => source.url.endsWith('/3.10.6')));
+    assert.ok(ref.sources.every(source => source.kind !== 'sensa-protocol'));
+  }
+  assert.match(lookup('Brush_PointSeparation', 'en').definition, /no touching Sender reports −1/);
+  assert.match(lookup('Brush_SenderLossyScaleZ', 'en').definition, /all three axes reset to 1/);
+  for (const path of ['Brush', '_PointSeparation', 'Brush_SenderLossyScaleW', 'Brush_Radius', 'Brush_Sample']) assert.equal(lookup(path), null);
+});
+
+test('SDK advanced reports cite the verified stable release and separate position, relative velocity and proximity rate', () => {
   for (const axis of ['X', 'Y', 'Z']) {
     const position = lookup(native('Proximity_SenderLocalPosition' + axis), 'en');
     assert.equal(position.unit, 'm');
@@ -55,11 +70,11 @@ test('SDK advanced reports cite the verified Beta and separate position, relativ
     assert.match(position.definition, /physical metres/);
     assert.match(position.definition, /Receiver axes/);
     assert.ok(position.sources.some(source => source.kind === 'official-sdk'
-      && source.url === 'https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2'));
-    assert.ok(position.sources.some(source => source.kind === 'official-sdk'
-      && source.url === 'https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3'));
+      && source.url === 'https://github.com/vrchat/packages/releases/tag/3.10.6'));
     assert.ok(position.sources.some(source => source.kind === 'official-doc'
-      && source.url === 'https://vrc-beta-docs.netlify.app/releases/release-3-10-6'));
+      && source.url.includes('creator-docs/blob/af01805db07a0a95013601988e04f4b743a3bcd2/')));
+    assert.ok(position.sources.some(source => source.kind === 'official-doc'
+      && source.url === 'https://creators.vrchat.com/common-components/contacts/#advanced-parameters'));
     const velocity = lookup(native('Proximity_SenderVelocity' + axis), 'en');
     assert.equal(velocity.unit, 'm/s');
     assert.match(velocity.definition, /contact point/);
@@ -84,7 +99,7 @@ test('Sensa-added Radius and Sample retain their own provenance instead of claim
   }
   assert.equal(lookup(native('Radius'), 'en').unit, 'm');
   assert.match(lookup(native('Sample'), 'en').definition, /last changed/);
-  assert.match(lookup(native('Proximity_SenderType'), 'en').range, /0 none; 1 self; 2 another avatar; 3 world/);
+  assert.match(lookup(native('Proximity_SenderType'), 'en').range, /0 none or unknown; 1 self; 2 another avatar; 3 world/);
   assert.match(lookup(native('Proximity'), 'en').definition, /greatest strictly positive proximity/);
   assert.match(lookup(native('Proximity'), 'en').definition, /ties at 1.*nearest inner points/);
 });
@@ -130,6 +145,26 @@ test('SPS3 compatible OGB readings cite the released beta and retain the establi
   }
   for (const tag of ['SPS/Plug/_public', 'SPS/Socket/private', 'SPS/SocketPath/private'])
     assert.equal(lookup(tag, 'en'), null);
+});
+
+test('stable SPS3 has single depth and ungated touch fields distinct from Orf/Pen geometry', () => {
+  for (const locale of ['zh-CN', 'en-US']) for (const kind of ['Plug', 'Socket']) for (const party of ['Self', 'Others']) {
+    const depth = lookup(`OGB/${kind}/Left/Depth${party}`, locale);
+    assert.equal(depth.range, '0–1'); assert.match(depth.definition, /NewRoot\/NewTip/);
+    assert.ok(depth.sources.some(source => source.url.includes('0723fc6e') && source.url.includes('SelfAndOthersReceiverAnimatorService')));
+    const touch = lookup(`OGB/${kind}/Left/Touch${party}`, locale);
+    assert.ok(touch.usage.includes('V0')); assert.ok(touch.definition.includes('Close'));
+    assert.equal(lookup(`OGB/${kind}/Left/Touch${party}Close`, locale), null);
+  }
+  assert.match(lookup('OGB/Plug/Left/FrotOthers', 'en').definition, /Face Proximity/);
+  assert.equal(lookup('OGB/Socket/Left/FrotOthers'), null);
+  assert.equal(lookup('OGB/Socket/Left/DepthRadius', 'en').unit, 'm');
+  assert.match(lookup('OGB/Plug/Left/LengthMult1', 'en').definition, /0\.01/);
+  assert.match(lookup('OGB/Plug/Left/LengthMult2', 'en').definition, /MaxDetectedScale \(100\)/);
+  assert.equal(lookup('OGB/Socket/Left/LengthMult1'), null);
+  assert.equal(lookup('OGB/Plug/Left/DepthOthers_SenderVelocityMagnitude', 'en').unit, 'm/s');
+  assert.equal(lookup('OGB/Touch/Left/Self', 'en').range, '0–1');
+  for (const field of ['Version/11', 'Enabled', 'HapticsDisabled']) assert.equal(lookup('OGB/' + field, 'en').valueType, 'Bool');
 });
 
 test('raw Plug and Socket rubbing references distinguish SPS3 point markers from SPS1/2 marker radii', () => {

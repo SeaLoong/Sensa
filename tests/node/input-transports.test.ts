@@ -343,8 +343,11 @@ test('fixed-rate OSC sends raw packets immediately and clears stale parameters w
 });
 test('OGB fixed target emits true at start and false before the sender is disposed', async () => {
   const receiver = createSocket('udp4'); receiver.bind(0, '127.0.0.1'); await once(receiver, 'listening'); const config = oscConfig(); config.ogbControl = { enabled: true, host: '127.0.0.1', port: receiver.address().port };
-  const first = once(receiver, 'message'), services = await createOscServices(config, new OscParameterStore());
-  try { assert.equal(parseOscPacket((await first)[0] as Buffer).values[0]?.value, true); const stopped = once(receiver, 'message'); await services.dispose(); assert.equal(parseOscPacket((await stopped)[0] as Buffer).values[0]?.value, false); }
+  const packets: Buffer[] = []; receiver.on('message', data => packets.push(data));
+  const services = await createOscServices(config, new OscParameterStore());
+  const received = (enabled: boolean) => ['OGB/Enabled', 'OGB_ENABLED'].every(name =>
+    packets.some(packet => packet.equals(Buffer.from(encodeOscMessage('/avatar/parameters/' + name, enabled, 'Bool')))));
+  try { await until(() => received(true)); packets.length = 0; await services.dispose(); await until(() => received(false)); }
   finally { await services.dispose(); receiver.close(); }
 });
 test('OSCQuery receiver advertises actual ports and tears down announcement and discovery', async () => {

@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { editConfiguration, buildOutputDialogDraft, buildOscDraftFromConfig, buildSignalDrafts, computeSignalHash, getOscMappingPresets, buildPresetDialogDraft, createOutputConfig, getOutputTargetConflicts, buildSuggestedOutputTarget, normalizeAxisProfiles } from '../../src/web/configuration.js';
 import { computeSignalPreviewOutput } from '../../src/web/osc-workspace.js';
 
+import { OscParameterStore } from '../../src/core/protocols/osc.ts';
+import { RuntimeEngine } from '../../src/core/runtime/runtime.ts';
+
 function initial() {
   return { outputs: [], axisProfiles: normalizeAxisProfiles({}), osc: {}, signals: [] };
 }
@@ -26,7 +29,7 @@ test('profile lifecycle keeps one default and repairs output references without 
 
 test('all built-ins round-trip as independent drafts; custom presets preserve built-ins / 内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
   const source = initial(), builtIns = getOscMappingPresets(source);
-  assert.equal(builtIns.length, 7);
+  assert.equal(builtIns.length, 10);
   assert.equal(builtIns[0].id, 'osc-l0');
   assert.partialDeepStrictEqual(builtIns[0].mappings, [{ sourceMode: 'Direct', oscPath: 'Depth', role: 'Depth', vrchatMin: 0, vrchatMax: 1, mappedMin: 0, mappedMax: 999 }]);
   for (const preset of builtIns) {
@@ -36,10 +39,65 @@ test('all built-ins round-trip as independent drafts; custom presets preserve bu
     const config = editConfiguration(source, { kind: 'preset-save', preset: { id: dialog.presetId, name: 'Custom', mappings: dialog.mappings } });
     const custom = getOscMappingPresets(config).find(p => p.id === dialog.presetId);
     assert.equal(computeSignalHash(buildSignalDrafts(custom.mappings)), draftSnapshot);
-    assert.equal(getOscMappingPresets(config).length, 8);
+    assert.equal(getOscMappingPresets(config).length, builtIns.length + 1);
     const removed = editConfiguration(config, { kind: 'preset-remove', id: dialog.presetId });
-    assert.equal(getOscMappingPresets(removed).length, 7);
+    assert.equal(getOscMappingPresets(removed).length, builtIns.length);
     assert.throws(() => editConfiguration(source, { kind: 'preset-remove', id: preset.id }));
+  }
+});
+
+test('the shipped OGB depth and touch templates deliver stable SPS3 OSC values without legacy partners', async () => {
+  const presets = getOscMappingPresets(initial());
+  for (const [id, entries, expected] of [
+    ['ogb-depth', [['OGB/Socket/Front/DepthOthers', .4]], { L0: .4 }],
+    ['ogb-depth', [['OGB/Plug/Test/DepthOthers', .7]], { L0: .7 }],
+    ['ogb-touch', [['OGB/Socket/Front/TouchOthers', .3]], { V0: .3 }],
+    ['ogb-touch', [['OGB/Plug/Test/FrotOthers', .8]], { V0: .8 }],
+    ['ogb-touch', [['OGB/Touch/Wrist/Others', .6]], { V0: .6 }],
+    ['ogb-depth-touch', [['OGB/Socket/Front/DepthOthers', .4], ['OGB/Plug/Test/TouchOthers', .9]], { L0: .4, V0: .9 }],
+  ]) {
+    const store = new OscParameterStore(() => 1000), frames = [];
+    const runtime = new RuntimeEngine({ signals: presets.find(preset => preset.id === id).mappings }, {
+      now: () => 1000, oscStore: store, sendFrame(frame) { frames.push(frame.values); },
+    });
+    runtime.setInputMode('Osc');
+    for (const [path, value] of entries) store.set(path, value);
+    runtime.setInputActive(true); runtime.tick(); await runtime.flush();
+    for (const [axis, value] of Object.entries(expected)) assert.ok(Math.abs(frames.at(-1)?.[axis] - value) < .002, `${id}: ${axis}`);
+  }
+});
+
+test('native Contact presets use ordinary OSC readings and require a recognized sender', async () => {
+  const presets = getOscMappingPresets(initial());
+  for (const [id, field, axis, samples] of [
+    ['native-contact-separation', 'PointSeparation', 'L0', [[.05, .25], [.15, .75], [.4, 1]]],
+    ['native-contact-speed', 'SenderVelocityMagnitude', 'V0', [[.5, .5], [0, 0], [2, 1]]],
+    ['native-contact-approach', 'ProximitySpeed', 'V0', [[1, .5], [-1, 0], [3, 1]]],
+  ]) {
+    let now = 1000;
+    const frames = [], stops = [], store = new OscParameterStore(() => now);
+    const runtime = new RuntimeEngine({ signals: presets.find(preset => preset.id === id).mappings }, {
+      now: () => now, oscStore: store, sendFrame(frame) { frames.push(frame.values[axis]); },
+      stopOutputs() { stops.push(now); },
+    });
+    const tick = async () => { now += 100; runtime.tick(); await runtime.flush(); };
+    runtime.setInputMode('Osc');
+    store.set(`MyContact_${field}`, samples[0][0]);
+    runtime.setInputActive(true);
+    await tick();
+    assert.deepEqual(frames, [], `${id}: missing type must not open gate`);
+    store.set('MyContact_SenderType', 2);
+    for (const [input, expected] of samples) {
+      store.set(`MyContact_${field}`, input);
+      await tick();
+      assert.ok(Math.abs(frames.at(-1) - expected) < .002, `${id}: ${input} -> ${expected}; got ${frames.at(-1)}`);
+    }
+    const count = frames.length, stopCount = stops.length;
+    store.set('MyContact_SenderType', 0);
+    store.set(`MyContact_${field}`, field === 'PointSeparation' ? -1 : 0);
+    await tick();
+    assert.equal(frames.length, count, `${id}: sender loss does not publish a new target`);
+    assert.ok(stops.length > stopCount, `${id}: sender loss requests a stop`);
   }
 });
 

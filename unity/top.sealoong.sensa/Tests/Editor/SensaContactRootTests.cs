@@ -28,7 +28,17 @@ namespace UnityBox.Sensa.Tests
         private class StaticReceiver { public static bool advancedParameters; }
         private class ReadOnlyReceiver { public readonly bool advancedParameters; }
 
-        private void RequireBeta()
+        [Flags] private enum Reports { SenderType = 1, SenderLocalPosition = 2, SenderLossyScale = 4, SenderVelocity = 8,
+            PointSeparation = 16, ProximitySpeed = 32, CollisionTags = int.MinValue, All = -1 }
+        private class StableReceiver { public Reports advancedParameters = Reports.All; }
+        private class InheritedStableReceiver : StableReceiver { }
+        [Flags] private enum IncompleteReports { SenderType = 1 }
+        private class IncompleteReceiver { public IncompleteReports advancedParameters; }
+        private class WrongLegacyFlagsReceiver { public Reports advancedProximityParameters; }
+        private enum NotFlags { SenderType = 1, SenderLocalPosition = 2, SenderVelocity = 8, ProximitySpeed = 32, CollisionTags = int.MinValue }
+        private class NotFlagsReceiver { public NotFlags advancedParameters; }
+
+        private void RequireAdvancedSdk()
         {
             if (!SensaContactRootBuilder.IsSupported)
                 Assert.Ignore("Positive native Contact build contracts require an SDK with advanced Contact parameters.");
@@ -43,38 +53,42 @@ namespace UnityBox.Sensa.Tests
         private GameObject Build(Component target) => SensaContactRootBuilder.Build(avatar, "Root", target, "ContactBuildContract");
         private AnimatorController Controller(GameObject host) => (AnimatorController)host.GetComponent<ModularAvatarMergeAnimator>().animator;
 
-        [Test] public void BetaFeatureDetectionAcceptsOnlyBooleanFieldAndFindsInheritedSdkFeature()
+        [Test] public void DetectsWritableReportGroupsAndLegacyBoolSwitches()
         {
-            Assert.IsNull(SensaContactRootBuilder.AdvancedParametersField(null));
-            foreach (var type in new[] { typeof(OldReceiver), typeof(WrongReceiver), typeof(StaticReceiver), typeof(ReadOnlyReceiver) })
-                Assert.IsNull(SensaContactRootBuilder.AdvancedParametersField(type), type.Name);
-            Assert.AreEqual("advancedParameters", SensaContactRootBuilder.AdvancedParametersField(typeof(InheritedReceiver)).Name);
-            Assert.AreEqual("advancedProximityParameters", SensaContactRootBuilder.AdvancedParametersField(typeof(InheritedLegacyReceiver)).Name);
-            Assert.AreEqual("advancedParameters", SensaContactRootBuilder.AdvancedParametersField(typeof(BothNamesReceiver)).Name);
-            Assert.AreEqual("advancedProximityParameters", SensaContactRootBuilder.AdvancedParametersField(typeof(WrongCurrentReceiver)).Name);
+            Assert.IsNull(SensaContactRootBuilder.AdvancedParametersField(null, out _));
+            foreach (var type in new[] { typeof(OldReceiver), typeof(WrongReceiver), typeof(StaticReceiver), typeof(ReadOnlyReceiver),
+                typeof(IncompleteReceiver), typeof(WrongLegacyFlagsReceiver), typeof(NotFlagsReceiver) })
+                Assert.IsNull(SensaContactRootBuilder.AdvancedParametersField(type, out _), type.Name);
+            Assert.AreEqual("advancedParameters", SensaContactRootBuilder.AdvancedParametersField(typeof(BothNamesReceiver), out _).Name);
+            Assert.AreEqual("advancedProximityParameters", SensaContactRootBuilder.AdvancedParametersField(typeof(WrongCurrentReceiver), out _).Name);
             var current = new InheritedReceiver();
-            SensaContactRootBuilder.AdvancedParametersField(current.GetType()).SetValue(current, true);
+            SensaContactRootBuilder.EnableRootReports(current);
             Assert.IsTrue(current.advancedParameters);
             var legacy = new InheritedLegacyReceiver();
-            SensaContactRootBuilder.AdvancedParametersField(legacy.GetType()).SetValue(legacy, true);
+            SensaContactRootBuilder.EnableRootReports(legacy);
             Assert.IsTrue(legacy.advancedProximityParameters);
+            var stable = new InheritedStableReceiver();
+            SensaContactRootBuilder.EnableRootReports(stable);
+            Assert.AreEqual(Reports.SenderType | Reports.SenderLocalPosition | Reports.SenderVelocity | Reports.ProximitySpeed | Reports.CollisionTags,
+                stable.advancedParameters);
             using (new MemoryEditorLocale())
             {
                 var error = Assert.Throws<InvalidOperationException>(() => SensaContactRootBuilder.RequireSupport(typeof(OldReceiver)));
-                StringAssert.Contains("3.10.6-beta.2", error.Message);
+                StringAssert.Contains("SDK 3.10.6 or", error.Message);
                 StringAssert.Contains("advanced Contact parameters", error.Message);
                 StringAssert.Contains("SPS four-anchor tracking", error.Message);
             }
             var expected = new[] { "advancedParameters", "advancedProximityParameters" }
                 .Select(name => typeof(VRCContactReceiver).GetField(name, BindingFlags.Instance | BindingFlags.Public))
-                .FirstOrDefault(field => field?.FieldType == typeof(bool) && !field.IsInitOnly);
+                .FirstOrDefault(field => field != null && !field.IsInitOnly && (field.FieldType == typeof(bool)
+                    || field.FieldType.FullName == "VRC.Dynamics.ContactReceiver+AdvancedParameter"));
             Assert.AreEqual(expected != null, SensaContactRootBuilder.IsSupported);
             Assert.AreEqual(expected?.Name, SensaContactRootBuilder.AdvancedParametersFieldName);
         }
 
-        [Test] public void StableSdkRejectsSelectedContactMethodBeforeGeneratingAnything()
+        [Test] public void UnsupportedSdkRejectsSelectedContactMethodBeforeGeneratingAnything()
         {
-            if (SensaContactRootBuilder.IsSupported) Assert.Ignore("This assertion covers an installed SDK without the beta field.");
+            if (SensaContactRootBuilder.IsSupported) Assert.Ignore("This assertion covers an installed SDK without advanced reporting.");
             var probe = avatar.AddComponent<SensaContactRootProbe>(); probe.target = Target();
             Assert.Throws<InvalidOperationException>(() => SensaContactRootBuilder.ProcessAvatar(avatar));
             Assert.IsNull(avatar.transform.Find("SensaContactRoot_Root"));
@@ -83,7 +97,7 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void NativeReportNamesMatchActualSdkSuffixConstants()
         {
-            RequireBeta();
+            RequireAdvancedSdk();
             string[] sdkFields = { "PARAM_SENDER_TYPE", "PARAM_SENDER_LOCAL_POSITION_X", "PARAM_SENDER_LOCAL_POSITION_Y",
                 "PARAM_SENDER_LOCAL_POSITION_Z", "PARAM_SENDER_VELOCITY_X", "PARAM_SENDER_VELOCITY_Y", "PARAM_SENDER_VELOCITY_Z",
                 "PARAM_SENDER_VELOCITY_MAGNITUDE", "PARAM_PROXIMITY_SPEED" };
@@ -97,7 +111,7 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void CurrentSdkExposesAdditionalReportsAlongsideTheTwelveFieldSensaContract()
         {
-            RequireBeta();
+            RequireAdvancedSdk();
             if (SensaContactRootBuilder.AdvancedParametersFieldName != "advancedParameters")
                 Assert.Ignore("These additional native reports were introduced in SDK Beta.3.");
             foreach (var suffix in new[] { "SENDER_LOSSY_SCALE_X", "SENDER_LOSSY_SCALE_Y", "SENDER_LOSSY_SCALE_Z", "POINT_SEPARATION" })
@@ -114,7 +128,7 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void DedicatedPairUsesAvatarRootAxesAndOriginalNativeRootOffsetWithoutChangingSps()
         {
-            RequireBeta();
+            RequireAdvancedSdk();
             avatar.transform.SetPositionAndRotation(new Vector3(3, 4, 5), Quaternion.Euler(0, 67, 0));
             var target = Target(); var original = JsonUtility.ToJson(target);
             var host = Build(target);
@@ -129,7 +143,10 @@ namespace UnityBox.Sensa.Tests
             Assert.Less(Quaternion.Angle(avatar.transform.rotation, receiver.transform.rotation), .0001f);
             Assert.AreEqual(2f, receiver.radius); Assert.AreEqual(ContactBase.ShapeType.Sphere, receiver.shapeType);
             Assert.IsTrue(receiver.allowSelf && !receiver.allowOthers && receiver.localOnly);
-            Assert.IsTrue((bool)SensaContactRootBuilder.AdvancedParametersField(receiver.GetType()).GetValue(receiver));
+            var advanced = SensaContactRootBuilder.AdvancedParametersField(receiver.GetType(), out _);
+            var expected = advanced.FieldType == typeof(bool) ? (object)true
+                : Enum.Parse(advanced.FieldType, "SenderType,SenderLocalPosition,SenderVelocity,ProximitySpeed,CollisionTags");
+            Assert.AreEqual(expected, advanced.GetValue(receiver));
             var sender = host.GetComponentInChildren<VRCContactSender>(true);
             Assert.AreEqual(.001f, sender.radius); Assert.IsTrue(sender.localOnly);
             CollectionAssert.AreEqual(sender.collisionTags, receiver.collisionTags);
@@ -142,7 +159,7 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void AnimatorExportsExactlyTwelveNativeAndControlFieldsWithIntSenderType()
         {
-            RequireBeta();
+            RequireAdvancedSdk();
             var host = Build(Target()); var controller = Controller(host);
             var declarations = host.GetComponent<ModularAvatarParameters>().parameters;
             CollectionAssert.AreEquivalent(SensaContactProtocol.PublicLeaves.Select(leaf => "Sensa/Contact/Root/" + leaf),
@@ -166,7 +183,7 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void SamplingClockWritesOnlyRadiusThenSampleAndOffResetsEveryPublicField()
         {
-            RequireBeta(); avatar.transform.localScale = Vector3.one * 1.2f;
+            RequireAdvancedSdk(); avatar.transform.localScale = Vector3.one * 1.2f;
             var host = Build(Target()); var machine = Controller(host).layers[0].stateMachine;
             var samples = machine.states.Select(entry => entry.state).Where(state => state != machine.defaultState).ToArray();
             Assert.AreEqual(32, samples.Length);
@@ -202,7 +219,7 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void SdkCollisionTagBoolIsWritableInFxOnlyAndResetWhenInactive()
         {
-            RequireBeta(); var host = Build(Target()); var controller = Controller(host);
+            RequireAdvancedSdk(); var host = Build(Target()); var controller = Controller(host);
             var receiver = host.GetComponentInChildren<VRCContactReceiver>(true);
             var sdkSuffix = typeof(ContactReceiver).GetField("PARAM_COLLISION_TAG_PREFIX", BindingFlags.Public | BindingFlags.Static)
                 ?.GetRawConstantValue() as string;
@@ -228,7 +245,7 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void PublicPrefabRequiresExplicitTargetAndNdmfRemovesAuthor()
         {
-            RequireBeta(); var instance = Prefab("SensaContactRootProbe"); instance.transform.SetParent(avatar.transform, false);
+            RequireAdvancedSdk(); var instance = Prefab("SensaContactRootProbe"); instance.transform.SetParent(avatar.transform, false);
             var probe = instance.GetComponent<SensaContactRootProbe>(); Assert.NotNull(probe); Assert.IsNull(probe.target);
             Assert.AreEqual("Root", probe.instanceName);
             Assert.Throws<InvalidOperationException>(() => SensaContactRootBuilder.ProcessAvatar(avatar));
@@ -244,7 +261,7 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void InvalidRootScaleDuplicateChannelAndForeignTargetFailBeforeContactGeneration()
         {
-            RequireBeta(); var target = Target(); avatar.transform.localScale = Vector3.one * 1.6f;
+            RequireAdvancedSdk(); var target = Target(); avatar.transform.localScale = Vector3.one * 1.6f;
             Assert.Throws<InvalidOperationException>(() => Build(target));
             Assert.IsNull(avatar.transform.Find("SensaContactRoot_Root"));
             avatar.transform.localScale = new Vector3(1, 2, 1);
@@ -258,7 +275,7 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void ScaleAndOwnershipExitGuardsStopContactsWithoutContradictingSafeEntry()
         {
-            RequireBeta(); var host = Build(Target()); var machine = Controller(host).layers[0].stateMachine;
+            RequireAdvancedSdk(); var host = Build(Target()); var machine = Controller(host).layers[0].stateMachine;
             var entry = machine.defaultState.transitions.Single();
             var scaleExits = machine.anyStateTransitions.Where(transition => transition.conditions.All(condition => condition.parameter == "ScaleFactor")).ToArray();
             bool Matches(AnimatorCondition condition, float scale) => condition.mode == AnimatorConditionMode.Greater
@@ -279,7 +296,7 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void AnimatedOrConstrainedRootScaleIsRejectedForSdkMeterTracking()
         {
-            RequireBeta(); var target = Target();
+            RequireAdvancedSdk(); var target = Target();
             var clip = new AnimationClip(); clip.SetCurve("", typeof(Transform), "m_LocalScale.x", AnimationCurve.Linear(0, 1, 1, 2));
             var controller = new AnimatorController(); var machine = new AnimatorStateMachine();
             controller.AddLayer(new AnimatorControllerLayer { name = "Animated root scale", stateMachine = machine, defaultWeight = 1 });
@@ -293,7 +310,7 @@ namespace UnityBox.Sensa.Tests
         }
         [Test] public void NativeScaleConstraintRedirectedToAvatarRootIsRejectedForSdkMeterTracking()
         {
-            RequireBeta();
+            RequireAdvancedSdk();
             var type = AppDomain.CurrentDomain.GetAssemblies().Select(assembly => assembly.GetType(
                 "VRC.SDK3.Dynamics.Constraint.Components.VRCScaleConstraint")).FirstOrDefault(candidate => candidate != null);
             Assert.NotNull(type);
@@ -316,7 +333,7 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void AutoContactMethodCostsOnePairAndSelectionResetsNativeAndControlFields()
         {
-            RequireBeta(); Socket("A", Vector3.zero); Socket("B", Vector3.right * .1f);
+            RequireAdvancedSdk(); Socket("A", Vector3.zero); Socket("B", Vector3.right * .1f);
             var setup = avatar.AddComponent<SensaAutoSetup>();
             Assert.AreEqual(SensaRootTrackingMethod.FourAnchor, setup.rootTrackingMethod);
             setup.rootTrackingMethod = SensaRootTrackingMethod.ContactDirect;

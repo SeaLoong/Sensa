@@ -393,14 +393,14 @@ test('@site standalone Pages language, document navigation and independent geome
   await expect(page.locator('a[href*="/docs/osc-parameters.html"]').first()).toHaveAttribute('href', /\/Sensa\/en\/docs\/osc-parameters.html$/);
   await page.locator('#scene').selectOption('contact-sdk');
   await expect(page.locator('#path-prefix')).toHaveText('Sensa/Contact/*');
-  await expect(page.locator('#scene-title')).toHaveText('Contact direct tracking (SDK Beta)');
+  await expect(page.locator('#scene-title')).toHaveText('Contact direct tracking');
   await expect(page.locator('#three-scene')).toHaveAttribute('data-render-state', 'ready');
   await expect(page.locator('#values tr')).toHaveCount(12);
   await expect(page.locator('#values')).toContainText('Proximity_SenderVelocityMagnitude');
   await page.screenshot({ path: testInfo.outputPath('pages-explorer-contact.png'), fullPage: true });
   await page.goto(base + 'en/docs/contact-sdk.html');
-  await expect(page.locator('article h1')).toHaveText('Contact direct tracking (SDK Beta)');
-  await expect(page.locator('article a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3"]').first()).toBeVisible();
+  await expect(page.locator('article h1')).toHaveText('Contact direct tracking');
+  await expect(page.locator('article a[href="https://github.com/vrchat/packages/releases/tag/3.10.6"]').first()).toBeVisible();
   await expect(page.locator('article')).toContainText('advancedParameters');
   await expect(page.locator('article')).toContainText('_PointSeparation');
   const buildGuide = page.getByRole('link', { name: 'Unity build guide', exact: true });

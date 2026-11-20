@@ -212,20 +212,20 @@ test('OGB control sends explicit enable and final disable without activating inp
     await save.click();
     await expect.poll(async () => (await savedConfiguration(page, rig)).osc.ogbControl).toEqual({ enabled: true, host: '127.0.0.1', port: ports.hub });
     await expect(save).toBeEnabled();
-    const packet = enabled => {
-      const address = Buffer.from('/avatar/parameters/OGB_ENABLED\0');
+    const packet = (enabled, name = 'OGB_ENABLED') => {
+      const address = Buffer.from('/avatar/parameters/' + name + '\0');
       return Buffer.concat([address, Buffer.alloc((4 - address.length % 4) % 4), Buffer.from(enabled ? ',T\0\0' : ',F\0\0')]).toString('hex');
     };
-    await expect.poll(() => rig.wire.hub.includes(packet(true))).toBe(true);
+    for (const name of ['OGB/Enabled', 'OGB_ENABLED']) await expect.poll(() => rig.wire.hub.includes(packet(true, name))).toBe(true);
     await expect(settings.getByText('正在发送启用心跳', { exact: true })).toBeVisible();
     expect((await rig.overview()).runtime.inputActive).toBe(false);
     await checkpoint(page, settings, 'ogb-control-settings');
     await mode(page, '手动');
-    await expect.poll(() => rig.wire.hub.at(-1)).toBe(packet(false));
-    const disabledAt = Date.now(), enabledCount = rig.wire.hub.filter(message => message === packet(true)).length;
+    for (const name of ['OGB/Enabled', 'OGB_ENABLED']) await expect.poll(() => rig.wire.hub.includes(packet(false, name))).toBe(true);
+    const disabledAt = Date.now(), enabledCount = rig.wire.hub.filter(message => ['OGB/Enabled', 'OGB_ENABLED'].some(name => message === packet(true, name))).length;
     // Observe beyond the real five-second heartbeat, not an arbitrary UI settling delay. / 跨过实际五秒心跳周期。
     await expect.poll(() => Date.now() - disabledAt, { intervals: [250, 500, 1000], timeout: 8000 }).toBeGreaterThan(5250);
-    expect(rig.wire.hub.filter(message => message === packet(true))).toHaveLength(enabledCount);
+    expect(rig.wire.hub.filter(message => ['OGB/Enabled', 'OGB_ENABLED'].some(name => message === packet(true, name)))).toHaveLength(enabledCount);
     expect(rig.wire.hub.at(-1)).toBe(packet(false));
     expect((await rig.overview()).runtime.inputActive).toBe(false);
     expect((await savedConfiguration(page, rig)).outputs.every(output => !output.enabled)).toBe(true);

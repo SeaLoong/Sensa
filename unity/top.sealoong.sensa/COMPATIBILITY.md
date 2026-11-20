@@ -11,7 +11,7 @@
 | 输入 | 测量 | 参照与用途 |
 | --- | --- | --- |
 | SPS 四点定位 | 所选单根的 AvatarRootLocal 制作单位坐标 | 四个固定 Receiver 与一个专用自身根点 Sender |
-| Contact 直接定位（SDK Beta） | 所选单根的 AvatarRootMeters 位置及 m/s 接触点相对速度 | 一个 Receiver 与一个专用自身根点 Sender；使用 SDK 高级 Proximity 参数 |
+| Contact 直接定位 | 所选单根的 AvatarRootMeters 位置及 m/s 接触点相对速度 | 一个 Receiver 与一个专用自身根点 Sender；使用 SDK 高级 Proximity 参数 |
 | 配对 Root／Tip／Side Pose | 已知配对框架内的直线姿态实验 | 布局明确的配对标记 |
 | OGB NewRoot／NewTip | 根球长度／径向估计 | 同实例近接配对与校准后的深浅趋势 |
 | 原生 PB Stretch／IsGrabbed | 拉伸强度与抓取门控 | PhysBone 参数的标量联动 |

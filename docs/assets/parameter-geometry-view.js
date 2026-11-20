@@ -53,6 +53,11 @@
     parameter: ['参数', 'Parameter'], raw: ['模拟读数', 'Reading'], effective: ['可用读数', 'Usable value'],
     grid: ['QR Code · 当前测量', 'QR Code · live measurement'], controls: ['调整位置与尺寸', 'Adjust position and size'],
     encodingHint: ['三个角标帮助识别图块。外围白色区域容纳小幅画面位移，内部纠错数据帮助还原受损内容。', 'Three corner markers identify the code. The white border leaves room for small image shifts; error correction helps restore damaged content.'],
+    sdkFields: ['VRChat SDK 高级参数', 'VRChat SDK advanced parameters'],
+    sdkHint: ['这是基名为 Brush 的 Receiver 示例。SDK 3.10.6 正式版可勾选所需的高级参数，基名由作者指定。下面的模拟读数不是 VRChat 客户端采样，也不增加 Sensa Contact 的十二个字段。', 'This example uses Brush as the Receiver parameter. In SDK 3.10.6 stable, authors choose the base name and enable the advanced fields they need. These simulated readings are not client samples or extra fields of the 12-field Sensa Contact protocol.'],
+    sdkScaleHint: ['拖动目标，观察球心间距随位置改变；移出接收区可查看无 Sender 状态。移动不改变缩放。下方滑条独立模拟 Sender Transform 的三个世界缩放分量；图中的检测球大小保持固定。', 'Move the target to change the center-to-center distance; move outside the receiver to see the no-Sender state. Translation does not change scale. The sliders independently simulate the three world scale components of the Sender transform; the example detection spheres keep their fixed sizes.'],
+    sdkSource: ['VRChat 官方：高级参数定义', 'VRChat: Advanced Parameters'],
+    scaleX: ['Sender 世界缩放 · X', 'Sender world scale · X'], scaleY: ['Sender 世界缩放 · Y', 'Sender world scale · Y'], scaleZ: ['Sender 世界缩放 · Z', 'Sender world scale · Z'],
     shaderComponents: ['调整目标方向与 Avatar 缩放', 'Target direction and Avatar scale'],
     shaderStatistics: ['画面怎样成为测量值', 'From image to measurement'],
     measurementDetails: ['展开测量数字与精度', 'Measurement values and precision'],
@@ -89,7 +94,10 @@
     parameterReferenceSelected: ['当前选中：', 'Selected: '],
     positioning: ['定位原理', 'Positioning'], offline: ['本地 Three.js · 离线可用', 'Local Three.js · Works offline'],
     exploreTopics: ['继续了解', 'More help'], positionTopic: ['位置追踪', 'Position tracking'], depthTopic: ['进入与靠近', 'Depth and approach'], touchTopic: ['触碰响应', 'Touch response'],
-    'socket-modern': ["SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip", "SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip"],
+    sps3Fields: ['SPS3 正式版 · OGB/Socket 与 OGB/Plug', 'Stable SPS3 · OGB/Socket and OGB/Plug'],
+    sps3Scope: ['先核对收到的 OSC 路径。以下为 VRCFury 1.1491.0 的字段说明；上面的旧 Orf/Pen 图模拟的是另一组接收器，不能用它的长度球、Close 或估长公式解释这些字段。', 'Check the OSC path you actually receive. These fields are from VRCFury 1.1491.0. The older Orf/Pen diagrams above model different receivers: their length sphere, Close gate and length formula do not apply.'],
+    sps3Path: ['OSC 参数（请将 Example 换成实际对象名）', 'OSC parameter (replace Example with your object ID)'],
+    'socket-modern': ['OGB/Orf · PenOthersNewRoot / PenOthersNewTip', 'OGB/Orf · PenOthersNewRoot / PenOthersNewTip'],
     'socket-legacy': ["SPS1 · PenOthers / PenOthersClose", "SPS1 · PenOthers / PenOthersClose"],
     'plug-depth': ['Plug · PenOthers', 'Plug · PenOthers'],
     'socket-touch': ["Socket · TouchOthers / TouchOthersClose", "Socket · TouchOthers / TouchOthersClose"],
@@ -97,14 +105,14 @@
     'socket-frot': ['Socket · FrotOthers', 'Socket · FrotOthers'],
     'plug-frot': ["Plug · FrotOthers / FrotOthersClose", "Plug · FrotOthers / FrotOthersClose"],
     zone: ["Touch Zone · Others", "Touch Zone · Others"],
-    'contact-sdk': ['Contact 直接定位（SDK Beta）', 'Contact direct tracking (SDK Beta)'],
+    'contact-sdk': ['Contact 直接定位', 'Contact direct tracking'],
     'sensa-sps': ['SPS 四点定位', 'SPS four-anchor tracking'],
     shader: ["Shader · X / Y / Z", "Shader · X / Y / Z"],
   };
   const scenes = {
     'socket-modern': {
       summary: ["NewRoot 随 Plug 根部靠近 Socket 入口而增大；NewTip 与它配合，提供长度辅助信息。", "NewRoot increases as the Plug root approaches the Socket entrance. NewTip pairs with it to provide length information."],
-      explanation: ["两路配合用于估算进入程度：NewRoot 反映根部距离，NewTip 观测同一根部的长度球。下方径向参考采用滑块中的已知长度 L；侧向偏移也会改变这个距离。SPS3 的公开兼容读数沿用此 OGB 模型。", "The pair helps estimate entry: NewRoot reflects root distance, while NewTip observes a length sphere at the same root. The radial reference below uses the known slider length L; sideways movement also changes this distance. SPS3 public-compatible readings use the same OGB model."],
+      explanation: ["两路配合用于估算进入程度：NewRoot 反映根部距离，NewTip 观测同一根部的长度球。下方径向参考采用滑块中的已知长度 L；侧向偏移也会改变这个距离。本图仅适用于实际发出 Orf 配对读数的 Avatar，不适用于 OGB/Socket 的 DepthOthers。", "The pair helps estimate entry: NewRoot reflects root distance, while NewTip observes a length sphere at the same root. The radial reference uses known length L; sideways movement also changes the distance. Use this model only for an actual Orf pair, not OGB/Socket DepthOthers."],
       formula: ["两只接收球 R=1，根球 r=0.01，长度球 r=L。p=clamp(1−max(0,d−r)/R)；两路未饱和时，估长=NewTip−NewRoot+0.01，已知 L 的径向参考=clamp(1−d/L)。", "Both receivers have R=1; the root sphere has r=0.01 and the length sphere r=L. p=clamp(1−max(0,d−r)/R). With both channels unsaturated, estimated length=NewTip−NewRoot+0.01; the radial reference for known L is clamp(1−d/L)."],
     },
     'socket-legacy': {
@@ -488,7 +496,18 @@
       add(['持续更新 / 距离吻合', 'Updating / distances agree'], text(m.active ? ['是', 'Yes'] : ['否', 'No']) + ' / ' + text(m.fitValid ? ['是', 'Yes'] : ['否', 'No']));
       for (const shape of result.shapes.filter(s => s.id.startsWith('receiver-P'))) add(shape.id.slice(-2), ['x', 'y', 'z'].map(k => fmt(shape.center[k], 1)).join(' / '));
     }
+    $('sdk-fields').hidden = state.scenario !== 'contact-sdk';
     if (state.scenario === 'contact-sdk') {
+      const samples = Object.entries(m.sdkFields).map(([name, value]) => {
+        const card = document.createElement('div'), label = document.createElement('strong'), output = document.createElement('output'), note = document.createElement('p');
+        card.dataset.sdkField = name; card.tabIndex = -1;
+        const ref = window.SensaOscParameterReference.lookup(name, locale);
+        label.textContent = name + ' · ' + ref.title + ': ';
+        output.textContent = fmt(value) + (ref.unit === 'm' ? ' m' : '×') + (m.selected ? '' : text(['（无 Sender）', ' (no Sender)']));
+        note.className = 'caption'; note.textContent = ref.definition;
+        card.append(label, output, note); return card;
+      });
+      $('sdk-readings').replaceChildren(...samples);
       add(['选中自身 Sender', 'Selected self Sender'], text(m.selected ? ['是', 'Yes'] : ['否', 'No']));
       add(['可用 XYZ（米）', 'Usable XYZ (metres)'], m.position ? ['x', 'y', 'z'].map(k => fmt(m.position[k])).join(' / ') : '—');
       add(['距上次更新 / 等待上限', 'Time since update / limit'], state.ageMs + ' / ' + m.sampleAgeLimitMs + ' ms');
@@ -652,7 +671,7 @@
     $('signal-simulation').hidden = !spatial();
     $('coverage-legend').hidden = !spatial();
     if (['contact-sdk', 'sensa-sps'].includes(state.scenario)) allowed.add('sample');
-    if (state.scenario === 'contact-sdk') ['vx', 'vy', 'vz', 'proximitySpeed'].forEach(k => allowed.add(k));
+    if (state.scenario === 'contact-sdk') ['vx', 'vy', 'vz', 'proximitySpeed', 'scaleX', 'scaleY', 'scaleZ'].forEach(k => allowed.add(k));
     $('shader-components').hidden = state.scenario !== 'shader';
     if (state.scenario === 'shader') ['frame', 'rightX', 'rightY', 'rightZ', 'forwardX', 'forwardY', 'forwardZ', 'avatarScale'].forEach(key => allowed.add(key));
     for (const holder of document.querySelectorAll('[data-control]')) {
@@ -667,7 +686,7 @@
         const output = holder.querySelector('output');
         output.textContent = key === 'sample' ? Math.round(state.sample * 32) + '/32'
           : key === 'ageMs' ? state[key] + ' ms' : key === 'frame' ? String(state[key])
-          : key === 'yaw' ? state[key] + '°' : fmt(state[key]) + (key === 'avatarScale' ? ' m/unit' : ['vx', 'vy', 'vz'].includes(key) ? ' m/s' : key === 'proximitySpeed' ? ' 1/s' : state.scenario === 'contact-sdk' ? ' m' : spatial() ? '' : ' ' + units());
+          : key === 'yaw' ? state[key] + '°' : fmt(state[key]) + (key.startsWith('scale') ? '×' : key === 'avatarScale' ? ' m/unit' : ['vx', 'vy', 'vz'].includes(key) ? ' m/s' : key === 'proximitySpeed' ? ' 1/s' : state.scenario === 'contact-sdk' ? ' m' : spatial() ? '' : ' ' + units());
       }
     }
     const receiverKey = $('receiver-key'); receiverKey.replaceChildren();
@@ -692,7 +711,21 @@
       ? text(['Touch Zone 默认半径为 VRCFury 的 0.10 局部单位；此图以缩放 1 展示，调整半径可模拟实际触碰区。', 'Touch Zone starts with VRCFury’s radius of 0.10 local units, shown here at scale 1. Adjust the radius to match your touch region.'])
       : text(['尺寸按 VRCFury 生成规则计算。示例 Plug 长 0.20 m、半径 0.03 m；可按实际模型调整。胶囊高度包含两端半球。', 'Dimensions follow VRCFury generation rules. The example Plug is 0.20 m long with a 0.03 m radius; adjust to your model. Capsule height includes both rounded caps.']);
   }
+  const stableSps3Paths = ['Socket', 'Plug'].flatMap(kind => [
+    'DepthOthers', 'DepthSelf', 'DepthOthers_SenderVelocityMagnitude', 'TouchOthers', 'TouchSelf',
+    ...(kind === 'Plug' ? ['FrotOthers', 'LengthMult1', 'LengthMult2'] : ['DepthRadius']),
+  ].map(field => `OGB/${kind}/Example/${field}`)).concat(['OGB/Touch/Example/Self', 'OGB/Touch/Example/Others', 'OGB/Version/11', 'OGB/HapticsDisabled', 'OGB/Enabled']);
+  for (const path of stableSps3Paths) $('sps3-path').add(new window.Option(path, path));
+  function showStableSps3() {
+    const ref = window.SensaOscParameterReference.lookup($('sps3-path').value, locale);
+    $('sps3-definition').textContent = `${ref.title} · ${ref.range} · ${ref.unit} — ${ref.summary} ${ref.definition}`;
+    $('sps3-usage').textContent = ref.usage;
+    const source = ref.sources.find(item => item.kind === 'generator-source') || ref.sources[0];
+    $('sps3-source').textContent = source.label; $('sps3-source').href = source.url;
+  }
+  $('sps3-path').addEventListener('change', showStableSps3);
   function localize() {
+    showStableSps3();
     document.documentElement.lang = locale; document.title = 'Sensa · ' + text('brand'); $('locale').value = locale;
     for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = text(node.dataset.i18n);
     $('scene-title').textContent = text(state.scenario); $('scene-summary').textContent = text(scenes[state.scenario].summary);
@@ -824,6 +857,11 @@
         scenario, scenarioTitle: text(scenario), name: field.name, path: field.path,
         title: window.SensaOscParameterReference?.lookup(field.path, locale)?.title || '',
       })));
+      for (const name of Object.keys(Model.evaluate(Model.defaultsFor('contact-sdk')).metrics.sdkFields)) {
+        searchIndex.push({ scenario: 'contact-sdk', scenarioTitle: text('sdkFields'), name, path: name,
+          title: window.SensaOscParameterReference.lookup(name, locale).title });
+      }
+      for (const path of stableSps3Paths) searchIndex.push({ scenario: 'stable-sps3', scenarioTitle: text('sps3Fields'), name: path, path, title: window.SensaOscParameterReference.lookup(path, locale).title });
       searchLocale = locale;
     }
     const matches = Signals.searchParameters(searchIndex, query);
@@ -833,9 +871,15 @@
       const title = document.createElement('strong'), group = document.createElement('span');
       title.textContent = match.name; group.textContent = match.scenarioTitle; button.append(title, group);
       button.addEventListener('click', () => {
+        if (match.scenario === 'stable-sps3') {
+          $('sps3-path').value = match.path; showStableSps3(); $('parameter-search').value = ''; searchResults();
+          $('sps3-path').focus(); return;
+        }
         finishRecording(); stopWebSensaSignal(); state = Model.defaultsFor(match.scenario); $('scene').value = match.scenario;
         selected = match.name; signalParameter = match.name; signalHistory = [];
         $('parameter-search').value = ''; render();
+        const sdkField = [...$('sdk-readings').children].find(card => card.dataset.sdkField === match.name);
+        if (match.scenario === 'contact-sdk' && sdkField) { sdkField.focus(); return; }
         const focus = $('signal-workbench').open ? $('signal-parameter') : [...$('values').querySelectorAll('button')].find(button => button.textContent === selected);
         focus?.focus({ preventScroll: true });
       });

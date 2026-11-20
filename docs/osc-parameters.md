@@ -26,18 +26,19 @@ Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随
 
 | 来源 | 负责说明什么 | 参考资料 |
 | --- | --- | --- |
-| VRChat 官方 | Contact 的检测方式、SDK 原生坐标／速度报告和 Raycast 命中／距离 | [Contacts 官方说明](https://creators.vrchat.com/common-components/contacts/)、[官方 SDK Beta.3](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3)、[Raycast 参数说明](https://creators.vrchat.com/avatars/avatar-components/raycast/#raycast-parameters) |
+| VRChat 官方 | Contact 的检测方式、SDK 原生坐标／速度报告和 Raycast 命中／距离 | [Contacts 官方说明](https://creators.vrchat.com/common-components/contacts/)、[SDK 3.10.6 正式版](https://github.com/vrchat/packages/releases/tag/3.10.6)、[Raycast 参数说明](https://creators.vrchat.com/avatars/avatar-components/raycast/#raycast-parameters) |
 | VRCFury／OGB 实现 | `PenOthers`、`NewRoot`、`NewTip`、`Touch`、`Frot` 和 `Close` 的生成名称、检测形状与配对方式 | [固定 Socket 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273)、[固定 Plug 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L256)、[OGB 互通详解](ogb-compatibility.md) |
 | Sensa 协议与应用解释 | 四点解算、`Sample`／`Radius`、Shader 的 `Frame`／`Valid`，以及如何把读数变成动作目标 | [定位与单位](positioning.md)、[Contact 方案](contact-sdk.md)、[计算信号](computed-signals.md) |
 
-通用 Contacts 文档解释检测规则；本页高级 Proximity 字段的具体后缀、坐标框和速度语义来自上表官方 Beta 安装包实现，[Contact 说明](contact-sdk.md)保留了对应方法和包摘要，方便复核。
+VRChat 在 [3.10.6 正式版](https://github.com/vrchat/packages/releases/tag/3.10.6) 发布了 Contact 高级参数；[官方字段定义](https://github.com/vrchat-community/creator-docs/blob/16fb16cfb4541fddcf35884e811ce8db16ff6493/Docs/docs/common-components/contacts/index.md#advanced-parameters)列出可选报告。这些值按 **Receiver 基参数名 + 后缀**命名，并非固定在 Sensa 路径下。例如，基名 `MyContact` 的 `MyContact_SenderVelocityMagnitude` 是相对速率；只有 Avatar 配置并通过 OSC 输出该字段时，Sensa 才能收到。
 
 ## 先选择需要的信息
 
 | 参数族 | 提供的信息 | 常见用途 |
 | --- | --- | --- |
-| `OGB/Orf/<id>/…`、`OGB/Pen/<id>/…` | Socket／Plug 的进入深浅趋势、触碰强度和接近状态 | 深度或振动联动 |
-| `VFH/Zone/Touch/<id>/Others`／`Self` | 选定触摸区域的接近强度 | 区域触碰联动 |
+| `OGB/Socket/<id>/…`、`OGB/Plug/<id>/…` | 正式 SPS3 的原生深度／触碰接近值 | 直接映射实际收到的 0–1 读数 |
+| `OGB/Orf/<id>/…`、`OGB/Pen/<id>/…` | 历史 SPS／OGB 深度、触碰及接近条件 | 使用对应的旧版几何 |
+| `OGB/Touch/<id>/Self`、`OGB/Touch/<id>/Others`（历史路径：`VFH/Zone/Touch/<id>/…`） | 独立触摸区的接近强度，不依附于 Plug 或 Socket | 区域触碰联动 |
 | `Sensa/<id>/Aux<index>/<role>_…` | Raycast 是否命中、归一化距离与米制距离 | 命中条件、表面距离联动 |
 | `Sensa/Contact/<id>/Proximity…`、`Radius`、`Sample` | 所选根点的米制位置与 m/s 相对速度 | 校准后的局部动作或运动强弱 |
 | `Sensa/SPS/<id>/P0…P3`、`Sample` | 选定根点相对 Avatar 的三维位置 | 按左右、上下、前后移动控制动作 |
@@ -50,10 +51,12 @@ SPS 四点定位的 Unity 测量组件与桌面共享下文的五字段和固定
 
 ## OGB 与 VRCFury 参数
 
-SPS3 Beta 的公开兼容参数继续使用本表的 Root／Tip 几何，默认 Others 模板需要公共通道；`_nothips` 是自身避髋兼容用途。[SPS3 设置与新 Contact 标签](sps3.md)
+**正式 SPS3。** 启用触觉接收时，[VRCFury 1.1491.0](https://github.com/VRCFury/VRCFury/releases/tag/com.vrcfury.vrcfury/1.1491.0) 会生成 `OGB/Socket/<id>/DepthSelf`、`DepthOthers`、`TouchSelf`、`TouchOthers` 和 `DepthRadius`；`OGB/Plug/<id>/` 下有对应深度与触碰值，另有 `FrotOthers`、`LengthMult1`、`LengthMult2`。`DepthSelf`／`DepthOthers` 是**原生 Contact 接近值（0–1），不是穿入百分比**。按实际路径直接读取，不使用 `NewRoot`／`NewTip` 反推，也不要等待 `Touch…Close`。SDK 支持高级 flags 时，深度 Receiver 还会请求同名基参数的原生报告。[Socket 生成器](https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L143-L168) · [Plug 生成器](https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L118-L158) · [深度参数绑定](https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Avatars/Service/SelfAndOthersReceiverAnimatorService.cs#L71-L81) · [SPS3 设置](sps3.md)
+
+独立触摸区使用 `OGB/Touch/<id>/Self` 和 `OGB/Touch/<id>/Others`，不同于 Plug 或 Socket 下的 `TouchSelf`、`TouchOthers`。[触摸区生成器](https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Avatars/Feature/VRCFuryHapticTouchReceiverBuilder.cs)
 
 
-`Orf` 表示 Socket，`Pen` 表示 Plug。`Self` 表示检测自身的匹配目标，`Others` 表示检测其他 Avatar 的匹配目标。Sensa 按 OSC 来源、完整实例路径与类别配对。图解中的 **SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip** 和 **SPS1 · PenOthers / PenOthersClose** 对应两种参数几何。
+**历史路径。** 下表说明旧生成器的 `OGB/Orf/…`（Socket）与 `OGB/Pen/…`（Plug），并列出独立的 VFH 触摸区域路径；不能只换前缀当成正式 SPS3 参数。`Self` 表示检测自身的匹配目标，`Others` 表示检测其他 Avatar 的匹配目标。Sensa 按 OSC 来源、完整实例路径与类别配对。图解中的 **SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip** 和 **SPS1 · PenOthers / PenOthersClose** 对应两种参数几何。
 
 | 参数／路径 | 怎样理解读数 | Sensa 的处理 |
 | --- | --- | --- |
@@ -67,9 +70,9 @@ SPS3 Beta 的公开兼容参数继续使用本表的 Root／Tip 几何，默认 
 | `TouchOthersClose`／`TouchSelfClose` | 匹配目标是否进入相应触碰区域，0 为离开、1 为接近 | Close 为 1 时采用 Touch 强度，为 0 时输出零 |
 | `VFH/Zone/Touch/<完整id>/Others`／`Self` | 指定区域内的连续接近强度，越靠近区域中心通常越大 | OgbTouch 直接读取 0–1 |
 | `VFH/Version/…`、历史 OGB Version 路径 | 上游支持能力的标志 | 用于识别参数能力 |
-| `OGB_ENABLED` | 向 Avatar 表示接收服务正在工作 | 按配置目标每 5 秒发送 true，停用时尝试 false；默认关闭 |
+| `OGB/Enabled`（正式 SPS3）、`OGB_ENABLED`（历史版本） | 通知 Avatar 启用触觉接收器，不是 Sensa 的“输入启用” | 开启后每 5 秒向两个参数地址发送 true，停用时尝试发送 false；默认关闭。[上游控制实现](https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Avatars/Service/OgbEnabledService.cs) |
 
-深度相关数值按检测形状之间的距离变化。正对 Socket 的移动最容易与进入深浅对应；横移、倾斜和作者设置的尺寸也会改变读数，因此映射时应以自己希望的起点和终点校准。`Close=1` 表示匹配目标进入该 Contact 定义的有效区域，适合作为动作生效条件；身体外形与区域边界的关系由作者的形状设置决定。SPS2/SPS3 的 OgbDepth 使用 Receiver 半径 R=1、根球半径 r=0.01 的模型；图解可以帮助观察两路数值如何配合。
+深度相关数值按检测形状之间的距离变化。正对 Socket 的移动最容易与进入深浅对应；横移、倾斜和作者设置的尺寸也会改变读数，因此映射时应以自己希望的起点和终点校准。`Close=1` 表示匹配目标进入该 Contact 定义的有效区域，适合作为动作生效条件；身体外形与区域边界的关系由作者的形状设置决定。旧 Root／Tip 的 OgbDepth 使用 Receiver 半径 R=1、根球半径 r=0.01 的模型；图解可以帮助观察两路数值如何配合。
 
 实际参数名以 Avatar 发布内容为准。完整生成表、形状和尺寸见[OGB 详表](ogb-compatibility.md)，依据[固定生成器源码](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs)与[官方 OGB 消费端](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts)。
 
@@ -89,11 +92,11 @@ SPS3 Beta 的公开兼容参数继续使用本表的 Root／Tip 几何，默认 
 
 三字段对应官方 SDK 的原生 `VRCRaycast` 报告；[官方 Raycast 参数说明](https://creators.vrchat.com/avatars/avatar-components/raycast/#raycast-parameters)解释了命中、距离比例和世界距离，以及未命中行为的选择。Sensa 将它们声明为本地、不同步的表达参数，并在 FX 中声明匹配类型。已核对最低支持版本 3.10.3 的 API 与参数绑定。[Unity 配置](../unity/top.sealoong.sensa/AUTOMATION.md) · [官方 SDK 3.10.3 安装包](https://github.com/vrchat/packages/releases/download/3.10.3/com.vrchat.avatars-3.10.3.zip)
 
-## Contact 直接定位（SDK Beta）：十二个公开字段
+## Contact 直接定位：十二个公开字段
 
-为所选自身根点使用专用球形 Sender，在 Avatar 根设置零偏移、各轴对齐的 Proximity Receiver。Receiver 使用独立碰撞通道且只接收 Self。Sensa 在 SDK **3.10.6-beta.3** 开启 `advancedParameters=true`，在 Beta.2 开启 `advancedProximityParameters=true`。坐标框为 **AvatarRootMeters**：以 Avatar 根为原点，坐标轴随根旋转，保留物理米单位。[设置与 SDK 核验依据](contact-sdk.md)
+为所选自身根点使用专用球形 Sender，在 Avatar 根设置零偏移、各轴对齐的 Proximity Receiver。Receiver 使用独立碰撞通道且只接收 Self。在 SDK 3.10.6 正式版，构建器只选取这些读数及 FX 标签需要的高级 flags，并保留 Beta.3／Beta.2 的旧 Bool 接口。坐标框为 **AvatarRootMeters**：以 Avatar 根为原点，坐标轴随根旋转，保留物理米单位。[设置与 SDK 核验依据](contact-sdk.md)
 
-SDK Beta.3 的高级报告可用于任意 Receiver 类型，并新增 `_SenderLossyScaleX/Y/Z`（Sender 关联 Transform 的世界缩放）与 `_PointSeparation`（Sender 和 Receiver 最近内部点之间的世界距离，米）。它们描述原生 Contact 形状；Sensa 的 `Distance` 根据根点 XYZ 计算距 Avatar 原点的距离。Sensa 当前生成以下十二个公开字段，位置／速度解算和预设使用这套协议。使用额外原生报告时，由作者在 Animator 中声明对应 Float 并配置 OSC 可见性。[官方发布说明](https://vrc-beta-docs.netlify.app/releases/release-3-10-6) · [额外报告的读法与默认值](contact-sdk.md#sdk-beta3-的额外报告)
+正式版原生 Receiver 的 **Advanced Parameters** 是多选项；选择需要的报告并在 Animator／OSC 中配置相应参数。`_PointSeparation` 是两个形状最近内部点的世界距离（米，无接触为 −1），不是表面间隙或 Sensa 的根点 `Distance`；`_SenderLossyScaleX/Y/Z` 是 Sender 的世界缩放分量；`_CollisionTag_<tag>` 是对应标签的匹配 Bool。只有 Proximity Receiver 提供 `_ProximitySpeed`。这些原生可选报告不会自动加入下表的 Sensa 十二字段协议。[正式版发布说明](https://github.com/vrchat-community/creator-docs/blob/16fb16cfb4541fddcf35884e811ce8db16ff6493/Docs/releases/release-3.10.6.md) · [额外报告与历史核验](contact-sdk.md)
 
 全部路径以 `Sensa/Contact/<id>/` 开头，`<id>` 只占一层路径。下表按字典序排列，共享前缀的短名称在前。`Proximity_SenderType` 为 Int，其余十一个字段为 Float。
 
@@ -104,7 +107,7 @@ SDK Beta.3 的高级报告可用于任意 Receiver 类型，并新增 `_SenderLo
 | `Proximity_SenderLocalPositionX` | Sender 形状中点相对 Receiver 形状中点的 X 位移，米 | 在 Sensa 的 Avatar 根参考下，单独用左右位移控制一个轴；正负值保留方向 |
 | `Proximity_SenderLocalPositionY` | 同一位置的 Y 分量，米 | 用上下位移控制动作，按需要的低端与高端校准 |
 | `Proximity_SenderLocalPositionZ` | 同一位置的 Z 分量，米 | 用前后位移或进入程度控制动作，按需要的浅端与深端校准 |
-| `Proximity_SenderType` | SDK 当前选中的目标类别：0 无，1 自身 Avatar，2 其他 Avatar，3 世界 Sender | 确认参数来自哪类目标；Sensa 专用根点方案使用 1 |
+| `Proximity_SenderType` | SDK 当前选中的目标类别：0 无接触或未识别，1 同一 Avatar，2 不同 Avatar，3 世界，4 生成物 | 确认参数来自哪类目标；Sensa 专用根点方案使用 1 |
 | `Proximity_SenderVelocityMagnitude` | 近似接触点处的相对速率，m/s，始终 ≥0；静止时可为 0 | 将动作快慢映射为振动或其他强度，零速对应校准后的静止水平 |
 | `Proximity_SenderVelocityX` | Receiver X 轴方向的相对接触点速度，m/s，含角运动影响 | 控制左右运动的方向或强弱；正负值分别表示沿该轴正向、反向运动 |
 | `Proximity_SenderVelocityY` | 同一速度的 Y 分量，m/s | 控制上下运动的方向或强弱 |

@@ -40,12 +40,13 @@
             <option value="zone" data-i18n="zone">Touch Zone · Others</option>
           </optgroup>
           <optgroup label="Sensa">
-            <option value="contact-sdk" data-i18n="contact-sdk">Contact direct tracking (SDK Beta)</option>
+            <option value="contact-sdk" data-i18n="contact-sdk">Contact direct tracking</option>
             <option value="sensa-sps" data-i18n="sensa-sps">SPS four-anchor tracking</option>
             <option value="shader" data-i18n="shader">Shader · X / Y / Z</option>
           </optgroup>
         </select>
       </label>
+      <a href="#sps3-parameters" data-i18n="sps3Fields">SPS3 · OGB/Socket &amp; OGB/Plug</a>
       <nav class="guide-nav" aria-label="阅读顺序 / Guide sections">
         <a href="#explorer-content"><span aria-hidden="true">01</span><span data-i18n="navExplore">Explore movement</span></a>
         <a href="#controls-panel"><span aria-hidden="true">02</span><span data-i18n="navAdjust">Adjust position</span></a>
@@ -122,6 +123,18 @@
         <label class="control" data-control="senderRadius"><span data-i18n="senderRadius">Touching object radius</span><output for="control-senderRadius"></output><input id="control-senderRadius" type="range" min="0.005" max="0.15" step="0.005" value="0.03"></label>
         <label class="control" data-control="zoneRadius"><span data-i18n="zoneRadius">Touch Zone radius</span><output for="control-zoneRadius"></output><input id="control-zoneRadius" type="range" min="0.02" max="0.5" step="0.01" value="0.12"></label>
       </div>
+      <section id="sdk-fields" class="signal-simulation" aria-labelledby="sdk-field-title" hidden>
+        <h3 id="sdk-field-title" data-i18n="sdkFields">VRChat SDK advanced parameters</h3>
+        <p data-i18n="sdkHint">These are simulated reports for a receiver named Brush, not additional fields of the 12-field Sensa Contact protocol.</p>
+        <div id="sdk-readings" class="metrics"></div>
+        <div class="control-grid">
+          <label class="control" data-control="scaleX"><span data-i18n="scaleX">Sender world scale · X</span><output for="control-scaleX"></output><input id="control-scaleX" type="range" min="0.1" max="3" step="0.1" value="1"></label>
+          <label class="control" data-control="scaleY"><span data-i18n="scaleY">Sender world scale · Y</span><output for="control-scaleY"></output><input id="control-scaleY" type="range" min="0.1" max="3" step="0.1" value="1"></label>
+          <label class="control" data-control="scaleZ"><span data-i18n="scaleZ">Sender world scale · Z</span><output for="control-scaleZ"></output><input id="control-scaleZ" type="range" min="0.1" max="3" step="0.1" value="1"></label>
+        </div>
+        <p class="caption" data-i18n="sdkScaleHint">Change the scale sliders to simulate the three reported components independently of the fixed example sphere sizes.</p>
+        <a href="https://creators.vrchat.com/common-components/contacts/#advanced-parameters" data-i18n="sdkSource">VRChat: Advanced Parameters</a>
+      </section>
       <details id="shader-components" class="signal-simulation" hidden><summary data-i18n="shaderComponents">Target direction and Avatar scale</summary><p class="caption" data-i18n="shaderComponentsHint">RightXYZ and ForwardXYZ describe target X/Z directions and lengths per local unit in the root frame. AvatarScale gives world metres per root-local unit.</p><div class="control-grid">
         <label class="control" data-control="rightX"><span data-i18n="rightX">Target X axis · root X</span><output for="control-rightX"></output><input id="control-rightX" type="range" min="-8" max="8" step="0.05" value="1"></label>
         <label class="control" data-control="rightY"><span data-i18n="rightY">Target X axis · root Y</span><output for="control-rightY"></output><input id="control-rightY" type="range" min="-8" max="8" step="0.05" value="0"></label>
@@ -165,6 +178,13 @@
       <div class="signal-actions"><button id="signal-record" type="button" data-i18n="recordSignal">Record movement</button><button id="signal-stop" type="button" disabled data-i18n="stopRecording">Finish recording</button><button id="signal-export" type="button" disabled data-i18n="exportSignal">Download funscript</button><output id="signal-recording-status" aria-live="polite"></output></div>
       <div class="signal-connect"><div><h3 data-i18n="liveWebSensa">Use it live in WebSensa</h3><p class="caption" id="signal-websensa-hint" data-i18n="liveWebSensaHint">Open WebSensa, accept the parameter connection, then choose the parameter input there.</p></div><button id="signal-connect" type="button" data-i18n="openWebSensa">Open WebSensa</button><button id="signal-disconnect" type="button" disabled data-i18n="disconnectWebSensa">Disconnect</button><span id="signal-connection-status" class="caption" role="status"></span></div>
     </details>
+    <section id="sps3-parameters" class="parameter-reference" aria-labelledby="sps3-fields-title">
+      <h2 id="sps3-fields-title" data-i18n="sps3Fields">SPS3 · OGB/Socket &amp; OGB/Plug</h2>
+      <p data-i18n="sps3Scope">Match the path in your OSC list. These VRCFury 1.1491.0 fields are not simulated by the older Orf/Pen diagrams.</p>
+      <label><span data-i18n="sps3Path">OSC parameter (replace Example with your object ID)</span> <select id="sps3-path"></select></label>
+      <div aria-live="polite"><p id="sps3-definition"></p><p id="sps3-usage"></p></div>
+      <a id="sps3-source" rel="noreferrer" target="_blank"></a>
+    </section>
     <section id="parameter-reference" class="parameter-reference" data-testid="parameter-reference" aria-labelledby="parameter-reference-title">
       <h2 id="parameter-reference-title" data-i18n="parameterReferenceTitle">What each parameter means</h2>
       <p class="caption" data-i18n="parameterReferenceIntro">Read each parameter’s meaning, measurement definition and interaction use. Sources identify VRChat SDK reports, VRCFury-generated parameters and Sensa’s own protocol fields.</p>

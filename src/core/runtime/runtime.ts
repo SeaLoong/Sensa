@@ -2,7 +2,7 @@ import type { AppConfig,ComputedSignalInputConfig,ComputedSignalSample,MotionAxi
 import { isMotionAxis,motionAxes,invalidSample,sample } from './model.ts';
 import { normalizeConfiguration,createDefaultConfiguration,requireConfiguration,isTemporal } from './configuration.ts';
 import { ComputedSignalEvaluator } from './computed.ts';
-import { ComputedSignalResolver,ogbDepthAddress,ogbTouchAddress } from './resolver.ts';
+import { ComputedSignalResolver,ogbDepthAddress,ogbTouchAddress,sps3OgbOutput } from './resolver.ts';
 import { OscParameterStore,oscNumber,matchesOscPath,type OscSnapshotEntry,type OscEntry } from '../protocols/osc.ts';
 import { ExternalControlStore } from '../protocols/external-control.ts';
 import type { ExternalControlBatch } from '../protocols/input-types.ts';
@@ -174,15 +174,16 @@ export class RuntimeEngine {
     const filtered=entries.filter(item=>!source||item.entry.source.key===source);const fresh=(at:number):boolean=>at<=now&&(this.config.osc.inputTimeoutMs<=0||now-at<=this.config.osc.inputTimeoutMs);
     const find=(path:string,key:string):OscEntry|undefined=>filtered.find(item=>item.path===path&&item.entry.source.key===key)?.entry;
     const unit=(entry:OscEntry|undefined):boolean=>Boolean(entry)&&oscNumber(entry!.value)>=0&&oscNumber(entry!.value)<=1;
+    const sps3=()=>filtered.filter(item=>sps3OgbOutput(item.path)===mapping.sourceMode&&matchesOscPath(mapping.oscPath,item.path)&&fresh(item.entry.timestampMs)).map(item=>unit(item.entry)?oscNumber(item.entry.value):0);
     if(mapping.sourceMode==='OgbTouch'){
       const groups=new Map<string,{value:string;close:string;needsClose:boolean;source:string}>();for(const item of filtered){const address=ogbTouchAddress(item.path);if(address&&matchesOscPath(mapping.oscPath,address.value))groups.set(item.entry.source.key+'|'+address.value,{...address,source:item.entry.source.key});}
-      return [...groups.values()].flatMap(item=>{const value=find(item.value,item.source),close=find(item.close,item.source);if(!value||!fresh(value.timestampMs))return [];return [(!item.needsClose||unit(close)&&oscNumber(close!.value)>.5)&&unit(value)?oscNumber(value.value):0];});
+      return [...groups.values()].flatMap(item=>{const value=find(item.value,item.source),close=find(item.close,item.source);if(!value||!fresh(value.timestampMs))return [];return [(!item.needsClose||unit(close)&&oscNumber(close!.value)>.5)&&unit(value)?oscNumber(value.value):0];}).concat(sps3());
     }
     if(mapping.sourceMode==='OgbDepth'){
       const groups=new Map<string,{address:NonNullable<ReturnType<typeof ogbDepthAddress>>;source:string}>();for(const item of filtered){const address=ogbDepthAddress(item.path);if(address&&(matchesOscPath(mapping.oscPath,address.legacy)||address.socket&&matchesOscPath(mapping.oscPath,address.root)))groups.set(item.entry.source.key+'|'+address.legacy,{address,source:item.entry.source.key});}
       return [...groups.values()].flatMap(({address,source:key})=>{const root=find(address.root,key),tip=find(address.tip,key),legacy=find(address.legacy,key),close=find(address.close,key),modern=address.socket&&((root?oscNumber(root.value):0)>0||(tip?oscNumber(tip.value):0)>0),stamp=modern||!legacy?Math.max(root?.timestampMs??0,tip?.timestampMs??0):legacy.timestampMs;
         if(!fresh(stamp)){this.estimators.get(key+'|'+address.root)?.reset();return [];}
-        if(modern)return [this.processPair(key,address.root,root,tip)];this.estimators.get(key+'|'+address.root)?.reset();const open=!address.socket||address.party!=='Others'||!close||unit(close)&&oscNumber(close.value)>.5;return [unit(legacy)&&open?oscNumber(legacy!.value):0];});
+        if(modern)return [this.processPair(key,address.root,root,tip)];this.estimators.get(key+'|'+address.root)?.reset();const open=!address.socket||address.party!=='Others'||!close||unit(close)&&oscNumber(close.value)>.5;return [unit(legacy)&&open?oscNumber(legacy!.value):0];}).concat(sps3());
     }
     return filtered.filter(item=>matchesOscPath(mapping.oscPath,item.path)).flatMap(item=>{
       if(mapping.sourceMode==='SpsSocketDepth'){const tip=item.path.endsWith('NewRoot')?find(item.path.slice(0,-7)+'NewTip',item.entry.source.key):undefined;if(!tip||!fresh(Math.max(item.entry.timestampMs,tip.timestampMs)))return [];return [this.processPair(item.entry.source.key,item.path,item.entry,tip)];}
@@ -205,14 +206,15 @@ export class RuntimeEngine {
   }
   private scalarTimestamps(mapping:SignalMapping,entries:readonly OscSnapshotEntry[]):number[] {
     const find=(path:string,source:string):OscEntry|undefined=>entries.find(item=>item.path===path&&item.entry.source.key===source)?.entry;
+    const sps3=()=>entries.filter(item=>sps3OgbOutput(item.path)===mapping.sourceMode&&matchesOscPath(mapping.oscPath,item.path)).map(item=>item.entry.timestampMs);
     if(mapping.sourceMode==='OgbTouch'){
       const groups=new Map<string,{path:string;source:string}>();for(const item of entries){const address=ogbTouchAddress(item.path);if(address&&matchesOscPath(mapping.oscPath,address.value))groups.set(item.entry.source.key+'|'+address.value,{path:address.value,source:item.entry.source.key});}
-      return [...groups.values()].flatMap(item=>{const value=find(item.path,item.source);return value?[value.timestampMs]:[];});
+      return [...groups.values()].flatMap(item=>{const value=find(item.path,item.source);return value?[value.timestampMs]:[];}).concat(sps3());
     }
     if(mapping.sourceMode==='OgbDepth'){
       const groups=new Map<string,{address:NonNullable<ReturnType<typeof ogbDepthAddress>>;source:string}>();for(const item of entries){const address=ogbDepthAddress(item.path);if(address&&(matchesOscPath(mapping.oscPath,address.legacy)||address.socket&&matchesOscPath(mapping.oscPath,address.root)))groups.set(item.entry.source.key+'|'+address.legacy,{address,source:item.entry.source.key});}
       return [...groups.values()].map(({address,source})=>{const root=find(address.root,source),tip=find(address.tip,source),legacy=find(address.legacy,source);
-        const modern=address.socket&&((root?oscNumber(root.value):0)>0||(tip?oscNumber(tip.value):0)>0);return modern||!legacy?Math.max(root?.timestampMs??0,tip?.timestampMs??0):legacy.timestampMs;});
+        const modern=address.socket&&((root?oscNumber(root.value):0)>0||(tip?oscNumber(tip.value):0)>0);return modern||!legacy?Math.max(root?.timestampMs??0,tip?.timestampMs??0):legacy.timestampMs;}).concat(sps3());
     }
     return entries.filter(item=>matchesOscPath(mapping.oscPath,item.path)).flatMap(item=>{if(mapping.sourceMode!=='SpsSocketDepth')return [item.entry.timestampMs];const tip=item.path.endsWith('NewRoot')?find(item.path.slice(0,-7)+'NewTip',item.entry.source.key):undefined;return tip?[Math.max(item.entry.timestampMs,tip.timestampMs)]:[];});
   }

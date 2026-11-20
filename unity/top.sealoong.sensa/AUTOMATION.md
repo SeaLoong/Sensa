@@ -2,7 +2,7 @@
 
 **简体中文** | [English](AUTOMATION.en.md)
 
-[安装与语言选择](README.zh-CN.md)。Automatic SPS Setup 读取受支持 Socket／Plug 的作者几何，不修改原 SPS。根点定位默认使用 SPS 四点定位，也可明确选择 Contact 直接定位（SDK Beta）。两者与独立 Shader 捕获都由同一个 NDMF 生成入口处理，时机见[Unity 构建指南](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.md)。
+[安装与语言选择](README.zh-CN.md)。Automatic SPS Setup 读取受支持 Socket／Plug 的作者几何，不修改原 SPS。根点定位默认使用 SPS 四点定位，也可明确选择 Contact 直接定位。两者与独立 Shader 捕获都由同一个 NDMF 生成入口处理，时机见[Unity 构建指南](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.md)。
 
 ## 目标与范围
 
@@ -11,7 +11,7 @@ Discover All 发现受支持的 VRCFury 作者组件；Selected Targets 缩小�
 | 能力 | 生成范围 |
 | --- | --- |
 | SPS 四点定位 | 每个目标四个固定 Receiver 和一个专用 Sender |
-| Contact 直接定位（SDK Beta） | 每个根点一组专用 Sender／Receiver，输出原生 XYZ 与速度 |
+| Contact 直接定位 | 每个根点一组专用 Sender／Receiver，输出原生 XYZ 与速度 |
 | 配对 Socket 定位 | 独立 Root／Tip／Side Pose 接收阵列 |
 | 配对 Plug 标记 | 三个参考标记，不追踪 GPU 形变 |
 | 本地 Plug 尖端定位 | 相对明确参考 Socket 的本地点 |
@@ -19,15 +19,15 @@ Discover All 发现受支持的 VRCFury 作者组件；Selected Targets 缩小�
 
 Exclusive 每组一次启用一个测量目标，初始关闭；Dedicated 允许同时测量。互斥减少活动对象，不减少注册 Contact 预算；可选能力和其他插件也计入。未知策略会令构建失败。
 
-单目标可用 `SensaSpsRootProbe.prefab` 或 **GameObject → Sensa → SPS four-anchor tracking**。SDK 路线使用 `SensaContactRootProbe.prefab` 或 **GameObject → Sensa → Contact direct tracking (SDK Beta)**。两者的 Target 可选择 Avatar 内的骨骼／空物体 Transform、SPS、Sensa Component 或原生 Contact；适配器读取所选根点的参照框。默认实例名为 `Root`，复制后换成唯一实例名；Collision Channel 留空时按实例名稳定派生，也可填写手动覆盖值。
+单目标可用 `SensaSpsRootProbe.prefab` 或 **GameObject → Sensa → SPS four-anchor tracking**。SDK 路线使用 `SensaContactRootProbe.prefab` 或 **GameObject → Sensa → Contact direct tracking**。两者的 Target 可选择 Avatar 内的骨骼／空物体 Transform、SPS、Sensa Component 或原生 Contact；适配器读取所选根点的参照框。默认实例名为 `Root`，复制后换成唯一实例名；Collision Channel 留空时按实例名稳定派生，也可填写手动覆盖值。
 
 独立 Shader 路线使用 `SensaShaderCapture.prefab` 或 **GameObject → Sensa → Shader Root Capture (Experimental)**，接受同样的 Target 类型，并配置独立 Producer ID 和桌面区域。[Shader 设置](GPU-TRACKING.md)
 
-## Contact 直接定位（SDK Beta）
+## Contact 直接定位
 
-在 Automatic SPS Setup 中选择根点定位方式；稳定版 SDK 安装默认仍用 SPS 四点定位。Contact 直接定位已适配 **3.10.6-beta.3** 的 `advancedParameters` 和 Beta.2 的 `advancedProximityParameters`。构建时自动选择已安装 SDK 提供的开关；缺少高级报告能力时，会给出安装要求及可用方案。
+Automatic SPS Setup 默认使用 SPS 四点定位。要改用 Contact 直接定位，请安装配套的 **VRChat Base／Avatars SDK 3.10.6 正式版**，然后在根点定位方式中选择它。构建器按 `advancedParameters` 枚举启用 `SenderType`、`SenderLocalPosition`、`SenderVelocity`、`ProximitySpeed` 和 `CollisionTags`；旧 Beta.3 的 `advancedParameters` 布尔开关和 Beta.2 的 `advancedProximityParameters` 布尔开关也可识别。
 
-`Runtime/SensaContactProtocol.cs` 定义 `Sensa/Contact/<id>`。一个半径 2 制作单位的 Proximity Receiver 位于 Avatar 根点，形状偏移为零，坐标轴与根旋转对齐；另一个半径 0.001 制作单位的 Sender 跟随所选根点。原 SPS Contact 不变。Sensa 使用 SDK 的十个原生报告：`Proximity`、Int `Proximity_SenderType`、`Proximity_SenderLocalPositionX/Y/Z`、`Proximity_SenderVelocityX/Y/Z`、`Proximity_SenderVelocityMagnitude` 和 `Proximity_ProximitySpeed`；其余公开字段为 Float。SDK 另为专用碰撞标签写入 `Proximity_CollisionTag_<tag>`；Sensa 在 FX 中声明该 Bool，停用时清零，位于十二个公开表达参数声明之外。Beta.3 另外提供 `_SenderLossyScaleX/Y/Z` 和 `_PointSeparation`；Sensa 的公开 Contact 协议继续使用上述十项，加上以下 `Radius` 和 `Sample`。客户端 OSC 可见性另行检查。
+`Runtime/SensaContactProtocol.cs` 定义 `Sensa/Contact/<id>`。一个半径 2 制作单位的 Proximity Receiver 位于 Avatar 根点，形状偏移为零，坐标轴与根旋转对齐；另一个半径 0.001 制作单位的 Sender 跟随所选根点。原 SPS Contact 不变。Sensa 使用 SDK 的十个原生报告：`Proximity`、Int `Proximity_SenderType`、`Proximity_SenderLocalPositionX/Y/Z`、`Proximity_SenderVelocityX/Y/Z`、`Proximity_SenderVelocityMagnitude` 和 `Proximity_ProximitySpeed`；其余公开字段为 Float。SDK 另为专用碰撞标签写入 `Proximity_CollisionTag_<tag>`；Sensa 在 FX 中声明该 Bool，停用时清零，位于十二个公开表达参数声明之外。正式版 Receiver 也可报告 `_SenderLossyScaleX/Y/Z` 和 `_PointSeparation`，但专用根点不启用这两组；Sensa 的公开 Contact 协议继续使用上述十项，加上以下 `Radius` 和 `Sample`。客户端 OSC 可见性另行检查。
 
 XYZ 使用 `AvatarRootMeters`：以 Avatar 根点为原点、以其旋转为坐标轴，单位米，不除以制作时根缩放。速度是 SDK 碰撞点的相对速度，单位米/秒；ProximitySpeed 是归一化接近值每秒变化量。单点不提供朝向。`Radius` 报告包含制作缩放与 ScaleFactor 的实际世界接收半径。`Sample` 约每 50 ms 按 n/32 循环；停用时两个控制字段均清零。时钟表示生产端活动，不证明 SDK 同帧或 Sender 身份。桌面活动时效上限 1000 ms；Sample 推进时允许缓存静止坐标。接触存在性与 SenderType 单独校验，零位置／速度可以是合法静止值。
 

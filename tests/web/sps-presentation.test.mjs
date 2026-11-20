@@ -23,15 +23,13 @@ for (const locale of ['zh-CN', 'en-US']) {
   test('SPS3 compatible mapping labels preserve existing source modes and saved preset paths in ' + locale, () => {
     setLocale(locale);
     const preset = getOscMappingPresets({}).find(value => value.id === 'ogb-depth');
-    assert.ok(preset.description.startsWith(locale === 'zh-CN' ? '自动识别' : 'Detects SPS1'));
-    assert.match(preset.description, /SPS3/);
-    assert.match(preset.description, /_public/);
-    assert.match(preset.description, /Include Public SPS Channel/);
-    assert.doesNotMatch(preset.description, /_nothips/);
+    assert.match(preset.description, locale === 'zh-CN' ? /正式 SPS3/ : /stable SPS3/);
+    assert.match(preset.description, /DepthOthers/);
+    assert.match(preset.description, /NewRoot/);
     assert.equal(preset.mappings.length, 1);
     const [mapping] = preset.mappings;
     assert.equal(mapping.sourceMode, 'OgbDepth');
-    assert.equal(mapping.oscPath, 'OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers');
+    assert.deepEqual(mapping.oscPath.split(';'), ['OGB/Orf/**/PenOthersNewRoot', 'OGB/Orf/**/PenOthers', 'OGB/Pen/**/PenOthers', 'OGB/Socket/**/DepthOthers', 'OGB/Plug/**/DepthOthers']);
     const html = renderToStaticMarkup(React.createElement(SignalMappingRow, {
       draft: makeSignalDraft(mapping), pathOptions: [], onChange() {}, onRemove() {},
     }));

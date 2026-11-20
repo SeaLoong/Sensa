@@ -13,6 +13,7 @@ import {
   parseAxisModeSelectValue,
 } from './configuration.js';
 import { computeSignalPreviewOutput } from './osc-workspace.js';
+import { sps3OgbOutput } from '../core/runtime/resolver.ts';
 import { getDynamicFloatSliderBounds } from './numeric.js';
 import { RangeField, SelectField, ValueSliderField } from './controls.jsx';
 import { Badge, Button, Field, Notice, Tabs, Toggle } from './ui.tsx';
@@ -195,9 +196,10 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSign
     latestEntry?.numericValue,
     simulatedValue,
   ]);
+  const singleSps3 = latestEntry?.path && latestEntry.matchCount === 1 && sps3OgbOutput(latestEntry.path) === draft.sourceMode;
   const preview = draft.simulateEnabled
     ? computeSignalPreviewOutput(draft, simulatedValue)
-    : ['OgbDepth', 'OgbTouch', 'SpsSocketDepth'].includes(draft.sourceMode) || (draft.sourceMode === 'SensaPose' && draft.poseMetric === 'Roll')
+    : (!singleSps3 && ['OgbDepth', 'OgbTouch', 'SpsSocketDepth'].includes(draft.sourceMode)) || (draft.sourceMode === 'SensaPose' && draft.poseMetric === 'Roll')
       ? null
       : computeSignalPreviewOutput(draft, latestEntry?.numericValue);
   return (
