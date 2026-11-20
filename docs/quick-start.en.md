@@ -35,7 +35,9 @@ Prepare your source in **Input**. Opening a tab does not apply its input mode:
 
 ## 3. Choose mappings, transforms and axis profiles
 
-In the guide, select **Append L0 example** and replace `Depth` with a received OSC parameter. In **Mapping & transforms**, selecting **OSC parameter → L0 main axis** and **Append draft** creates the same mapping. For jitter, use **Add processing step** to append 250 ms smoothing, optionally preceded by a 5% dead zone. Expand a step in the mapping to edit its inputs or values. Check the range and choose **Save changes**.
+In the guide, choose **Append L0 example**. On the example row in **Mapping & transforms → Parameter to axis**, replace `Depth` with a received OSC parameter and keep L0 as the target axis. Check the range before saving. If the reading is steady, leave the processing steps collapsed.
+
+If the reading jitters, expand the steps on that row and append 250 ms smoothing. Appending a step or clicking an existing one opens the **Calculation editor**. After adjusting it, choose **Return to current mapping** to go back to the original L0 row. You do not need to add another mapping.
 
 - **VRChat / OSC mappings:** SPS depth, vibration, combined depth/vibration and other templates. Append or replace drafts, then check actual paths and ranges.
 - **Transforms:** manual smoothing, manual/script mixing, a threshold switch or a slow wave. After loading a calculation, select its result in an axis mapping or output binding.

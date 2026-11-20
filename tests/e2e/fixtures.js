@@ -109,12 +109,20 @@ export async function workspace(page, name) {
   if (destination) await page.locator('#workspace-tabs-' + destination).click();
   else await page.getByRole('tablist', { name: await text(page, '主导航'), exact: true }).getByRole('tab', { name: await text(page, name), exact: true }).click();
   if (name === 'OSC') await page.locator('#input-tabs-osc').click();
-  if (name === '流程' && !await page.getByTestId('computed-signals-editor').isVisible()) await page.getByTestId('edit-computations').click();
+  if (name === '流程') await page.locator('#mapping-tabs-computations').click();
+}
+export async function expectMappingTab(page, tab) {
+  const mappings = tab === 'mappings';
+  await expect(page.locator('#mapping-tabs-' + tab)).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#mapping-tabs-panel')).toHaveAttribute('aria-labelledby', 'mapping-tabs-' + tab);
+  await expect(page.getByTestId(mappings ? 'axis-mappings-panel' : 'computed-signals-editor')).toBeVisible();
+  await expect(page.getByTestId(mappings ? 'computed-signals-editor' : 'axis-mappings-panel')).toHaveCount(0);
+  await expect(page.getByTestId('signal-draft-toolbar')).toHaveAttribute('data-workspace', mappings ? 'osc' : 'pipeline');
 }
 export async function oscWorkspace(page, name) {
   if (name === '映射') {
     await workspace(page, '映射与变换');
-    if (await page.getByTestId('computed-signals-editor').isVisible()) await page.getByTestId('edit-computations').click();
+    await page.locator('#mapping-tabs-mappings').click();
     return;
   }
   await workspace(page, 'OSC');
@@ -189,10 +197,9 @@ async function assertScrollLayout(page) {
   expect(evidence.port.bottom).toBeLessThanOrEqual(evidence.height + 1);
   return evidence;
 }
-export async function checkpointViewport(page, name, anchor) {
+export async function checkpointViewport(page, name) {
   await clearScreenshotNotice(page);
-  if (anchor) await anchor.evaluate(element => element.scrollIntoView({ block: 'start', behavior: 'instant' }));
-  else await page.locator('.workspace-scroll').evaluate(element => element.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+  await page.locator('.workspace-scroll').evaluate(element => element.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
   await expect(page).toHaveScreenshot(name + '.png', { stylePath: 'tests/e2e/screenshot.css' });
   await attachCurrentCatalogCapture(page, name);
   await assertScrollLayout(page);

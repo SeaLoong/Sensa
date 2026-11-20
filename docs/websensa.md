@@ -38,7 +38,7 @@
 
 ## 计算、录制与图解输入
 
-一个输出成功后，可在**映射与变换 → 计算信号**中组合输入、平滑数值或将同一结果送到多个输出。**信号录制**输出可以保存 funscript 轨道、CSV 或 JSON Lines。[计算与录制](signal-pipeline.md)
+一个输出成功后，可在**映射与变换 → 计算编辑器**中组合输入、平滑数值或将同一结果送到多个输出。**信号录制**输出可以保存 funscript 轨道、CSV 或 JSON Lines。[计算与录制](signal-pipeline.md)
 
 [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)可以向 WebSensa 发送模拟读数：选择**发送到 WebSensa**，再在工作台点击**连接参数图解**。检查预览后，准备好再启用输入。
 

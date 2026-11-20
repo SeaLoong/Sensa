@@ -36,7 +36,7 @@
 4. 用**原点偏移（`positionOffset`）**放置平面中心，用**坐标轴旋转（度）（`rotationOffset`）**调整朝向。两项基于已解析根点的局部轴；位置偏移在附加旋转前应用。Inspector 的六个轴向按钮可快速指定深度方向，Scene 的移动／旋转手柄用于细调。
 5. 检查 Scene 中的 XY 平面与 +Z 箭头：**+Z 是深度正方向，+X 向右，+Y 向上**。**坐标轴标记间距（`axisLength`）**是 Origin 到 Forward／Right 标记的距离，按 Avatar 根制作单位计算，默认 0.2，可设 0.05～0.5。
 6. 为同一 Avatar 内的测量目标 P 添加所选方式的根点预制件：`SensaSpsRootProbe.prefab` 或 `SensaContactRootProbe.prefab`。指定目标并使用独立实例名，例如 `Target`；已有同坐标框的测量实例可直接复用。
-7. 构建后，在桌面确认目标、Origin 和 Forward 都提供有效坐标。在“映射与变换 → 计算信号 → 空间计算预设 → 跟随移动平面”选择目标与平面 Origin，检查生成草稿，再保存并连接输出。
+7. 构建后，在桌面确认目标、Origin 和 Forward 都提供有效坐标。在“映射与变换 → 计算编辑器 → 空间计算预设 → 跟随移动平面”选择目标与平面 Origin，检查生成草稿，再保存并连接输出。
 
 生成的三点分别命名为 `<名称>_Origin`、`<名称>_Forward`、`<名称>_Right`。源参照随骨骼移动和转动，实际测量框架放在 Avatar 根下，通过 ParentConstraint 跟随平移、旋转。三点间距继承 Avatar 缩放，保持各向一致；骨骼自身缩放可改变偏移后原点的位置，轴长保持 Avatar 根制作尺寸。SPS 作者几何继续遵循其均匀缩放要求。
 

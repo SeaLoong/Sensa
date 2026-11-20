@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { test, expect, text, workspace, oscWorkspace } from './fixtures.js';
+import { test, expect, text, workspace, oscWorkspace, expectMappingTab } from './fixtures.js';
 import { inspectFocusIndicator, inspectReflow } from './ui-quality.js';
 
 async function configuration(page, rig) {
@@ -102,11 +102,14 @@ for (const locale of ['zh-CN', 'en-US']) {
         await unchanged(page, rig, initial);
 
         await oscWorkspace(page, '映射');
-        await page.getByTestId('edit-computations').click();
-        await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
+        await expectMappingTab(page, 'mappings');
+        const mapTabs = page.getByRole('tablist', { name: await text(page, '映射与变换'), exact: true });
+        await expect(mapTabs.getByRole('tab')).toHaveText([await text(page, '参数到轴'), await text(page, '计算编辑器')]);
+        const computationsTab = mapTabs.getByRole('tab', { name: await text(page, '计算编辑器'), exact: true });
+        await mapTabs.getByRole('tab', { name: await text(page, '参数到轴'), exact: true }).press('ArrowRight');
+        await expect(computationsTab).toBeFocused();
+        await expectMappingTab(page, 'computations');
         const editor = page.getByTestId('computed-signals-editor');
-        await expect(editor).toHaveCount(1); await expect(editor).toBeVisible();
-        await expect.poll(() => editor.evaluate(element => element.contains(document.activeElement))).toBe(true);
         await expect(page.locator('.output-card')).toHaveCount(0);
         const routing = page.getByTestId('flow-output-routing');
         await expect(routing).toHaveCount(0);
@@ -120,7 +123,8 @@ for (const locale of ['zh-CN', 'en-US']) {
         const toolbar = page.getByTestId('signal-draft-toolbar');
         await expect(toolbar.getByTestId('save-signal-drafts')).toBeDisabled();
         await expect(toolbar).toContainText(await text(page, '待填写'));
-        await page.getByTestId('edit-computations').click();
+        await toolbar.getByRole('button', { name: await text(page, '计算信号'), exact: true }).click();
+        await expectMappingTab(page, 'computations');
         await expect(calculation).toHaveJSProperty('open', true);
         const inputs = calculation.getByTestId('computed-input-row');
         for (const [index, value] of [[0, '.25'], [1, '.75']]) {
@@ -134,7 +138,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(mappings.last().getByRole('combobox', { name: await text(page, '计算信号'), exact: true })).toHaveValue('Signal1');
         await expect.poll(() => mappings.last().evaluate(element => element.contains(document.activeElement))).toBe(true);
         await expect(page.getByTestId('computed-signals-editor')).toHaveCount(0);
-        await page.getByTestId('edit-computations').click();
+        await computationsTab.click();
         await expect(calculation).toHaveJSProperty('open', true);
         await workspace(page, '流程');
         await expect(calculation.getByRole('textbox', { name: await text(page, '信号名称'), exact: true })).toHaveValue('Pending blend');
@@ -207,7 +211,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await toolbar.getByTestId('restore-signal-drafts').click();
         await expect(path).toHaveValue(initial.config.signals[0].oscPath);
         await expect(mappings).toHaveCount(initial.config.signals.length);
-        await page.getByTestId('edit-computations').click();
+        await computationsTab.click();
         await expect(editor.getByTestId('computed-signal-card')).toHaveCount(0);
         await expect(toolbar.getByTestId('restore-signal-drafts')).toBeDisabled();
         await workspace(page, '输出');

@@ -212,8 +212,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const [parameterDetail, setParameterDetail] = useState(null);
   const [oscPreviewSearch, setOscPreviewSearch] = useState('');
   const [workspace, setWorkspace] = useState(initialWorkspace);
-  const [showComputations, setShowComputations] = useState(false);
-  const [inlineStep, setInlineStep] = useState(null);
+  const [mappingTab, setMappingTab] = useState('mappings');
+  const [stepOrigin, setStepOrigin] = useState(null);
   const [oscWorkspaceTab, setOscWorkspaceTab] = useState('parameters');
   const [newOutputType, setNewOutputType] = useState(platform.outputTypes?.[0] || 'TCodeSerial');
   const [helpOpen, setHelpOpen] = useState(false);
@@ -662,7 +662,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
         }),
       ),
     );
-    setWorkspace('pipeline'); setShowComputations(false);
+    setWorkspace('pipeline'); selectMappingTab('mappings');
     notify(t('已替换映射草稿；实验空间输入需单独允许。'), 'info');
   }
 
@@ -704,7 +704,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   function usePointRig(point, calibrated = null) {
     setSelectedOscPreset('');
-    setWorkspace('pipeline'); setShowComputations(false);
+    setWorkspace('pipeline'); selectMappingTab('mappings');
     setSignalDrafts([
       makeSignalDraft(
         calibrated || {
@@ -1002,7 +1002,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       const nextConfig = editConfiguration(config, { kind: 'mappings', drafts: submittedDrafts, computedDrafts: submittedComputed });
 
       const savedConfig = await persistConfig(nextConfig);
-      setSignalDrafts((current) => current === submittedDrafts ? buildSignalDrafts(savedConfig.signals) : current);
+      // Keep the originating row addressable if a step is saved in the calculation editor.
+      setSignalDrafts(current => current === submittedDrafts
+        ? savedConfig.signals.map((signal, index) => makeSignalDraft({ ...signal, _draftId: submittedDrafts[index]._draftId })) : current);
       setComputedDrafts(current => current === submittedComputed ? buildComputedDrafts(savedConfig.computedSignals) : current);
       await refreshOverview();
       notify(t('更改已保存并应用，输入已关闭；检查后再启用。'), 'success');
@@ -1886,10 +1888,10 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       selectInputTab('protocol');
       setNavigationTarget('[data-testid="protocol-inputs-panel"]');
     } else if (destination === 'osc-mappings') {
-      setWorkspace('pipeline'); setShowComputations(false);
+      setWorkspace('pipeline'); selectMappingTab('mappings');
       setNavigationTarget(tourTarget('mapping', onboarding.status === 'active' ? onboarding.goal : null));
     } else if (destination === 'pipeline') {
-      setWorkspace('pipeline'); setShowComputations(true); setInlineStep(null);
+      setWorkspace('pipeline'); selectMappingTab('computations');
       setNavigationTarget(computedView.expandedIds.includes(computedView.selectedId)
         && computedDrafts.some(signal => signal.id === computedView.selectedId)
         ? `.computed-signals [data-signal-id="${window.CSS.escape(computedView.selectedId)}"] summary` : '.computed-signals');
@@ -1926,7 +1928,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     }
     (region.classList.contains('recording-panel') ? region : region.closest('.input-section') || region).scrollIntoView({ block: 'start', behavior: 'instant' });
     setNavigationTarget(null);
-  }, [navigationTarget, workspace, showComputations, inlineStep, selectedInputTab, oscWorkspaceTab, helpOpen, onboarding.status, onboarding.step]);
+  }, [navigationTarget, workspace, mappingTab, selectedInputTab, oscWorkspaceTab, helpOpen, onboarding.status, onboarding.step]);
 
   useEffect(() => {
     if (!dialog?.focusBindings) return;
@@ -2300,17 +2302,26 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     const draft = makeSignalDraft({ sourceMode: 'Computed', oscPath: signal.id });
     setSignalDrafts(previous => [...previous, draft]);
     setWorkspace('pipeline');
-    setShowComputations(false);
+    selectMappingTab('mappings');
     setNavigationTarget('[data-mapping-draft-id="' + draft._draftId + '"] .mapping-row__target select');
     notify(t('已添加计算信号的轴映射，请调整目标轴与量程后保存。'), 'info');
   }
 
-  function editRouteStep(selection) {
-    setInlineStep(selection);
-    if (selection) {
-      setShowComputations(false);
-      setNavigationTarget('[data-mapping-draft-id="' + selection.mappingId + '"] .computed-signal summary');
-    }
+  function selectMappingTab(tab) {
+    setMappingTab(tab);
+    setStepOrigin(null);
+  }
+
+  function editRouteStep(mappingId, id) {
+    setStepOrigin({ mappingId, signalId: id });
+    setComputedView({ selectedId: id, expandedIds: [id] });
+    setMappingTab('computations');
+    setNavigationTarget(`[data-signal-id="${window.CSS.escape(id)}"] summary`);
+  }
+
+  function returnToMapping() {
+    setNavigationTarget(`[data-mapping-draft-id="${window.CSS.escape(stepOrigin.mappingId)}"] .mapping-row__target select`);
+    selectMappingTab('mappings');
   }
 
   function appendSteps(draft, settings) {
@@ -2318,17 +2329,16 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     if (!route?.steps.length) return;
     setComputedDrafts(previous => [...previous, ...route.steps]);
     updateSignalDraft(draft._draftId, route.mapping);
-    editRouteStep({ mappingId: draft._draftId, id: route.steps.at(-1).id });
+    editRouteStep(draft._draftId, route.steps.at(-1).id);
   }
 
   function renderMappings() {
-    return <AxisMappingsPanel inlineStep={inlineStep} onEditStep={editRouteStep} onAppendSteps={appendSteps}
-      onUpdateStep={(id, patch) => setComputedDrafts(previous => previous.map(node => node.id === id ? { ...node, ...patch } : node))}
-      graphDirty={computedGraphDirty} runtimeSignals={overview?.computedSignals} signalDrafts={signalDrafts} computedDrafts={computedDrafts}
+    return <AxisMappingsPanel onEditStep={editRouteStep} onAppendSteps={appendSteps}
+      signalDrafts={signalDrafts} computedDrafts={computedDrafts}
       oscMappingPresets={oscMappingPresets} selectedOscPreset={selectedOscPreset}
       selectedOscPresetConfig={selectedOscPresetConfig} busy={Boolean(busyKey)} onSelectPreset={setSelectedOscPreset}
       onApplyPreset={applyOscPreset} onOpenPreset={openPresetDialog} onDeletePreset={deleteSelectedPreset}
-      showComputations={showComputations} onOpenComputations={() => showComputations ? setShowComputations(false) : navigateWorkflow('pipeline')} savedMappings={config?.signals || []}
+      savedMappings={config?.signals || []}
       runtime={runtimeOverview || {}} actualInputMode={actualInputMode} listening={Boolean(overview?.osc?.listening)}
       hasUnsavedMappings={hasUnsavedMappings} signalOverlapWarnings={signalOverlapWarnings} latestForDraft={latestForDraft}
       pathOptions={oscPathSuggestions} onUpdateMapping={updateSignalDraft} onRemoveMapping={removeSignalDraft}
@@ -2798,7 +2808,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                     {selectedInputTab === 'combined' && <div className="stack" data-testid="combined-inputs">
                       <p>{config?.protocolInputs?.length ? t('同时使用 OSC、协议、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。') : t('同时使用 OSC、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。')}</p>
                       <div className="actions"><Badge tone={overview?.osc?.listening ? 'success' : 'default'}>{overview?.osc?.listening ? t('OSC 监听中') : t('OSC 未监听')}</Badge>
-                        <Button onClick={() => setWorkspace('pipeline')}>{t('编辑信号流程')}</Button></div>
+                        <Button onClick={() => navigateWorkflow('pipeline')}>{t('编辑信号流程')}</Button></div>
                       <Disclosure title={t('手动来源')}><div className="stack">
                         <ManualControls draft={manualDraft} onChange={handleManualSliderChange}
                           selectedAxes={platform.manualAxes ? manualAxes : undefined} />
@@ -2828,14 +2838,21 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   <Button variant="text" onClick={() => changeGuide({ type: 'dismiss' })}>{t('保存并退出')}</Button>
                 </div>
               </div>}
-              {renderSignalDraftToolbar('osc')}
-              {renderMappings()}
-              {showComputations && <SignalPipelineWorkspace
-              computedDrafts={computedDrafts} runtimeSignals={overview?.computedSignals || EMPTY_OSC_CATALOG}
-              observations={overview?.poseTracking?.spsRoots || EMPTY_OSC_CATALOG} selectedSourceKey={selectedOscSourceKey}
-              computedGraphDirty={computedGraphDirty} pathOptions={oscPathSuggestions} onComputedChange={setComputedDrafts}
-              onMapCalculation={mapComputedSignal} computedView={computedView} onComputedViewChange={setComputedView}
-              onSetCombinedInput={() => { setWorkspace('control'); selectInputTab('combined'); }} />}
+              <Tabs id="mapping-tabs" label={t('映射与变换')} value={mappingTab} onChange={tab => {
+                selectMappingTab(tab);
+                if (onboarding.status === 'active' && onboarding.step === 'mapping') setEditingGuideMappings(true);
+              }} options={[{ value: 'mappings', label: t('参数到轴') }, { value: 'computations', label: t('计算编辑器') }]} />
+              {renderSignalDraftToolbar(mappingTab === 'mappings' ? 'osc' : 'pipeline')}
+              <div id="mapping-tabs-panel" role="tabpanel" aria-labelledby={`mapping-tabs-${mappingTab}`}>
+                {mappingTab === 'mappings' ? renderMappings() : <SignalPipelineWorkspace
+                  editingStepId={stepOrigin && signalDrafts.some(draft => draft._draftId === stepOrigin.mappingId) ? stepOrigin.signalId : null}
+                  onReturnToMapping={returnToMapping}
+                  computedDrafts={computedDrafts} runtimeSignals={overview?.computedSignals || EMPTY_OSC_CATALOG}
+                  observations={overview?.poseTracking?.spsRoots || EMPTY_OSC_CATALOG} selectedSourceKey={selectedOscSourceKey}
+                  computedGraphDirty={computedGraphDirty} pathOptions={oscPathSuggestions} onComputedChange={setComputedDrafts}
+                  onMapCalculation={mapComputedSignal} computedView={computedView} onComputedViewChange={setComputedView}
+                  onSetCombinedInput={() => { setWorkspace('control'); selectInputTab('combined'); }} />}
+              </div>
               <SignalPlanPanel config={config} onApply={applySignalPlan} disabled={!online || Boolean(busyKey)} emergencyAction={emergencyAction} />
             </section>}
             {workspace === 'outputs' && <>{renderOutputs()}
@@ -3280,7 +3297,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                 const tab = mapPreviewParameter(visibleParameterDetail.entry);
                 setParameterDetail(null);
                 if (tab === 'experimental' || tab === 'parameters') { setWorkspace('control'); selectInputTab('osc'); setOscWorkspaceTab(tab); }
-                else { setWorkspace('pipeline'); setShowComputations(false); }
+                else { setWorkspace('pipeline'); selectMappingTab('mappings'); }
               }}
             >
               {t('添加映射草稿')}

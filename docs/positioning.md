@@ -97,7 +97,7 @@ Shader 把配置后的测量原点、测量坐标系的 +X／+Z 两条轴向和 
 
 `Frame` 检查画面推进，默认 350 ms 未变化时失效，启动和恢复需要两个新的推进帧。有效 OSC 按 **Frame → X/Y/Z → RightX/Y/Z → ForwardX/Y/Z → AvatarScale → Valid=1** 连续发送；失效只发 Valid=0。桌面最多接受 500 ms 的 Frame 变化年龄，更短的正数输入超时优先。
 
-Right／Forward 保留配置后测量坐标系 X/Z 轴的方向和长度，适合在“流程”中通过定位测量（SensaPoint）输入计算夹角、向量长度或朝向关系；独立 Y 轴缩放需要另行测量。端到端时间延迟和实际位置误差通过客户端测量确认。[捕获设置](../unity/top.sealoong.sensa/GPU-TRACKING.md) · [编码设计](shader-capture-research.md) · [参数解释](osc-parameters.md)
+Right／Forward 保留配置后测量坐标系 X/Z 轴的方向和长度，适合在**映射与变换 → 计算编辑器**中通过定位测量（SensaPoint）输入计算夹角、向量长度或朝向关系；独立 Y 轴缩放需要另行测量。端到端时间延迟和实际位置误差通过客户端测量确认。[捕获设置](../unity/top.sealoong.sensa/GPU-TRACKING.md) · [编码设计](shader-capture-research.md) · [参数解释](osc-parameters.md)
 
 对象 ID 位于 `Sensa/Shader/<id>/` 路径中。内部 `Sensa/Diagnostics/Shader/0` 采用独立的五字段诊断格式，方便检查图案和传输。
 
@@ -118,7 +118,7 @@ Tracking Frame 与 Shader 的跟随平面用于**自己 Avatar 内测量点与�
 
 Tracking Frame 可选 SPS 四点定位或 Contact 直接定位，分别发布 `Sensa/SPS/<名称>_Origin/…` 或 `Sensa/Contact/<名称>_Origin/…`，另两点使用 `_Forward`、`_Right` 后缀。SPS 方案生成 15 个 Contact、15 个公开字段，采用 AvatarRootLocal；Contact 方案生成 6 个 Contact、36 个公开字段，采用 AvatarRootMeters。三点间距默认 0.2 个 Avatar 根制作单位，跟随 Avatar 缩放；测量框架通过约束跟随参照的平移和旋转。
 
-在“流程”使用“跟随移动平面”模板，选择目标 P 和对应 Origin，检查模板生成的差值、深度与偏移，再保存和连接输出。目标位置与平面标记使用同一种坐标框，参与当前计算的测量点需在可测范围内，每个点保留自己的 Sample 有效期。计算采用参与输入中最旧的时间；快速运动时可通过客户端实测确认多点更新带来的方向误差。独立 Point／Pose 采用各自的 ReferenceLocal，适合直接在所选局部参照下测量。[空间计算与单位](computed-signals.md#组合根点坐标)
+在**映射与变换 → 计算编辑器**使用“跟随移动平面”模板，选择目标 P 和对应 Origin，检查模板生成的差值、深度与偏移，再保存和连接输出。目标位置与平面标记使用同一种坐标框，参与当前计算的测量点需在可测范围内，每个点保留自己的 Sample 有效期。计算采用参与输入中最旧的时间；快速运动时可通过客户端实测确认多点更新带来的方向误差。独立 Point／Pose 采用各自的 ReferenceLocal，适合直接在所选局部参照下测量。[空间计算与单位](computed-signals.md#组合根点坐标)
 
 ## 跨 Avatar 互动：配对三点姿态
 
@@ -157,6 +157,6 @@ Pose 使用全部 24 路中最旧的采样时间检查时效。`Depth` 保留进
 
 ## 把定位结果用于组合计算
 
-在“流程”中添加计算信号，输入类型选择“定位测量”（SensaPoint），填写目标实例的路径并选择指标，即可把解算结果用于加权平均、差值或向量长度等计算。SPS 四点定位先将四路距离解算为坐标，计算输入使用这个有效坐标；多个目标分别选择各自的完整实例路径。
+在**映射与变换 → 计算编辑器**中添加计算信号，输入类型选择“定位测量”（SensaPoint），填写目标实例的路径并选择指标，即可把解算结果用于加权平均、差值或向量长度等计算。SPS 四点定位先将四路距离解算为坐标，计算输入使用这个有效坐标；多个目标分别选择各自的完整实例路径。
 
 例如，A、B 两个根点共用 Avatar 根坐标框时，选择“两点距离”，分别指定 A 和 B 的 XYZ，就能直接得到间距。使用平面深度或平面内偏移时，再选择参考点与法线，或定义平面的两条轴。SPS 四点定位与 Shader 的 AvatarRootLocal 距离按制作尺度解释，Contact 的 AvatarRootMeters 距离按米解释。使用相同参考对象、坐标轴方向和单位，再将最终结果校准到动作范围。定位有效性与 Sample／Frame 时效会传到计算结果；活动计算失效时停止动作。[计算信号示例](computed-signals.md)

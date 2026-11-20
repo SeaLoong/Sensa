@@ -30,11 +30,11 @@ Each computed signal has a stable identifier and a readable name. Other computat
 
 ## Create a computation in the workbench
 
-1. Open **Mapping & transforms → Computed signals** and choose **Add computed signal**. The **Computed signals** button on the Axis mapping subtab opens this editor.
+1. For a standalone calculation, open **Mapping & transforms → Calculation editor** and choose **Add computed signal**. To edit a calculation a mapping already uses, expand the steps on its **Parameter to axis** row and click the step instead. You do not need a new calculation.
 2. Enter a recognizable name, choose an operation and add the inputs.
 3. Choose an OSC parameter, tracking measurement, pose metric, manual, script, device feedback, recording replay, another calculation or a constant. Parameters need their actual path; tracking selects both object path and metric.
-4. To drive an axis, choose **Map to an axis** on the calculation. It opens **Mapping & transforms → Axis mapping** with a new mapping draft; set its target and range. This action leaves saving and input activation to you.
-5. Click **Save changes** to save the calculation graph and axis mappings together. Axis mapping and Computed signals use this shared transaction; **Restore changes** restores both sets of drafts, including edits made in the other subtab. Live previews use the saved setup.
+4. If you came from a mapping row, choose **Return to current mapping** and check that row’s target and range. Use **Map to an axis** only to create a new mapping. Once saved, all mappings and output bindings referencing the calculation use the edited result.
+5. Choose **Save changes** to save the calculation graph and axis mappings together. **Restore changes** discards the unsaved edits on both tabs. Live previews use the saved setup.
 
 To use a result in an output binding, save the calculation first. In **Outputs → Output connections**, choose **Edit output bindings**, select the saved calculation and click **Save output**. Output bindings save separately and preserve unfinished calculation/mapping drafts. Check readings and ranges before enabling input.
 
@@ -103,7 +103,7 @@ To convert local X displacement to metres, use **Product** with X and AvatarScal
 
 ## Combine root coordinates
 
-In **Mapping & transforms → Computed signals**, expand **Spatial calculation presets**, choose an operation and select **Add spatial calculation**. XYZ components are grouped together: enter fixed values, choose a tracked position, or select a Shader Forward/Right direction. Expand individual components to use OSC parameters or other computed signals.
+In **Mapping & transforms → Calculation editor**, expand **Spatial calculation presets**, choose an operation and select **Add spatial calculation**. XYZ components are grouped together: enter fixed values, choose a tracked position, or select a Shader Forward/Right direction. Expand individual components to use OSC parameters or other computed signals.
 
 | Operation | Configuration value | Inputs and result |
 | --- | --- | --- |
@@ -143,7 +143,7 @@ Tracking Frame and Shader templates measure **relative movement between a target
 
 Add a Unity [Tracking Frame](unity-build.en.md), choose the bone, SPS root or marker it follows, then adjust its centre and orientation. It publishes positions for `<name>_Origin`, `<name>_Forward` and `<name>_Right`. Forward−Origin gives the current depth direction, which changes with measured bone rotation.
 
-In **Mapping & transforms → Computed signals**, expand **Spatial calculation presets → Follow a moving plane** and select **Tracking Frame · Origin / Forward**. Enter the Tracking object path and Plane reference object path, such as `Sensa/Contact/Target/**` and `Sensa/Contact/Frame_Origin/**`, then choose **Add following-plane drafts**. The template reads the matching `_Forward` and creates three direction differences, depth and offset: 5 calculations in total. Select Also create point distance to add one more. Review the instances, click **Save changes**, then connect the saved results to outputs. One target can then control both depth and off-centre feedback. [Unity setup and coordinates](positioning.en.md)
+In **Mapping & transforms → Calculation editor**, expand **Spatial calculation presets → Follow a moving plane** and select **Tracking Frame · Origin / Forward**. Enter the Tracking object path and Plane reference object path, such as `Sensa/Contact/Target/**` and `Sensa/Contact/Frame_Origin/**`, then choose **Add following-plane drafts**. The template reads the matching `_Forward` and creates three direction differences, depth and offset: 5 calculations in total. Select Also create point distance to add one more. Review the instances, click **Save changes**, then connect the saved results to outputs. One target can then control both depth and off-centre feedback. [Unity setup and coordinates](positioning.en.md)
 
 Alternatively, choose **Shader · Position and Forward**. The selected Shader position supplies the plane origin and Forward supplies its normal, creating depth and offset directly as two drafts.
 

@@ -16,7 +16,7 @@ Use the desktop edition for live VRChat OSC. If your Avatar already has SPS/OGB,
 
 1. Enable OSC in VRChat. Choose the **VRChat / SPS control** scene, or open **Input → OSC** to inspect received parameters. Sensa commonly receives on **9001**; check the actual listener address.
 2. If needed, open **OGB parameter activation** in OSC settings, enable **Enable OGB parameters in VRChat** and save. The VRChat receive port is commonly **9000**.
-3. Open **Mapping & transforms → Axis mapping**. Choose **OGB / SPS · Depth** for L0 or **OGB / SPS · Vibration** for V0. **Append draft** keeps the current mappings; **Replace draft** replaces them. In **Mapping & transforms → Axis mapping**, select the intended object/source, check the preview and calibrate range/direction. Click **Save changes**.
+3. Open **Mapping & transforms → Parameter to axis**. Choose **OGB / SPS · Depth** for L0 or **OGB / SPS · Vibration** for V0. **Append draft** keeps the current mappings; **Replace draft** replaces them. In **Mapping & transforms → Parameter to axis**, select the intended object/source, check the preview and calibrate range/direction. Click **Save changes**.
 4. Apply **OSC** as the input mode if needed. Check your enabled output and finish the guide if using it. Turn on **Input enabled**, then try a small interaction and watch the response.
 
 SPS2/SPS3 public Root/Tip readings are paired to estimate a depth trend. Separate the objects, then approach in the intended direction so learning can collect samples. SPS1 uses its depth and nearby-region readings. The selected preset describes its required channels; the [SPS3 guide](sps3.en.md) covers public-channel setup. [Preset steps](presets.en.md) · [OGB parameter meanings and limits](ogb-compatibility.en.md)

@@ -242,7 +242,6 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSign
             <option key={path} value={path} />
           ))}
         </datalist>
-        {children}
         <SelectField
           className="mapping-row__target"
           label={t('目标轴')}
@@ -268,6 +267,7 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSign
         </span>
         {latestEntry?.matchCount > 1 && <Badge>{t('命中 {0} 条参数', [latestEntry.matchCount])}</Badge>}
       </div>
+      {children}
       <details>
         <summary>{t('范围与高级设置')}</summary>
         <div className="stack">
