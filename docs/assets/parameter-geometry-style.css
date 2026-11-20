@@ -122,8 +122,12 @@ tr.selected { background: #eaf1ff; }
 .encoding-facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .encoding-facts span { padding: 3px 7px; border-radius: 4px; font-size: 11px; color: #35547d; background: #edf3fc; }
 #encoding-hint { margin-top: 10px; }
-.parameter-reference { scroll-margin-top: 24px; margin-top: 32px; min-width: 0; }
+.parameter-reference { scroll-margin-top: 24px; margin-top: 32px; min-width: 0; overflow-wrap: anywhere; }
 .parameter-reference > p { margin-top: 8px; max-width: 880px; }
+#sps3-parameters > label { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; margin-top: 18px; min-width: 0; font-size: 12px; color: var(--muted); }
+#sps3-path { width: 100%; max-width: 100%; min-width: 0; text-overflow: ellipsis; }
+#sps3-parameters > [aria-live] { min-width: 0; }
+#sps3-parameters > [aria-live] p, #sps3-source { overflow-wrap: anywhere; }
 .parameter-reference-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 12px; margin-top: 18px; min-width: 0; }
 .parameter-reference-card { min-width: 0; background: white; border: 1px solid var(--border); border-radius: 8px; }
 .parameter-reference-card[data-selected=true] { border-color: #8baded; }
