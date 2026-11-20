@@ -70,6 +70,23 @@ test('guide selection and progression dispatch only presentation actions; runtim
   assert.deepEqual(applied, ['script']);
 });
 
+test('the OSC mapping guide offers the starter only as the primary action for an empty draft', () => {
+  const state = { status: 'active', goal: 'osc', step: 'mapping' };
+  for (const locale of ['zh-CN', 'en-US']) {
+    setLocale(locale);
+    for (const [savedMappingCount, draftMappingCount, first] of [[0, 0, true], [0, 1, false], [1, 1, false]]) {
+      const html = render(Onboarding, { ...defaultProps, state, savedMappingCount, draftMappingCount });
+      const actions = [...html.matchAll(/<button[^>]*data-testid="onboarding-(append-l0|edit-mappings)"[^>]*>/g)];
+      assert.deepEqual(actions.map(action => action[1]), first ? ['append-l0', 'edit-mappings'] : ['edit-mappings', 'append-l0']);
+      assert.match(actions[0][0], /button--primary/);
+      assert.doesNotMatch(actions[1][0], /button--primary/);
+      const instructions = html.match(/<ol class="onboarding-instructions">(.*?)<\/ol>/)[1];
+      assert.ok(instructions.includes(t(first ? '追加 L0 示例' : '编辑轴映射')));
+      assert.match(instructions, locale === 'zh-CN' ? /不需要计算信号/ : /does not need a computed signal/i);
+    }
+  }
+});
+
 test('review repairs only missing setup and never applies input or connects a device', () => {
   const actions = [], applied = [], navigation = [];
   const props = { ...defaultProps, state: { ...defaultProps.state, step: 'ready' },

@@ -4,15 +4,16 @@ import { ONBOARDING_STEPS, onboardingScenes, onboardingInstructions } from './on
 import { t } from './i18n.js';
 
 export default function Onboarding({ state, platform = {}, outputCount = 0, availableOutputs = 0, inputPrepared = false,
-  onAppendL0, onEditMappings, savedMappingCount = 0, actualMode, inputActive = false, disabled = false, onChange, onNavigate, onApplyInput, onCreateProfile }) {
+  onViewParameters, onAppendL0, onEditMappings, savedMappingCount = 0, draftMappingCount = savedMappingCount, actualMode, inputActive = false, disabled = false, onChange, onNavigate, onApplyInput, onCreateProfile }) {
   const scenes = onboardingScenes(platform);
   const scene = scenes.find(item => item.id === state.goal);
   const activeStep = scene ? state.step : 'goal';
   const current = ONBOARDING_STEPS.indexOf(activeStep);
   const labels = [t('选择场景'), t('准备输入'), t('轴映射'), t('轴配置'), t('连接设备'), t('查看日志'), t('检查并完成')];
   const go = step => onChange({ type: 'step', step });
-  const instructions = onboardingInstructions(activeStep, state.goal);
+  const instructions = onboardingInstructions(activeStep, state.goal, draftMappingCount > 0);
   const pageLabel = { input: t('输入'), mapping: t('映射与变换'), axes: t('轴配置'), device: t('输出'), diagnostics: t('诊断'), ready: t('输入') }[activeStep];
+  const firstOscMapping = state.goal === 'osc' && !draftMappingCount;
   const canContinue = Boolean(scene);
   const needsMapping = state.goal === 'osc' && savedMappingCount === 0;
   const canFinish = availableOutputs > 0 && inputPrepared && !needsMapping;
@@ -24,7 +25,7 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
     </header>
     <div className="onboarding-panel__body">
       {pageLabel && <p className="caption muted onboarding-location">{t('当前页面：{0}', [pageLabel])}</p>}
-      {activeStep === 'goal' && <p>{(platform.supportsListeners === false ? t('从手动控制 L0 主轴开始，也可以选择脚本。') : t('第一次设置可跟随 OSC → L0 示例：接收一个参数，选择计算步骤，把结果送到主轴。也可以改用其他输入。'))}</p>}
+      {activeStep === 'goal' && <p>{(platform.supportsListeners === false ? t('从手动控制 L0 主轴开始，也可以选择脚本。') : t('想让主轴跟随 VRChat 动作？选“VRChat / SPS 联动”。先看 Sensa 能否收到动作数值，不用启动设备。'))}</p>}
       {instructions.length > 0 && <h3>{activeStep === 'input' ? t('准备 {0}', [scene?.title]) : labels[current]}</h3>}
       {instructions.length > 0 && <ol className="onboarding-instructions">{instructions.map(instruction => <li key={instruction}>{instruction}</li>)}</ol>}
       {activeStep === 'goal' && <div className="task-tiles">
@@ -33,8 +34,9 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
       </div>}
       {activeStep === 'mapping' && <div className="stack">
         <p className="caption">{savedMappingCount ? t('已保存 {0} 条轴映射', [savedMappingCount]) : t('尚未保存轴映射')}</p>
-        {state.goal === 'osc' && <Button tone="primary" data-testid="onboarding-append-l0" onClick={onAppendL0}>{t('追加 L0 示例')}</Button>}
-        <Button tone={state.goal === 'osc' ? undefined : 'primary'} data-testid="onboarding-edit-mappings" onClick={onEditMappings}>{t('编辑轴映射')}</Button>
+        {firstOscMapping && <Button tone="primary" data-testid="onboarding-append-l0" onClick={onAppendL0}>{t('追加 L0 示例')}</Button>}
+        <Button tone={firstOscMapping ? undefined : 'primary'} data-testid="onboarding-edit-mappings" onClick={onEditMappings}>{t('编辑轴映射')}</Button>
+        {state.goal === 'osc' && !firstOscMapping && <Button data-testid="onboarding-append-l0" onClick={onAppendL0}>{t('追加 L0 示例')}</Button>}
       </div>}
       {activeStep === 'axes' && <div className="stack">
         <Button data-testid="onboarding-create-profile" disabled={disabled} onClick={onCreateProfile}>{t('新增轴配置')}</Button>
@@ -47,7 +49,7 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
       {activeStep === 'input' && scene && <div className="stack">
         <Badge tone={inputPrepared ? 'success' : 'default'}>{inputPrepared ? t('输入已准备') : t('输入待准备')}</Badge>
         <div className="actions"><Button tone="primary" data-testid="onboarding-prepare-input" onClick={() => onNavigate(scene.destination)}>{t('打开输入设置')}</Button>
-          {state.goal === 'osc' && <Button onClick={() => go('mapping')}>{t('编辑轴映射')}</Button>}
+          {state.goal === 'osc' && <Button data-testid="onboarding-view-parameters" onClick={onViewParameters}>{t('查看收到的参数')}</Button>}
           {actualMode !== state.goal && <Button data-testid="onboarding-apply-input" disabled={disabled} onClick={() => onApplyInput(state.goal)}>{t('应用输入方式')}</Button>}
         </div>
       </div>}

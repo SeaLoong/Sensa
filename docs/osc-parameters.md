@@ -197,7 +197,7 @@ RawP0–RawP3 供内部 FX 采样使用。ScaleFactor 与 IsLocal 用于缩放�
 | `AvatarScale` | 每根局部单位对应的世界米数，范围 (0,8]；相对位移乘此值可换算成米 |
 | `Valid` | 1 最后提交完整有效包；0 立即使测量失效 |
 
-两条轴由同一三角形内的三个采样点计算。向量长度须大于 `10⁻⁶`，两轴夹角的正弦须大于 `10⁻⁴`，以排除退化测量。它们可用于计算朝向、平面法线、夹角与 X/Z 轴缩放；独立 Y 轴缩放需要另外测量。在“流程”中选择定位测量（SensaPoint），使用 `Sensa/Shader/<id>/**` 和对应指标，即可供计算信号或输出绑定使用，并保留完整包与时效检查。
+两条轴由同一三角形内的三个采样点计算。向量长度须大于 `10⁻⁶`，两轴夹角的正弦须大于 `10⁻⁴`，以排除退化测量。它们可用于计算朝向、平面法线、夹角与 X/Z 轴缩放；独立 Y 轴缩放需要另外测量。在**映射与变换 → 计算信号**中选择定位测量（SensaPoint），使用 `Sensa/Shader/<id>/**` 和对应指标，即可供计算信号或输出绑定使用，并保留完整包与时效检查。
 
 有效单 bundle 的固定顺序是 **Frame → X → Y → Z → RightX → RightY → RightZ → ForwardX → ForwardY → ForwardZ → AvatarScale → Valid=1**。失效只发 Valid=0。桌面要求同一来源、同一 Producer 路径的十二字段连续到达，并检查完整性、有限值和量程。Frame 内容变化年龄最多 500 ms，更短的正数输入超时优先。[共享解码器](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/tracking.ts)
 

@@ -16,7 +16,7 @@ Use this map to find a control. [Guides](start.en.md) helps you choose a task; [
 
 **Start setup guide** follows seven steps: **Choose a scene → Prepare input → Axis mappings → Axis profiles → Connect device → View logs → Review setup**. Each step opens its page, gives concrete instructions and highlights both the current navigation tab and actual controls. You can operate those controls directly; arrow-key navigation from the highlighted tab also updates the guide to the corresponding step. Opening an editor pauses the tour until you close it. **Escape** or **Save and exit** keeps your place. The emergency stop remains available in the tour. If input, a required OSC mapping or an output is missing, open the corresponding setup step or choose **Continue later**. When ready, **Finish tour** records completion without enabling input or changing the configuration.
 
-Configuration templates live in the preset selector under **Mapping & transforms → Axis mapping**, in **Manage computed signals → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
+Configuration templates live in the preset selector under **Mapping & transforms → Axis mapping**, in **Computed signal → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
 
 Use the input tabs on the control page to open manual, script or OSC settings.
 
@@ -58,19 +58,19 @@ In **Input → OSC**, choose **Parameters** or **Experimental diagnostics**. Map
 
 ### Parameters and sources
 
-Find the received parameter and check its value. **Browse source** filters the view; **Use source** chooses the source used by mappings. [Parameter dictionary](osc-parameters.en.md)
+Under **Input → OSC**, check **Enable OSC** and the receiving address and port. If you changed the settings, choose **Save OSC settings**. Choose **Apply input mode** to use OSC. Once you see **Listening**, select **View received parameters** in the guide or open the **Parameters** tab directly. Leave **Input enabled** off while checking values. **Browse source** filters the view; **Use source** chooses the source used by mappings. [Parameter dictionary](osc-parameters.en.md)
 
 ### Where should I look when something does not work?
 
-Check reception and sender port first, then source selection, saved mapping, output connection and **Input enabled**. A preview can update while input is off.
+If a mapping shows **No match**, return to the parameter list and confirm that the selected source is sending on that path. If the paths differ, use the one shown in the list. If nothing is arriving there either, check the sender’s destination address and port against Sensa’s listener settings. Leave input off while troubleshooting.
 
 ### Turn an input into motion (mapping)
 
-Choose an OSC preset directly in **Mapping & transforms → Axis mapping**, then append or replace the mapping drafts. Select a parameter or computed result, calibrate its range/direction and **Save changes**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps) · [Template reference](presets.en.md)
+In **Input → OSC → Parameters**, find a numeric value that changes when you perform an action and choose **Map** on its row. In **Mapping & transforms → Axis mapping**, set the target to L0. Repeat the action and compare **Live input** with **Estimated position** on that row. Adjust the range or reverse the direction if needed, then choose **Save changes**. Input stays off after saving. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps) · [Template reference](presets.en.md)
 
 ### Combine inputs first (computed signals)
 
-Add a step inside an axis mapping, expand it to choose blending, smoothing or another operation, then set its inputs and save. Use **Manage computed signals** for standalone calculations. [Calculation examples](computed-signals.en.md)
+If several readings should drive one axis, add a weighted average step to the current mapping. Each input’s weight determines its influence on the result. [Calculation examples](computed-signals.en.md)
 
 ### Reception, discovery and forwarding
 
@@ -82,7 +82,9 @@ Choose a [tracking setup](usage-scenarios.en.md), inspect valid readings and cap
 
 ## Mapping & transforms
 
-**Mapping & transforms** is the home for creating and editing **Computed signals**. **Map to an axis** on a calculation opens the **Axis mapping** subtab with a new draft; review it and **Save changes** when ready.
+Use **Axis mapping** to choose which source drives which axis. If one parameter drives L0 directly, leave the processing steps collapsed.
+
+Expand the steps only if a reading needs smoothing or several readings need blending. Appending a step or clicking an existing one opens **Computed signal**. After editing, choose **Return to current mapping** to go back to the same row without adding another mapping. The calculation is shared: once saved, other mappings and outputs that use it will use the new result too.
 
 Expand **Output connections** on the **Outputs** page to inspect saved routes. **Edit output bindings** opens the output's existing settings dialog at its bindings; **Manage outputs** locates the full device cards on the same page. Bindings that use computations read saved results. **Save output** applies bindings separately, preserving unfinished calculation/mapping drafts.
 

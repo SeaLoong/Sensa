@@ -60,11 +60,12 @@ export function OutputRoutingSummary({ outputs, overview, savedComputations, out
 
 export default function SignalPipelineWorkspace({ toolbar, computedDrafts = [], runtimeSignals = [], observations = [],
   selectedSourceKey = '', computedGraphDirty = false, pathOptions = [], onComputedChange, onMapCalculation,
-  computedView, onComputedViewChange, onSetCombinedInput }) {
+  computedView, onComputedViewChange, onSetCombinedInput, editingStepId, onReturnToMapping }) {
   return <div className="signal-pipeline-workspace">
     {toolbar}
     <ComputedSignalsPanel actions={<Button onClick={onSetCombinedInput}>{t('设置组合输入')}</Button>} drafts={computedDrafts} runtimeSignals={runtimeSignals} observations={observations}
       selectedSourceKey={selectedSourceKey} graphDirty={computedGraphDirty} pathOptions={pathOptions}
+      editingStepId={editingStepId} onReturnToMapping={onReturnToMapping}
       viewState={computedView} onViewStateChange={onComputedViewChange} onChange={onComputedChange} onMap={onMapCalculation} />
   </div>;
 }

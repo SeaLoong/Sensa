@@ -27,7 +27,7 @@ export function createRigConfiguration(scenario, serialPort) {
       oscQueryEnabled: scenario === 'query', oscQueryUrl: `http://127.0.0.1:${ports.query}`, oscQueryReceiver: { enabled: false },
       hub: { enabled: scenario === 'query', mode: 'EventDriven', targets: [{ id: 'mock-hub', name: 'Mock Hub', host: '127.0.0.1', port: ports.hub, enabled: true }] },
     },
-    signals: scenario === 'sps' ? [{ oscPath: 'OGB/Orf/Test/PenOthersNewRoot', sourceMode: 'SpsSocketDepth', role: 'Depth' }]
+    signals: scenario === 'first-run' ? [] : scenario === 'sps' ? [{ oscPath: 'OGB/Orf/Test/PenOthersNewRoot', sourceMode: 'SpsSocketDepth', role: 'Depth' }]
       : scenario === 'query' ? [{ oscPath: 'QueryDepth', role: 'Depth' }] : [{ oscPath: 'CI/Depth', role: 'Depth' }, { oscPath: 'CI/Active', role: 'GateEnable' }],
   };
 }

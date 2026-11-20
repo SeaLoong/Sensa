@@ -5,7 +5,7 @@ import { t } from './i18n.js';
 
 // The target remains interactive. Native editors appear above this layer and
 // suspend the tour until closed; advancing never writes runtime configuration.
-export default function GuidedTour({ step, goal, workspace, suspended, onDismiss, emergencyAction, children }) {
+export default function GuidedTour({ step, goal, workspace, targetSelector, suspended, onDismiss, emergencyAction, children }) {
   const cardRef = useRef(null), dismissRef = useRef(onDismiss);
   dismissRef.current = onDismiss;
   const [layout, setLayout] = useState(null);
@@ -13,7 +13,7 @@ export default function GuidedTour({ step, goal, workspace, suspended, onDismiss
     if (suspended) return undefined;
     let frame = 0, target = null, navigation = null, scrolled = false;
     const previousFocus = document.activeElement;
-    const selector = tourTarget(step, goal);
+    const selector = targetSelector || tourTarget(step, goal);
     const update = () => {
       frame = 0;
       // Output telemetry can fill the viewport. Keep the connection actions
@@ -73,7 +73,7 @@ export default function GuidedTour({ step, goal, workspace, suspended, onDismiss
       document.removeEventListener('keydown', keydown);
       if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
-  }, [step, goal, workspace, suspended]);
+  }, [step, goal, workspace, suspended, targetSelector]);
   if (suspended || typeof document === 'undefined') return null;
   const target = layout?.target;
   const masks = layout?.shades || (target ? [
