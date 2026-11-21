@@ -21,7 +21,7 @@ Use the desktop edition for live VRChat OSC. If your Avatar already has SPS/OGB,
 
 SPS2/SPS3 public Root/Tip readings are paired to estimate a depth trend. Separate the objects, then approach in the intended direction so learning can collect samples. SPS1 uses its depth and nearby-region readings. The selected preset describes its required channels; the [SPS3 guide](sps3.en.md) covers public-channel setup. [Preset steps](presets.en.md) · [OGB parameter meanings and limits](ogb-compatibility.en.md)
 
-## Contact direct tracking (SDK Beta)
+## Contact direct tracking
 
 For Avatar authors who need metre-based root position and relative velocity. This requires a supported advanced Proximity SDK and a Sensa Contact component. [Contact setup](contact-sdk.en.md) · [Calibration](positioning.en.md)
 

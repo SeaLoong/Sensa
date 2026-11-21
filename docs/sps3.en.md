@@ -1,36 +1,31 @@
-# SPS3 and VRCFury Beta
+# SPS3 and VRCFury
 
 [简体中文](sps3.md) | **English**
 
-Sensa supports VRCFury SPS3 Beta's compatible OGB parameters and Socket/Plug root, pose and following-plane measurements. Depth and touch use the existing presets, and SPS1/SPS2 configurations remain usable.
+This guide follows the published [VRCFury 1.1491.0 release](https://github.com/VRCFury/VRCFury/releases/tag/com.vrcfury.vrcfury/1.1491.0) (`0723fc6e`). Choose a preset by the paths your avatar actually sends. Updating VRCFury in a Unity project does not change an already uploaded avatar.
 
-This page targets official **VRCFury 1.1437.1-beta.1**, pinned to [`59fa4fa`](https://github.com/VRCFury/VRCFury/tree/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4). [Upstream Beta release](https://github.com/VRCFury/VRCFury/releases/tag/com.vrcfury.vrcfury/1.1437.1-beta.1)
+## Map depth or touch
 
-## Drive an output with depth or touch
+1. For Socket/Plug OSC output, keep **Tools → VRCFury → Settings → Enable SPS Haptics** enabled when building a desktop avatar. For public interactions keep **Include Public SPS Channel**; custom channels must match and allow the intended Self/Others party.
+2. Select OSC input in Sensa. If the haptics receiver requires activation, enable OGB parameter control under **Input → OSC → Receive and forward**. This sends `OGB/Enabled` and legacy `OGB_ENABLED` and clears both on stop. Leave device input disabled while checking readings.
+3. Move one object and check the path, object ID and value. Use the corresponding axis mapping preset and calibrate against the actual movement. Save and inspect the result before enabling device output.
 
-1. Enable the required **OGB Haptics** in the Avatar's VRCFury configuration. Keep the Plug's **Include Public SPS Channel** enabled for the usual Others interaction.
-2. In **Input → OSC**, choose the source publishing the parameters. Then apply **OGB / SPS · Depth** or **OGB / SPS · Vibration** in **Mapping & transforms → Axis mapping**.
-3. Separate the objects, then approach to provide length samples. Calibrate the intended endpoints and click **Save changes**. Enable OGB parameter control in **Input → OSC → Receive and forward** if the Avatar needs a heartbeat, then enable input.
-
-SPS3's public compatibility readings keep these paths:
-
-| Use | Parameters |
+| Received OSC parameter (`<id>` is the built object's ID) | What the preset can do |
 | --- | --- |
-| Socket depth | `OGB/Orf/<id>/PenOthersNewRoot` and `PenOthersNewTip`; corresponding `PenSelf…` paths for self interaction |
-| Plug depth trend | `OGB/Pen/<id>/PenOthers` or `PenSelf` |
-| Touch and friction | The same instance's `Touch…`/`Frot…` and published `Close` values; independent zones use `VFH/Zone/Touch/…` |
+| `OGB/Socket/<id>/DepthOthers` or `OGB/Plug/<id>/DepthOthers` (`DepthSelf` for self) | One Proximity value (0–1) drives L0. The command rises as the value rises. It is not measured insertion in metres or a guaranteed percentage of travel. No Root/Tip pair or length-learning step is required. |
+| `OGB/Socket/<id>/TouchOthers` or `OGB/Plug/<id>/TouchOthers` (`TouchSelf` for self) | Touch value drives V0; stronger readings give a larger intensity target. Socket touch is generated conditionally. Plug touch measures along the configured contact face. Neither needs a `Close` companion. |
+| `OGB/Plug/<id>/FrotOthers` | Plug-on-plug contact drives V0 from the reported face proximity; it is not a speed reading. |
+| `OGB/Touch/<id>/Others` or `Self` | A standalone touch zone can drive intensity without a Socket/Plug or `Close` parameter. |
 
-The Socket pair still uses 1 m receivers, a 0.01 m root sphere and a length sphere, sharing SPS2's length and depth calculation. The workbench and explorer label this geometry **SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip**. [Presets and calibration](presets.en.md) · [Complete geometry](ogb-compatibility.en.md)
+`OGB/Version/11` advertises the haptics interface, not motion. `OGB/HapticsDisabled` indicates the build option was disabled. `DepthRadius` (Socket) and `LengthMult1/2` (Plug) are metadata, not depth inputs. When available, the depth receivers request the SDK's advanced reports; for example, `_SenderVelocityMagnitude` is a separate m/s value. See the [OSC dictionary](osc-parameters.en.md) and [preset calibration](presets.en.md).
 
-## Channels, Contact tags and OSC
+## Older avatars and native Contact tags
 
-SPS3 introduces native Contact tags `SPS/Plug/<channel>`, `SPS/Socket/<channel>` and `SPS/SocketPath/<channel>` for interaction selection, encoded dimensions and path stops. These work inside the Avatar; OSC mappings select the `OGB/…` or `Sensa/…` parameters the Avatar actually publishes.
+`OGB/Orf/<id>/PenOthersNewRoot` + `PenOthersNewTip` are **older** Socket measurements. Sensa continues to pair readings from the same OSC source, instance and party, learn plug length and apply the legacy geometry. `OGB/Pen/<id>/PenOthers`, legacy touch/`Close` pairs and `VFH/Zone/Touch/...` retain their previous rules. These are different protocols, not interchangeable prefixes. See [legacy geometry](ogb-compatibility.en.md).
 
-`_public` provides the usual public compatibility channel. `_nothips` supplies legacy self-contact matching with hips excluded; it does not replace the public channel used by Others. An authored setup containing only custom private channels may still declare legacy OGB paths without receiving matching target readings. Keep the required public channel to use the standard presets. [Upstream channel definitions](https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsTags.cs)
+`SPS/Plug/<channel>`, `SPS/Socket/<channel>` and `SPS/SocketPath/<channel>` are **collision tags inside the avatar**, not automatically published OSC paths. The SPS3 Socket entrance uses a zero-radius marker; Plug scale and Socket scale carry different metadata. Do not interpret encoded scale as ordinary avatar size. The optional GPU model diagnostic has its own dependency lock: support for OSC and authoring geometry does not certify a new shader revision.
 
-`VFH/Version/10` is an OGB capability marker shared by SPS2 and this SPS3 Beta. Sensa pairs actual readings rather than interpreting 10 as an SPS generation.
-
-Native SPS3 Socket roots have radius zero, compared with 0.001 m for SPS1/2 legacy markers. Plug `PenOthers`/`PenSelf` still read raw values calibrated against the actual object; this difference needs no new depth mode. In the Plug-depth or Socket-friction explorer, switch **Socket root marker** to **SPS3 · point (0 mm)** to inspect point-marker values and boundaries, or select SPS1/2 to compare the 1 mm marker.
+**Pinned upstream source:** [Socket OSC](https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L141-L168), [Plug OSC](https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L117-L159), [depth output](https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Avatars/Service/SelfAndOthersReceiverAnimatorService.cs#L71-L82), [touch zone](https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Avatars/Feature/VRCFuryHapticTouchReceiverBuilder.cs#L24-L49), [local enable](https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Avatars/Service/OgbEnabledService.cs#L17-L38), [native tags](https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsTags.cs).
 
 ## Measure your own roots and reference planes
 
@@ -39,6 +34,8 @@ In Unity, use **GameObject → Sensa → Automatic SPS Setup** and select your S
 An explicit SPS3 native Contact root can also be selected. Socket X scale encodes groups and flags; Plug scale encodes length and radii. Sensa converts these markers' positions and rotations into a separate rigid reference frame, with offsets and Right/Forward axes expressed in Avatar-root units. Original markers and authored channels retain their settings. [Unity setup](../unity/top.sealoong.sensa/README.md) · [Position and following planes](positioning.en.md)
 
 ## Experimental model probe
+
+**The SPS3 GPU probe is pinned to the previously tested beta dependencies. GPU pixels and the deformation centerline have not been verified with VRCFury 1.1491.0.**
 
 Native root capture measures the chosen root; the editor GPU model probe studies the deformation centerline. SPS3 uses Renderer Contact data, while SPS2 uses a Resolver and grid textures. The probe selects the adapter for that data interface and its pinned dependencies. See the [GPU guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for operation.
 

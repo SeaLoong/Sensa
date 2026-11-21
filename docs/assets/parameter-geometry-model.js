@@ -40,7 +40,7 @@
     plugs: 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L256',
     senders: 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108',
     contacts: 'https://creators.vrchat.com/common-components/contacts/',
-    contactSdk: 'https://creators.vrchat.com/common-components/contacts/#advanced-proximity-parameters',
+    contactSdk: 'https://creators.vrchat.com/common-components/contacts/#advanced-parameters',
     sps: 'https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs',
     shader: 'https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader',
   });
@@ -56,7 +56,7 @@
       D: illustrationDefaults.viewHeight * nativeSpsGeometry.socketDepthViewHeightRatio, socketRootRadius: nativeSpsGeometry.socketRootRadius, senderRadius: illustrationDefaults.bodyRadius,
       senderHeight: .12, zoneRadius: nativeSpsGeometry.touchZoneRadius, yaw: 0, party: 'Others', senderKind: 'body',
       senderShape: 'sphere', ageMs: 0, timeoutMs: 1000, sample: 1 / 32, frame: 0, valid: true,
-      vx: 0, vy: 0, vz: 0, proximitySpeed: 0,
+      vx: 0, vy: 0, vz: 0, proximitySpeed: 0, scaleX: 1, scaleY: 1, scaleZ: 1,
       rightX: 1, rightY: 0, rightZ: 0, forwardX: 0, forwardY: 0, forwardZ: 1, avatarScale: 1 };
   }
   const origin = () => ({ x: 0, y: 0, z: 0 });
@@ -366,8 +366,8 @@
         '选中匹配 Sender 的接近值，范围 0–1；按接收器形状中心到 Sender 最近表面的距离计算。数值越大表示越靠近；0 表示没有选中的 Sender。',
         'The selected matching Sender’s proximity, from 0 to 1, using receiver shape center to nearest Sender surface distance. Higher means closer; 0 means no selected Sender.'];
       if (name === 'Proximity_SenderType') return [
-        'SDK 选中的 Sender 类别（Int）：0 无、1 自身、2 他人、3 世界。本 Sensa 预设仅匹配自身标记；1 与活动 Sample 一起确认可用位置，原点坐标也有效。离开后类别、XYZ 与速度归零。',
-        'SDK selected Sender category (Int): 0 none, 1 self, 2 another avatar, 3 world. This Sensa preset matches self markers; 1 plus active Sample confirms a usable position, including the origin. Type, XYZ and velocity return to zero on exit.'];
+        'SDK 选中的 Sender 类别（Int）：0 无或未知、1 自身、2 他人、3 世界、4 生成物品。本 Sensa 预设仅匹配自身标记；1 与活动 Sample 一起确认可用位置，原点坐标也有效。离开后类别、XYZ 与速度归零。',
+        'SDK selected Sender category (Int): 0 none or unknown, 1 self, 2 another avatar, 3 world, 4 spawned item. This Sensa preset matches self markers; 1 plus active Sample confirms a usable position, including the origin. Type, XYZ and velocity return to zero on exit.'];
       if (name.startsWith('Proximity_SenderLocalPosition')) {
         const axis = name.at(-1), directions = { X: ['左右', 'left/right'], Y: ['上下', 'up/down'], Z: ['前后', 'forward/back'] };
         return [`Sender 形状中点相对 Receiver 形状中点的 ${axis} 位置分量，单位米；轴向随 Receiver 旋转。此预设 Receiver 位于 Avatar 根原点，${directions[axis][0]}可取正值或负值，可用于位置与进入程度联动。`,
@@ -472,7 +472,7 @@
     });
     const assumptions = [
       { id: 'illustration', zh: '图中用一组匹配目标演示检测形状和参数变化。', en: 'The diagram uses one matching target to explore detection shapes and changing values.' },
-      { id: 'scale', zh: scenario === 'contact-sdk' ? '已核对 SDK 3.10.6-beta.2／beta.3：位置与速度按 Receiver 旋转后的轴以米、米每秒报告，保持世界尺度。' : 'OGB 图形按作者缩放为 1、以米展示；SPS 四点定位和 Shader 使用 Avatar 根局部单位。', en: scenario === 'contact-sdk' ? 'Verified SDK 3.10.6-beta.2 / beta.3: position and velocity use Receiver-rotated axes in metres and metres per second, retaining world scale.' : 'OGB shapes are shown in metres at authored scale 1; SPS four-anchor tracking and Shader use Avatar-root local units.' },
+      { id: 'scale', zh: scenario === 'contact-sdk' ? 'SDK 3.10.6 正式版：位置与速度按 Receiver 旋转后的轴以米、米每秒报告，保持世界尺度。' : 'OGB 图形按作者缩放为 1、以米展示；SPS 四点定位和 Shader 使用 Avatar 根局部单位。', en: scenario === 'contact-sdk' ? 'SDK 3.10.6 stable: position and velocity use Receiver-rotated axes in metres and metres per second, retaining world scale.' : 'OGB shapes are shown in metres at authored scale 1; SPS four-anchor tracking and Shader use Avatar-root local units.' },
       { id: 'projection', zh: scenario === 'shader' ? '绿色方框显示编码坐标范围的 XZ 截面；位置编码保留完整 XYZ，Y 由高度滑条调整。' : ['contact-sdk', 'sensa-sps'].includes(scenario) ? '数值按完整 XYZ 计算；二维接收轮廓是投影，绿色区域表示所选 Y 高度的切片。' : 'XZ 图把三维形状投影到平面，数值始终按完整 XYZ 距离计算。', en: scenario === 'shader' ? 'The green box shows the XZ section of the coordinate encoding range. Encoding retains full XYZ; the height slider adjusts Y.' : ['contact-sdk', 'sensa-sps'].includes(scenario) ? 'Values use full XYZ. Receiver outlines are projected into 2D; green shows a slice at the selected Y.' : 'The XZ view projects 3D shapes onto a plane; values always use full XYZ distances.' },
       { id: 'caps', zh: '胶囊总高度包含两端半球；本页在形状相交时将接触开关设为 1。', en: 'Capsule height includes both hemispherical caps; this guide sets the contact switch to 1 when the shapes overlap.' },
     ];
@@ -594,11 +594,15 @@
         coordinateFrame: 'AvatarRootMeters', velocity: chosen && active ? velocity : null,
         position: chosen && active ? { ...position } : null,
         reason: !chosen ? 'no-selected-sender' : !active ? 'sample-inactive-or-stale' : 'ok' });
+      // SDK examples use an arbitrary Receiver base (Brush), not the Sensa protocol prefix.
+      metrics.sdkFields = { Brush_PointSeparation: chosen ? (measured.axisDistance <= .001 ? 0 : measured.axisDistance) : -1 };
+      for (const axis of ['X', 'Y', 'Z']) metrics.sdkFields['Brush_SenderLossyScale' + axis] = chosen ? number(input, 'scale' + axis, 1) : 1;
+      const rate = number(chosen ?? input, 'proximitySpeed', 0);
       const entries = [['Proximity', measured.raw, 'proximity'], ['Proximity_SenderType', chosen ? 1 : 0, 'constant'],
         ...['X', 'Y', 'Z'].map(axis => ['Proximity_SenderLocalPosition' + axis, position[axis.toLowerCase()], 'coordinate']),
         ...['X', 'Y', 'Z'].map(axis => ['Proximity_SenderVelocity' + axis, velocity[axis.toLowerCase()], 'velocity']),
         ['Proximity_SenderVelocityMagnitude', length(velocity), 'speed'],
-        ['Proximity_ProximitySpeed', number(chosen ?? input, 'proximitySpeed', 0), 'rate'],
+        ['Proximity_ProximitySpeed', Math.abs(rate) <= .001 ? 0 : rate, 'rate'],
         ['Radius', 2, 'radius'], ['Sample', sample, 'counter']];
       for (const [name, raw, type] of entries) values.push({ name, path: 'Sensa/Contact/Example/' + name,
         type, raw, value: raw, effective: metrics.valid || ['Radius', 'Sample'].includes(name) ? raw : null,

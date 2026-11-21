@@ -23,7 +23,7 @@ Use the internal QuickStart and experiment components already included in FullFl
 | Native PB | Stretch amount and IsGrabbed state | Grab and stretch, then release and check stopping |
 | OGB / SPS | SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip, or SPS1 · PenOthers / PenOthersClose | Fix object/source, separate then approach, and check depth trend and Close presence |
 | SPS four-anchor tracking | Dedicated root, P0–P3, changing Sample and endpoint calibration | Move along one axis; check local direction and stopping after sample invalidity |
-| Contact direct tracking (SDK Beta) | Add `SensaContactRootProbe` separately and follow [Contact setup](contact-sdk.en.md) for a dedicated own root; inspect metre-based XYZ, relative velocity in m/s, `Radius`, `Sample` and `Proximity_SenderType=1` (Self) | Calibrate position or speed; check stopping after leaving Receiver coverage or Sample activity freezing |
+| Contact direct tracking | Add `SensaContactRootProbe` separately and follow [Contact setup](contact-sdk.en.md) for a dedicated own root; inspect metre-based XYZ, relative velocity in m/s, `Radius`, `Sample` and `Proximity_SenderType=1` (Self) | Calibrate position or speed; check stopping after leaving Receiver coverage or Sample activity freezing |
 | Shader | Native block, capture region, producer ID, CRC and advancing Frame | Move the selected root and check decoded position, X/Z axes and Avatar world scale; obscure/freeze the block and check invalidity |
 
 Configure synthetic Depth/GateEnable **manually** from actual paths. After the experiment, replace those paths and conditions with actual linkage parameters. Use the Avatar’s PhysBone prefix in place of MyPB in the PB template.

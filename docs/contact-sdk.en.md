@@ -1,15 +1,15 @@
-# Contact direct tracking (SDK Beta)
+# Contact direct tracking
 
 [简体中文](contact-sdk.md) | **English**
 
-Use Contact direct tracking to measure the selected Avatar root in metres and its relative contact-point velocity in m/s. Add a dedicated spherical Sender/Receiver pair, inspect the advanced Proximity fields, then calibrate the chosen metric. The setup below uses **VRChat Avatars SDK 3.10.6-beta.3**; the advanced interface from Beta.2 is also supported.
+Contact direct tracking measures the selected Avatar root position in metres and relative contact-point velocity. **Advanced Parameters are a released VRChat SDK feature**: as of 2026-11-20 the latest stable release is [3.10.6](https://github.com/vrchat/packages/releases/tag/3.10.6), published 2026-10-30; [3.11.0-beta.1](https://github.com/vrchat/packages/releases/tag/3.11.0-beta.1) is a prerelease.
 
-The Editor source and runtime assembly from the official [3.10.6-beta.3 release](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3) have been inspected; [3.10.6-beta.2](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2) remains the original protocol reference. This guide explains the SDK interface, Sensa's published fields and client setup. See the [verification record](e2e-status.en.md) for executed checks.
+The Sensa builder now configures the stable SDK’s advanced-parameter flags and retains the historical [beta.3](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3) and [beta.2](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2) Bool interfaces. The package and component checks below are distinct from an end-to-end Avatar build, OSC delivery or an actual client test. See the [verification record](e2e-status.en.md).
 
 ## Build a dedicated root measurement
 
-1. Install the matching Base and Avatars beta packages through your VRChat project tools, then install Sensa's Unity package.
-2. In **Automatic SPS Setup**, explicitly select **Contact direct tracking (SDK Beta)** as the root tracking method, or add **Contact direct tracking (SDK Beta)** (`SensaContactRootProbe`) directly.
+1. Install matching VRChat Base and Avatars SDK 3.10.6 packages through your VRChat project tools, then install the Sensa Unity package. Beta packages are not required for this route.
+2. In **Automatic SPS Setup**, explicitly select **Contact direct tracking** as the root tracking method, or add **Contact direct tracking** (`SensaContactRootProbe`) directly.
 3. Set Target to a bone/empty-object Transform, SPS Socket/Plug, Sensa Component or native Contact within your Avatar. Instances default to `Root`; give multiple points distinct names. An empty collision channel is derived from the instance name. Transform, Sensa and native Contact targets work directly.
 4. Build the Avatar. The shared NDMF plugin reads author settings before MA, creates a tiny spherical Sender following the selected root and a Proximity Receiver at the Avatar origin, with zero shape offsets and Avatar-aligned axes. The Receiver accepts only Self on that dedicated channel.
 5. In the actual client, select the target in its generated menu when applicable. Inspect `Sensa/Contact/<id>/…` from one OSC source, then calibrate in the root panel before enabling spatial input.
@@ -20,7 +20,7 @@ The authored Receiver radius is 2 Avatar-root local units and the marker radius 
 
 ## Read position and velocity in the correct frame
 
-Sensa enables the Bool switch provided by the installed SDK: **`advancedParameters` in Beta.3 or `advancedProximityParameters` in Beta.2**. The Beta.3 switch defaults to false and is marked `NotKeyable`; Sensa enables it during the build. Beta.3 supports advanced reports for any Receiver type. Sensa uses a Proximity Receiver, where `_ProximitySpeed` describes the rate of change of proximity. With base parameter `Proximity`, both versions provide `Proximity_SenderType`, `Proximity_SenderLocalPositionX/Y/Z`, `Proximity_SenderVelocityX/Y/Z`, `Proximity_SenderVelocityMagnitude` and `Proximity_ProximitySpeed`.
+Stable 3.10.6 uses the `advancedParameters` flags enum, not a Bool (see the [release history](https://github.com/vrchat-community/creator-docs/blob/16fb16cfb4541fddcf35884e811ce8db16ff6493/Docs/releases/release-3.10.6.md)). The Sensa builder selects `SenderType`, `SenderLocalPosition`, `SenderVelocity`, `ProximitySpeed` and `CollisionTags` (`0x8000002B`); the tag is FX-only. It does **not** request `SenderLossyScale` or `PointSeparation` for this probe. The historical Bool paths remain `advancedParameters` on Beta.3 and `advancedProximityParameters` on Beta.2. Advanced reports work on any Receiver type; only a Proximity Receiver generates `_ProximitySpeed`.
 
 The [official VRChat Contacts guide](https://creators.vrchat.com/common-components/contacts/) describes Receiver detection modes: Constant reports whether a matching target entered the detection region, while Proximity reports a continuous 0–1 approach value. The advanced position/velocity fields here follow the measurement implementation in the official packages listed below. Sensa adds `Radius` and `Sample` for coverage and activity checks. The explorer's [“OSC parameter meanings and sources”](parameter-geometry.html#parameter-reference) section and workbench parameter details provide measurement definitions, linkage uses and sources for individual fields.
 
@@ -30,9 +30,9 @@ The [official VRChat Contacts guide](https://creators.vrchat.com/common-componen
 | How fast it moves and in which direction | `Proximity_SenderVelocityX/Y/Z`, `Proximity_SenderVelocityMagnitude` | Relative velocity near the contact point, in m/s; components retain direction, while magnitude supports movement-strength mapping |
 | How proximity changes | `Proximity`, `Proximity_ProximitySpeed` | Proximity is 0–1; its change rate uses proximity units/s. Use them to inspect approach and withdrawal inside the detection range |
 
-Sensa Contact tracking uses twelve public fields, so existing position, velocity and preset configurations carry over. The [OSC parameter dictionary](osc-parameters.en.md) lists the supported fields; Beta.3's additional native reports are explained below.
+Sensa Contact tracking uses twelve public fields, so existing position, velocity and preset configurations carry over. The [OSC parameter dictionary](osc-parameters.en.md) lists the supported fields; additional native reports are explained below.
 
-The SDK also writes a `_CollisionTag_<tag>` Bool for each collision tag. The component declares this state in FX for its dedicated tag and clears it while inactive. The [dictionary](osc-parameters.en.md) lists the twelve-field public OSC contract.
+Selecting **Collision Tags** generates a `_CollisionTag_<tag>` Bool for each configured Receiver tag; it is true when that tag matches. Sensa declares its dedicated tag in FX; it is not an extra public tracking field.
 
 Position describes the **Sender shape midpoint relative to the Receiver shape midpoint**, rotated into Receiver shape axes. The runtime applies inverse shape rotation without dividing by transform scale or Receiver radius. A sphere's midpoint is its center; a capsule uses its shape midpoint. Sensa's dedicated zero-offset Receiver therefore establishes **AvatarRootMeters**: origin at the Avatar root, axes following its rotation, and physical metre units. SPS four-anchor tracking and Shader capture continue to use **AvatarRootLocal**, whose units follow the authored Avatar scale.
 
@@ -45,28 +45,28 @@ Velocity is the Sender's velocity relative to the Receiver, evaluated near the c
 
 Negative position components are ordinary coordinates. A stationary Sender can have zero velocity while its position remains valid. A single dedicated point supplies position and velocity. Use Tracking Frame to measure Origin, Forward and Right together when a reference direction should follow a bone.
 
-### Additional SDK Beta.3 reports
+### Additional native Contact reports
 
-The [official 3.10.6 release notes](https://vrc-beta-docs.netlify.app/releases/release-3-10-6) explain the expanded reports. With Advanced Parameters enabled, the SDK can append these suffixes to the Receiver's base parameter name:
+Select the reports you need under **Advanced Parameters** on the stable Receiver. Their names are the Receiver’s custom base parameter name plus a suffix. Not every Avatar uses `Proximity` as its base name or sends these values over OSC. [Official field definitions](https://github.com/vrchat-community/creator-docs/blob/16fb16cfb4541fddcf35884e811ce8db16ff6493/Docs/docs/common-components/contacts/index.md#advanced-parameters) · [3.10.6 release notes](https://creators.vrchat.com/releases/release-3-10-6)
 
 | Suffix | Meaning and units | How to read it |
 | --- | --- | --- |
 | `_PointSeparation` | World-space distance between the **nearest inner points** of the Sender and Receiver, in metres | Measures the closest approach of the two Contact shapes; Sensa root `Distance` instead derives the distance to the Avatar origin from XYZ, with its own reference |
 | `_SenderLossyScaleX/Y/Z` | Three components of the associated Sender Transform's `lossyScale`, unitless | Reads world scale including parent transforms, useful when inspecting how signal shapes change with scale |
 
-“Nearest inner points” follows the SDK's shape definition and depends on the Sender and Receiver geometry. Choose XYZ or Sensa `Distance` for position mapping; calibrate native `_PointSeparation` against the actual Contact shapes.
+Spheres and boxes use the shape centre; capsules use the nearest point on their centre line. `_PointSeparation` is not a surface gap. With a selected Sender, the stable runtime reports distances ≤0.001 m as zero; it also zeroes `_ProximitySpeed` when its absolute value is ≤0.001 proximity units/s.
 
-The Beta.3 runtime assembly also shows that no selected Sender reports scale `(1,1,1)` and PointSeparation `-1`. With a selected Sender, PointSeparation values ≤0.001 m are reported as zero. Check `_SenderType` before interpreting these additional values. To use these optional reports, declare the corresponding Float parameters in the Animator and configure their OSC visibility. Sensa generates its existing twelve public fields; its tracking presets use the position and velocity fields above.
+With no selected Sender, stable 3.10.6 reports scale `(1,1,1)` and PointSeparation `-1`, not measured scale or distance. Select `_SenderType` alongside a reading to distinguish a recognized contact from these defaults. Declare the matching Animator parameters with their SDK types and expose them over OSC. The twelve-field Sensa tracking contract does not change.
 
 ## Follow a bone with a Contact shape and reference plane
 
-A native Contact uses `rootTransform` as its reference, or the component's Transform when none is assigned. Local `position` and `rotation` define the shape. When a sphere is offset from the bone origin, bone rotation moves its centre along an arc; a centred sphere keeps the same outline as it rotates. One sphere's proximity is useful for distance, while several points with a known layout reveal direction. [Official Contacts](https://creators.vrchat.com/common-components/contacts/) · [Field definitions](https://github.com/vrchat-community/creator-docs/blob/f437f5081c4476aaf443b507a7ec4a9d21e0e63b/Docs/docs/common-components/contacts/index.md)
+A native Contact uses `rootTransform` as its reference, or the component's Transform when none is assigned. Local `position` and `rotation` define the shape. When a sphere is offset from the bone origin, bone rotation moves its centre along an arc; a centred sphere keeps the same outline as it rotates. One sphere's proximity is useful for distance, while several points with a known layout reveal direction. [Official Contacts](https://creators.vrchat.com/common-components/contacts/) · [Field definitions](https://github.com/vrchat-community/creator-docs/blob/16fb16cfb4541fddcf35884e811ce8db16ff6493/Docs/docs/common-components/contacts/index.md)
 
 Sensa **Tracking Frame** creates three independent Contact tracking instances: Origin, Forward and Right. With Contact direct tracking selected, it generates 6 Contacts and 36 public fields, all positions in AvatarRootMeters. The desktop uses Forward−Origin as the current depth direction, then calculates a target's depth and lateral offset. Changes in marker positions reveal bone rotation; configure the reference offset and orientation in Unity. [Create a following plane](unity-build.en.md#create-a-plane-that-follows-a-bone) · [Calculation examples](computed-signals.en.md#combine-root-coordinates)
 
 ## Keep one target and check activity
 
-For a Proximity Receiver, the verified runtime selects the matching Sender with the greatest **strictly positive Proximity**. In Beta.3, when two Senders both have Proximity 1, the lower PointSeparation wins, as described in the official release notes above. Sender type is 0 for no selected Sender, 1 for your own Avatar, 2 for another Avatar and 3 for a world Sender. Sensa's root route accepts type 1. Dedicated channels with one Sender per authoring component keep the measurement tied to the selected own root.
+The official release describes advanced parameters as reporting the nearest ongoing contact. The inspected Proximity implementation selects the matching Sender with the greatest **strictly positive Proximity**. In Beta.3, when two Senders both have Proximity 1, the lower PointSeparation wins. Stable `_SenderType` identifies the owner category: 0 no contact or unrecognized owner, 1 same Avatar as the Receiver, 2 different Avatar, 3 world, 4 spawned item. It is not a unique identity. Sensa’s dedicated root channel accepts only type 1.
 
 The native report has no timestamp, sequence number or stable Sender identifier. Sensa adds `Sample`, cycling through n/32 (n=1…32) at a nominal 50 ms interval, and `Radius`. `Sample=0` means disabled/invalid. The desktop requires all twelve fields from the same source and instance, finite values, positive Proximity, Self type and a positive supported Radius. Its position bound follows Radius with a small numeric tolerance. A changed Sample expires after **1000 ms**, or a shorter positive configured input timeout. Repeated identical Sample values do not extend activity.
 
@@ -82,10 +82,12 @@ Position and speed provide different controls: a stationary root holds its posit
 
 ## Package evidence and related SDK features
 
-The official release assets and SHA-256 digests below support reproducibility. Beta.3 is the interface compatibility version inspected in this update; Beta.2 remains the original protocol reference:
+The stable Base assembly (`VRC.Dynamics.dll`, `ContactReceiver.SetAdvancedParameters` and `ResetAdvancedParameters`) confirms the defaults and thresholds above. In the stable Avatars Editor source, `AvatarDynamicsSetup.cs:88–135` checks `HasAdvancedParameter` separately for each binding. These are static package checks, not Sensa in-client tests. The earlier Beta.3 and Beta.2 packages remain the original Sensa interface and protocol evidence.
 
 | Package | SHA-256 |
 | --- | --- |
+| [com.vrchat.base-3.10.6.zip](https://github.com/vrchat/packages/releases/download/3.10.6/com.vrchat.base-3.10.6.zip) | `c1f891298905e80c5b0c4bcd4f8e48303bf27ec04a0826256b7b532884c9f9c9` |
+| [com.vrchat.avatars-3.10.6.zip](https://github.com/vrchat/packages/releases/download/3.10.6/com.vrchat.avatars-3.10.6.zip) | `4c9086b0726711cac03bf7bffce24118c79961b1590904f22cd5131981f2d1a4` |
 | [com.vrchat.base-3.10.6-beta.3.zip](https://github.com/vrchat/packages/releases/download/3.10.6-beta.3/com.vrchat.base-3.10.6-beta.3.zip) | `5c2e392d0cb56545731a1990952f237421a2ef56d2bc3b0929bd14f28fa31d14` |
 | [com.vrchat.avatars-3.10.6-beta.3.zip](https://github.com/vrchat/packages/releases/download/3.10.6-beta.3/com.vrchat.avatars-3.10.6-beta.3.zip) | `e5e901e7953cbd8b1e1c998b7a6c83fe419012736135d4bf4a53b7e1eb8cebb9` |
 | [com.vrchat.base-3.10.6-beta.2.zip](https://github.com/vrchat/packages/releases/download/3.10.6-beta.2/com.vrchat.base-3.10.6-beta.2.zip) | `7c6d17be89b1ffad2da8dc52eb3cdd477533f4f7957359d24351807b6aa64ff2` |

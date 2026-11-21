@@ -17,24 +17,41 @@ namespace UnityBox.Sensa
     public static class SensaContactRootBuilder
     {
         public const string TagPrefix = "SensaContact_";
-        private const string RequiredSdk = "Contact direct tracking (SDK Beta) requires advanced Contact parameters. Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with this feature, or choose SPS four-anchor tracking.";
+        private const string RequiredSdk = "Contact direct tracking requires advanced Contact parameters. Install VRChat Avatars SDK 3.10.6 or a newer SDK with this feature, or choose SPS four-anchor tracking.";
 
-        // Beta.3 renamed the public switch; Beta.2 uses the earlier Proximity name.
-        // Reflection keeps both SDK versions supported without a compile-time Beta dependency.
-        internal static FieldInfo AdvancedParametersField(Type receiverType)
+        // The stable SDK selects report groups; the two betas only expose an all-or-nothing switch.
+        // CollisionTags is an FX-only Bool; neither scale nor separation is part of this probe.
+        private static readonly string[] RootReportGroups = {
+            "SenderType", "SenderLocalPosition", "SenderVelocity", "ProximitySpeed", "CollisionTags"
+        };
+
+        internal static FieldInfo AdvancedParametersField(Type receiverType, out object setting)
         {
             foreach (var name in new[] { "advancedParameters", "advancedProximityParameters" })
             {
                 var field = receiverType?.GetField(name, BindingFlags.Instance | BindingFlags.Public);
-                if (field != null && field.FieldType == typeof(bool) && !field.IsInitOnly) return field;
+                if (field == null || field.IsInitOnly) continue;
+                var type = field.FieldType;
+                if (type == typeof(bool)) { setting = true; return field; }
+                if (name != "advancedParameters" || !type.IsEnum || !type.IsDefined(typeof(FlagsAttribute), false)
+                    || !RootReportGroups.All(group => Enum.IsDefined(type, group))) continue;
+                setting = Enum.Parse(type, string.Join(",", RootReportGroups));
+                return field;
             }
+            setting = null;
             return null;
         }
-        public static string AdvancedParametersFieldName => AdvancedParametersField(typeof(VRCContactReceiver))?.Name;
+        internal static void EnableRootReports(object receiver)
+        {
+            var field = AdvancedParametersField(receiver.GetType(), out var setting);
+            if (field == null) throw new InvalidOperationException(SensaEditorLocalization.Text(RequiredSdk));
+            field.SetValue(receiver, setting);
+        }
+        public static string AdvancedParametersFieldName => AdvancedParametersField(typeof(VRCContactReceiver), out _)?.Name;
         public static bool IsSupported => AdvancedParametersFieldName != null;
         internal static void RequireSupport(Type receiverType)
         {
-            if (AdvancedParametersField(receiverType) == null)
+            if (AdvancedParametersField(receiverType, out _) == null)
                 throw new InvalidOperationException(SensaEditorLocalization.Text(RequiredSdk));
         }
 
@@ -99,7 +116,7 @@ namespace UnityBox.Sensa
             receiver.allowSelf = true; receiver.allowOthers = false; receiver.collisionTags = new List<string> { tag };
             string prefix = SensaContactProtocol.Prefix + "/" + id;
             receiver.parameter = prefix + "/" + SensaContactProtocol.ProximityLeaf;
-            AdvancedParametersField(typeof(VRCContactReceiver)).SetValue(receiver, true);
+            EnableRootReports(receiver);
             foreach (var leaf in SensaContactProtocol.PublicLeaves)
                 SensaSensorUtility.Parameter(host, prefix + "/" + leaf,
                     leaf == SensaContactProtocol.SenderTypeLeaf ? ParameterSyncType.Int : ParameterSyncType.Float);
@@ -187,10 +204,10 @@ namespace UnityBox.Sensa
     {
         public override void OnInspectorGUI()
         {
-            EditorGUILayout.LabelField(SensaEditorLocalization.Text("Contact direct tracking (SDK Beta)"), EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(SensaEditorLocalization.Text("Contact direct tracking"), EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Choose a bone, marker, SPS component, Sensa component or native Contact as the root. A dedicated Sender and Receiver report position in avatar-root axes (m) and relative contact-point velocity (m/s). Sample indicates publishing activity. Verify parameter delivery and motion in the client."), MessageType.Info);
             if (!SensaContactRootBuilder.IsSupported)
-                EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with advanced Contact parameters, or choose SPS four-anchor tracking."), MessageType.Warning);
+                EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Install VRChat Avatars SDK 3.10.6 or a newer SDK with advanced Contact parameters, or choose SPS four-anchor tracking."), MessageType.Warning);
             SensaInspectorLabels.Draw(serializedObject);
         }
         private void OnSceneGUI()

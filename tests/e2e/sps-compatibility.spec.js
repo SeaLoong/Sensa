@@ -45,7 +45,7 @@ async function applyDepthPreset(page, rig) {
   await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
   await expect.poll(async () => (await savedConfiguration(page, rig)).signals[0]?.sourceMode).toBe('OgbDepth');
   const preset = (await savedConfiguration(page, rig)).signals[0];
-  expect(preset.oscPath).toBe('OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers');
+  expect(preset.oscPath).toBe('OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers');
   expect(preset.role).toBe('Depth');
   expect((await rig.overview()).runtime.inputActive).toBe(false);
   expect(motionLines(rig)).toHaveLength(0);

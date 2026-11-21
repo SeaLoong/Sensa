@@ -3,7 +3,7 @@ using VRC.SDKBase;
 
 namespace UnityBox.Sensa
 {
-    [AddComponentMenu("Sensa/Contact direct tracking (SDK Beta)")]
+    [AddComponentMenu("Sensa/Contact direct tracking")]
     [DisallowMultipleComponent]
     public sealed class SensaContactRootProbe : MonoBehaviour, IEditorOnly
     {

@@ -10,7 +10,7 @@ SPS3 Beta supports the same public OGB paths and dedicated root measurements. Na
 
 ## Install and choose a language
 
-1. Use a VCC/ALCOM **Avatars** project with the Unity version and VPM dependencies required by `package.json`, including NDMF 1.5.0+ and Modular Avatar 1.10.0+. Install official VRCFury separately when using its SPS authors.
+1. Use a VCC/ALCOM **Avatars** project with the Unity version and VPM dependencies required by `package.json`, including NDMF 1.5.0+ and Modular Avatar 1.10.0+. For Contact direct tracking, use VCC/ALCOM to install matching VRChat Base and Avatars SDK packages from the [3.10.6 stable release](https://github.com/vrchat/packages/releases/tag/3.10.6) or later with advanced Contact reports. No beta SDK is needed. Install official VRCFury separately when using its SPS authors.
 2. Extract the Unity ZIP, then use Package Manager → **Add package from disk** and select `package.json`. Use VCC/ALCOM to install the listed VPM dependencies.
 3. Sensa Inspectors and **Preferences → Sensa** offer Automatic, English and 简体中文. Explicit choice persists for the editor user. Automatic prefers the actual Editor UI language, falls back to the OS if that API is unavailable, maps Chinese variants to Simplified Chinese and otherwise uses English.
 4. Editor menu registration paths and serialized/OSC identifiers remain stable English IDs. Avatar Expression Menu labels use the author's language **at build time**; they do not translate separately for each wearer.
@@ -23,7 +23,7 @@ The historical VPM index may offer an older package. Development previews do not
 | --- | --- | --- |
 | Existing OGB | Configure existing SPS/OGB and desktop mappings | Scalar Touch or radial depth estimate; [external interoperability](https://github.com/SeaLoong/Sensa/blob/main/docs/ogb-compatibility.en.md) |
 | SPS four-anchor tracking | Add **Sensa → Automatic SPS Setup**, or **SPS four-anchor tracking** and explicitly assign Target | Root position relative to the Avatar root, in AvatarRootLocal authored units |
-| Contact direct tracking (SDK Beta) | Choose **Contact direct tracking (SDK Beta)** in automatic setup, or add its prefab and explicitly assign Target | Dedicated Sender/Receiver; root coordinates in metres and relative SDK velocity; requires advanced Contact parameters |
+| Contact direct tracking | Choose **Contact direct tracking** in automatic setup, or add its prefab and explicitly assign Target | Dedicated Sender/Receiver; root coordinates in metres and relative SDK velocity; requires advanced Contact parameters |
 | Shader root capture | Add **Shader Root Capture (Experimental)** or `SensaShaderCapture.prefab`, and assign Target | AvatarRootLocal position, X/Z-axis vectors and Avatar world scale encoded into a monochrome image and read by the [desktop bridge](GPU-TRACKING.en.md) |
 | Independent Point/Handle/Pose | Select local landmarks or matching paired markers | Separate experiments with their own protocols and freshness rules |
 

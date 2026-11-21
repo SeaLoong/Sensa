@@ -10,7 +10,7 @@ SPS3 测试版可使用相同的公开 OGB 参数和专用根点测量；原生 
 
 ## 安装与语言
 
-1. 使用 VCC/ALCOM **Avatars** 工程，满足 `package.json` 的 Unity 版本和 VPM 依赖，包括 NDMF 1.5.0+ 与 Modular Avatar 1.10.0+。使用 VRCFury SPS 作者组件时另行安装官方 VRCFury。
+1. 使用 VCC/ALCOM **Avatars** 工程，满足 `package.json` 的 Unity 版本和 VPM 依赖，包括 NDMF 1.5.0+ 与 Modular Avatar 1.10.0+。使用 Contact 直接定位时，通过 VCC/ALCOM 安装配套的 VRChat Base 和 Avatars SDK：[3.10.6 正式版](https://github.com/vrchat/packages/releases/tag/3.10.6)或支持高级 Contact 报告的更新版本即可，不需要测试版。使用 VRCFury SPS 作者组件时另行安装官方 VRCFury。
 2. 解压 Unity ZIP，在 Package Manager → **Add package from disk** 选择 `package.json`。通过 VCC/ALCOM 补齐列出的 VPM 依赖。
 3. Sensa Inspector 和 **Preferences → Sensa** 提供自动、English、简体中文。显式选择按编辑器用户持久保存。自动模式优先实际编辑器界面语言，API 不可用时采用系统语言；中文变体统一简中，其他不支持的语言回退英语。
 4. 编辑器菜单注册路径、序列化字段和 OSC 标识保留稳定英文 ID。Avatar 表达菜单文字采用作者**构建时**语言，不会针对每个穿戴者单独翻译。
@@ -23,7 +23,7 @@ SPS3 测试版可使用相同的公开 OGB 参数和专用根点测量；原生 
 | --- | --- | --- |
 | 已有 OGB | 配置原 SPS/OGB 与桌面映射 | Touch 标量或径向深度估计；[外部兼容](https://github.com/SeaLoong/Sensa/blob/main/docs/ogb-compatibility.md) |
 | SPS 四点定位 | 添加 **Sensa → Automatic SPS Setup**，或 **SPS four-anchor tracking** 并明确指定 Target | 以 Avatar 根为参照的根点位置，使用 AvatarRootLocal 制作单位 |
-| Contact 直接定位（SDK Beta） | 在自动配置中选择 **Contact 直接定位（SDK Beta）**，或添加对应预制件并明确指定 Target | 专用 Sender／Receiver，输出根点米制坐标与 SDK 相对速度；需要高级 Contact 参数 |
+| Contact 直接定位 | 在自动配置中选择 **Contact 直接定位**，或添加对应预制件并明确指定 Target | 专用 Sender／Receiver，输出根点米制坐标与 SDK 相对速度；需要高级 Contact 参数 |
 | Shader 根点捕获 | 添加 **Shader Root Capture (Experimental)** 或 `SensaShaderCapture.prefab`，明确指定 Target | 把 AvatarRootLocal 位置、X/Z 轴向与 Avatar 世界缩放编码为黑白图块，经[桌面桥](GPU-TRACKING.md)读取 |
 | 独立 Point／Handle／Pose | 选择本地标记或相同通道的配对标记 | 各自拥有协议与时效规则的实验 |
 

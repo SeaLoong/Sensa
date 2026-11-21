@@ -336,6 +336,21 @@ test('SDK Contact reports exact native leaves in metres and independent signed v
     'Proximity_SenderVelocityMagnitude', 'Proximity_ProximitySpeed']) near(field(moved, name).raw, field(scene, name).raw);
 });
 
+test('optional SDK separation and lossy scale are not part of the Sensa twelve-field protocol', () => {
+  const sample = x => evaluate({ scenario: 'contact-sdk', x, y: 0, z: 0, scaleX: 2, scaleY: .5, scaleZ: 1.5 });
+  for (const rate of [-.0011, -.001, 0, .001, .0011]) {
+    const scene = evaluate({ scenario: 'contact-sdk', x: 0, y: 0, z: 0, proximitySpeed: rate });
+    near(field(scene, 'Proximity_ProximitySpeed').raw, Math.abs(rate) <= .001 ? 0 : rate);
+  }
+  for (const [x, distance] of [[0,0],[.001,0],[.002,.002],[1,1],[2.001,-1]]) {
+    const scene = sample(x), sdk = scene.metrics.sdkFields;
+    near(sdk.Brush_PointSeparation, distance);
+    assert.deepEqual([sdk.Brush_SenderLossyScaleX,sdk.Brush_SenderLossyScaleY,sdk.Brush_SenderLossyScaleZ], distance < 0 ? [1,1,1] : [2,.5,1.5]);
+    assert.equal(scene.values.length, 12);
+    assert.ok(!scene.values.some(value => /PointSeparation|LossyScale/.test(value.path)));
+  }
+});
+
 test('SDK Contact accepts origin and zero velocity while strictly positive proximity selects / SDK Contact原点及零速度有效且仅严格正接近值选中', () => {
   const origin = evaluate({ scenario: 'contact-sdk', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 });
   assert.equal(origin.metrics.valid, true);
@@ -396,7 +411,7 @@ test('SDK Contact selects the maximum strictly positive matching self Sender / S
   assert.equal(field(none, 'Proximity_SenderType').raw, 0);
 });
 
-test('SDK Beta.3 resolves saturated proximity by nearest inner-point distance', () => {
+test('SDK Contact resolves saturated proximity by nearest inner-point distance', () => {
   for (const senders of [
     [{ x: .0008, vx: 8 }, { x: .0002, vx: 2 }],
     [{ x: .0002, vx: 2 }, { x: .0008, vx: 8 }],

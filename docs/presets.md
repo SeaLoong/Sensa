@@ -4,23 +4,28 @@
 
 配置模板分别位于**映射与变换 → 轴映射**的预设选择器、**计算信号 → 常用变换**和**轴配置 → 设备动作预设**，不再使用独立的总预设弹窗。映射和计算先载入可编辑草稿，再明确保存；轴模板在编辑器检查行程、方向与速度后保存，随后由 TCode 输出选择使用。载入模板不会启用输入。
 
-## 七个内置映射模板
+## 内置映射模板
 
 映射预设填入常用路径和动作角色，帮助快速建立映射。选择 Avatar 已有功能与实时来源，采集输入起止值并保存。每行都可继续调整为自己的路径、方向、范围与条件。
 
 | 模板 ID | 用途 | 默认输出 |
 | --- | --- | --- |
 | `osc-l0` | 将 Depth 换成收到的 OSC 参数，可追加死区和平滑 | 0～1 → L0 0～999 |
-| `ogb-depth` | SPS2/SPS3 配对估算、SPS1 或 Plug 深浅趋势 | Depth → L0 |
+| `ogb-depth` | 正式 SPS3 的 DepthOthers，或旧版配对估算／深浅趋势 | Depth → L0 |
 | `ogb-depth-touch` | 同时准备 SPS 深度与触碰强度两条映射 | Depth → L0；Touch → V0 |
 | `ogb-touch` | Touch／Frot 或独立 VFH Touch Zone | V0 |
+| `native-contact-separation` | 原生 Contact 参考点间距 | 0～0.20 m → L0 |
+| `native-contact-speed` | 不分方向的接触点相对速率 | 0～1 m/s → V0 |
+| `native-contact-approach` | 接近值增加的速率，不是物理速度 | 0～2 接近值/秒 → V0 |
 | `contact-position` | Contact 直接位置；按米校准所选轴 | SensaPoint Z → Depth／L0 |
 | `contact-speed` | Contact 相对速率；按 m/s 校准强度 | SensaPoint Speed → V0 |
 | `native-pb-stretch` | 原生 PB Stretch＋IsGrabbed | Depth＋GateEnable |
 
 ## OGB / SPS · 深度
 
-默认读取 Others，路径别名为：
+**正式 SPS3：** 预设直接读取 `OGB/Socket/<id>/DepthOthers` 或 `OGB/Plug/<id>/DepthOthers`。这是 0～1 的接近值，不是插入米数，也不是长度百分比。按实际读数校准 L0；若多个对象同时命中，可将通配路径改为具体对象。升级 Avatar 后，如果旧映射只含 `OGB/Orf` 或 `OGB/Pen`，请改为新路径或重新载入预设；已保存的个人配置不会被自动覆盖。[正式 SPS3 说明](sps3.md)
+
+**旧版 Avatar：** 预设也兼容以下 Others 路径：
 
 ```text
 OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers
@@ -34,6 +39,8 @@ SPS2/SPS3 参数缺失或两值均为零时，使用同实例的 **SPS1 · PenOt
 
 ## OGB / SPS · 振动
 
+正式 SPS3 将 `OGB/Socket/<id>/TouchOthers` 或 `OGB/Plug/<id>/TouchOthers`、`FrotOthers` 直接映射到 V0，不必等待 `Close`；独立触碰区使用 `OGB/Touch/<id>/Others`。以 Avatar 实际发布的路径为准。旧版读取：
+
 ```text
 OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others
 ```
@@ -44,9 +51,21 @@ OgbTouch 将 `TouchOthers` 与同实例的 `TouchOthersClose` 配对，目标进
 
 模板使用 `MyPB_Stretch` 和 `MyPB_IsGrabbed`。把 MyPB 换成实际 PhysBone 参数前缀；抓取时 GateEnable 开放，松手时关闭，拉伸程度转换为动作目标。
 
+## 原生 Contact：这三个预设怎么选？
+
+在 [Avatars SDK 3.10.6](https://github.com/vrchat/packages/releases/tag/3.10.6) 的 Receiver → **Advanced Parameters** 勾选 **Sender Type** 和所需的测量项，并让这两个 Animator 参数可通过 Avatar OSC 读取。先在**输入 → OSC → 参数**确认实际路径和读数，再载入一个预设，把**两行**的 `MyContact` 都换成 Receiver 的参数名（不是物体名）。不需要安装 Sensa 根点组件。
+
+| 预设 | 保持输入关闭，尝试这个动作 | 默认量程下的预估效果 |
+| --- | --- | --- |
+| 距离（`_PointSeparation`） | 保持已识别的 Sender 接触，让参考点间距从 5 cm 变到 15 cm | L0 从约 250 增至 749（满量程 999）。测的是形状内部参考点间距，不是两个表面的间隙；`-1` 表示没有接触。 |
+| 速度强度（`_SenderVelocityMagnitude`） | 以 0.5 m/s 的相对速度擦过，然后相对静止 | V0 约 50%，停住降到零。不分方向，所以仍在接触时，移开也可能有振动。 |
+| 接近时振动（`_ProximitySpeed`） | 用 **Proximity** Receiver，让接近值在 0.1 秒内从 0.3 增至 0.4，再退回 | 增速 +1/秒时 V0 约 50%；保持或退回时为零。响应的是靠近的过程，不是保持贴近的程度。 |
+
+三个预设的第二行都是 `_SenderType` → `GateEnable`。没有收到该值，或值为 0（没有 Sender 或归属未知）时，门控关闭；1～4 打开。它影响**整组 OSC 轴映射**，不仅是旁边那一行。建议一次试一个，不要直接追加到需要独立工作的其他映射上。选定一个 OSC 来源；原生参数没有 Sensa 的活动 `Sample`。核对预览后再保存，保存后输入仍然关闭。表中是指令目标，不是实测设备位置或振感。[Contact 字段、单位与限制](contact-sdk.md) · [交互参数图解](parameter-geometry.html#parameter-reference)
+
 ## Contact 直接定位：校准根点映射
 
-先使用受支持的 Beta SDK 构建专用自身根点 Sender／Receiver，再选择 `contact-position` 或 `contact-speed`。两者使用 `Sensa/Contact/Root/*`，将 `Root` 替换为实际实例。位置初始按 Z 的 0–0.2 m 映射 Depth，速率初始按 0–1 m/s 映射 V0；请按实际动作校准示例量程。也可从根点面板生成映射。位置选择 **X／Y／Z／Distance**，运动强弱选择 **VelocityX／Y／Z／Speed／ProximitySpeed**，采集 0%／100% 端点、检查预览并保存。生成的 SensaPoint 映射使用 `Sensa/Contact/<id>/**`、选定来源和指标；位置默认对应 Depth，速度指标默认对应 V0。细微深浅趋势可选校准轴，需要确认触碰时可另配 Touch／Close 门控。[Contact 设置](contact-sdk.md)
+先构建专用自身根点 Sender／Receiver，再选择 `contact-position` 或 `contact-speed`。两者使用 `Sensa/Contact/Root/*`，将 `Root` 替换为实际实例。位置初始按 Z 的 0–0.2 m 映射 Depth，速率初始按 0–1 m/s 映射 V0；请按实际动作校准示例量程。也可从根点面板生成映射。位置选择 **X／Y／Z／Distance**，运动强弱选择 **VelocityX／Y／Z／Speed／ProximitySpeed**，采集 0%／100% 端点、检查预览并保存。生成的 SensaPoint 映射使用 `Sensa/Contact/<id>/**`、选定来源和指标；位置默认对应 Depth，速度指标默认对应 V0。细微深浅趋势可选校准轴，需要确认触碰时可另配 Touch／Close 门控。[Contact 设置](contact-sdk.md)
 
 ## 应用与自定义
 

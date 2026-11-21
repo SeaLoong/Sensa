@@ -2,7 +2,7 @@
 
 [简体中文](AUTOMATION.md) | **English**
 
-[Install and choose language](README.md). Automatic SPS Setup reads supported Socket/Plug authoring geometry without changing SPS. Root tracking defaults to SPS four-anchor tracking; Contact direct tracking (SDK Beta) is an explicit alternative. These routes and separate Shader capture share one NDMF generation entry point; see the [Unity build guide](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md) for timing.
+[Install and choose language](README.md). Automatic SPS Setup reads supported Socket/Plug authoring geometry without changing SPS. Root tracking defaults to SPS four-anchor tracking; Contact direct tracking is an explicit alternative. These routes and separate Shader capture share one NDMF generation entry point; see the [Unity build guide](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md) for timing.
 
 ## Targets and scope
 
@@ -11,7 +11,7 @@ Discover All finds supported VRCFury authors; Selected Targets narrows the set a
 | Capability | Generated scope |
 | --- | --- |
 | SPS four-anchor tracking | Four fixed receivers and one dedicated sender per target |
-| Contact direct tracking (SDK Beta) | One dedicated Sender/Receiver pair per root; native XYZ and velocity |
+| Contact direct tracking | One dedicated Sender/Receiver pair per root; native XYZ and velocity |
 | Paired Socket tracking | Independent Root/Tip/Side Pose receiver arrays |
 | Paired Plug markers | Three reference markers, without GPU deformation |
 | Local Plug tip tracking | Local point relative to an explicitly selected reference Socket |
@@ -19,15 +19,15 @@ Discover All finds supported VRCFury authors; Selected Targets narrows the set a
 
 Exclusive enables one measured target per group, initially Off; Dedicated enables simultaneous measurement. Selection reduces active objects, not the registered Contact budget. Optional capabilities and other plugins count too. Unknown policies fail the build.
 
-For one target use `SensaSpsRootProbe.prefab` or **GameObject → Sensa → SPS four-anchor tracking**. For the SDK route, use `SensaContactRootProbe.prefab` or **GameObject → Sensa → Contact direct tracking (SDK Beta)**. Both accept an Avatar bone/empty-object Transform, SPS, Sensa Component or native Contact as Target. The adapter reads the selected root frame. Instances default to `Root`; give duplicates unique instance names. An empty Collision Channel derives a stable channel from that name, or you can enter a manual override.
+For one target use `SensaSpsRootProbe.prefab` or **GameObject → Sensa → SPS four-anchor tracking**. For the SDK route, use `SensaContactRootProbe.prefab` or **GameObject → Sensa → Contact direct tracking**. Both accept an Avatar bone/empty-object Transform, SPS, Sensa Component or native Contact as Target. The adapter reads the selected root frame. Instances default to `Root`; give duplicates unique instance names. An empty Collision Channel derives a stable channel from that name, or you can enter a manual override.
 
 Separate Shader capture uses `SensaShaderCapture.prefab` or **GameObject → Sensa → Shader Root Capture (Experimental)**. It accepts the same Target types and has its own Producer ID and desktop rectangle. [Shader setup](GPU-TRACKING.en.md)
 
-## Contact direct tracking (SDK Beta)
+## Contact direct tracking
 
-Choose the root tracking method in Automatic SPS Setup. SPS four-anchor tracking remains the default on stable SDK installations. Contact direct tracking supports **3.10.6-beta.3** through `advancedParameters` and Beta.2 through `advancedProximityParameters`. The build selects the switch exposed by the installed SDK; when advanced reports are unavailable, it provides installation instructions and available alternatives.
+Automatic SPS Setup defaults to SPS four-anchor tracking. To use Contact direct tracking, install matching **VRChat Base and Avatars SDK 3.10.6 stable** packages and select it as the root tracking method. The builder selects `SenderType`, `SenderLocalPosition`, `SenderVelocity`, `ProximitySpeed` and `CollisionTags` in the `advancedParameters` enum. It also recognizes the older Beta.3 `advancedParameters` and Beta.2 `advancedProximityParameters` Boolean switches.
 
-`Runtime/SensaContactProtocol.cs` defines `Sensa/Contact/<id>`. One 2-unit Proximity Receiver sits at the Avatar root with zero shape offset and root-aligned axes; a separate 0.001-unit Sender follows the selected root. Existing SPS Contacts are unchanged. Sensa uses ten native SDK reports: `Proximity`, Int `Proximity_SenderType`, `Proximity_SenderLocalPositionX/Y/Z`, `Proximity_SenderVelocityX/Y/Z`, `Proximity_SenderVelocityMagnitude` and `Proximity_ProximitySpeed`. Other public fields are Float. The SDK also writes `Proximity_CollisionTag_<tag>` for the dedicated collision tag. Sensa declares this Bool in FX and clears it while inactive; it stays outside the twelve public Expression Parameter declarations. Beta.3 also provides `_SenderLossyScaleX/Y/Z` and `_PointSeparation`; the Sensa public Contact protocol continues to use the ten fields above plus `Radius` and `Sample` below. Client OSC visibility is checked separately.
+`Runtime/SensaContactProtocol.cs` defines `Sensa/Contact/<id>`. One 2-unit Proximity Receiver sits at the Avatar root with zero shape offset and root-aligned axes; a separate 0.001-unit Sender follows the selected root. Existing SPS Contacts are unchanged. Sensa uses ten native SDK reports: `Proximity`, Int `Proximity_SenderType`, `Proximity_SenderLocalPositionX/Y/Z`, `Proximity_SenderVelocityX/Y/Z`, `Proximity_SenderVelocityMagnitude` and `Proximity_ProximitySpeed`. Other public fields are Float. The SDK also writes `Proximity_CollisionTag_<tag>` for the dedicated collision tag. Sensa declares this Bool in FX and clears it while inactive; it stays outside the twelve public Expression Parameter declarations. The stable SDK also offers `_SenderLossyScaleX/Y/Z` and `_PointSeparation`, but this dedicated probe does not enable those groups; the Sensa public Contact protocol continues to use the ten fields above plus `Radius` and `Sample` below. Client OSC visibility is checked separately.
 
 XYZ uses `AvatarRootMeters`: Avatar-root origin and rotation axes, in metres without dividing by authored root scale. Velocity is SDK relative collision-point velocity in m/s; ProximitySpeed is change of normalized proximity per second. A single point has no orientation. `Radius` reports the actual world receiver radius, including authored scale and ScaleFactor. `Sample` cycles n/32 every approximately 50 ms; both controls reset to zero when inactive. The clock proves producer activity, not an atomic SDK frame or Sender authentication. Desktop activity expires after at most 1000 ms; unchanged coordinates may be cached while Sample advances. Presence and SenderType are checked separately, so zero position/velocity can be valid stationary data.
 

@@ -233,16 +233,17 @@ test('late discovery up/down callbacks cannot populate or remove another generat
 
 test('late OGB callbacks cannot replace telemetry from the new target', async () => {
   const settings = config(); settings.hub.enabled = false; settings.ogbControl = { enabled: true, host: '127.0.0.1', port: 9101 };
-  let now = 1000; const sends: { port: number; value: unknown; done: (error: Error | null) => void }[] = [];
+  let now = 1000; const sends: { port: number; path: string | undefined; value: unknown; done: (error: Error | null) => void }[] = [];
   const services = await createOscServices(settings, new OscParameterStore(), { now: () => now,
-    sendOgbPacket(packet, port, _host, done) { sends.push({ port, value: parseOscPacket(packet).values[0]?.value, done }); } });
+    sendOgbPacket(packet, port, _host, done) { const [message] = parseOscPacket(packet).values; sends.push({ port, path: message?.path, value: message?.value, done }); } });
   try {
     const newer = structuredClone(settings); newer.ogbControl.port = 9102; now = 2000; await services.reconfigure(newer);
-    assert.deepEqual(sends.map(send => [send.port, send.value]), [[9101, true], [9101, false], [9102, true]]);
-    sends[2]!.done(null); now = 3000; sends[0]!.done(new Error('Old target failed'));
+    assert.deepEqual(sends.map(send => [send.port, send.value]), [[9101, true], [9101, true], [9101, false], [9101, false], [9102, true], [9102, true]]);
+    assert.deepEqual(sends.map(send => send.path), Array(3).fill(['OGB/Enabled', 'OGB_ENABLED']).flat());
+    sends[4]!.done(null); sends[5]!.done(null); now = 3000; sends[0]!.done(new Error('Old target failed'));
     let state = services.snapshot()['ogbControl'] as Record<string, unknown>;
     assert.equal(state['lastError'], '', 'old target failure cannot be assigned to the current target');
-    sends[1]!.done(null); state = services.snapshot()['ogbControl'] as Record<string, unknown>;
+    sends[2]!.done(null); sends[3]!.done(null); state = services.snapshot()['ogbControl'] as Record<string, unknown>;
     assert.equal(state['lastSentValue'], true); assert.equal(state['lastSentAtUtc'], '1970-01-01T00:00:02.000Z');
   } finally { await services.dispose(); }
 });
@@ -252,7 +253,7 @@ test('the accepted OGB stop remains truthful within its closing generation after
   let now = 1000; const sends: { value: unknown; done: (error: Error | null) => void }[] = [];
   const services = await createOscServices(settings, new OscParameterStore(), { now: () => now,
     sendOgbPacket(packet, _port, _host, done) { sends.push({ value: parseOscPacket(packet).values[0]?.value, done }); } });
-  sends[0]!.done(null); now = 2000; await services.dispose(); assert.equal(sends[1]?.value, false); sends[1]!.done(null);
+  sends[0]!.done(null); sends[1]!.done(null); now = 2000; await services.dispose(); assert.deepEqual(sends.slice(2).map(send => send.value), [false, false]); sends[2]!.done(null); sends[3]!.done(null);
   const state = services.snapshot()['ogbControl'] as Record<string, unknown>;
   assert.equal(state['lastSentValue'], false); assert.equal(state['lastSentAtUtc'], '1970-01-01T00:00:02.000Z');
 });

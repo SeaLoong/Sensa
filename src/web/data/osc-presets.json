@@ -14,10 +14,10 @@
   {
     "id": "ogb-depth",
     "name": "OGB / SPS · 深度",
-    "description": "自动识别 SPS1，以及 SPS2／SPS3 兼容通道的 NewRoot / NewTip。SPS3 他人检测请启用 Include Public SPS Channel（_public）。选择对象后校准动作范围。",
+    "description": "正式 SPS3 读取 Socket／Plug 的 DepthOthers；旧版仍识别 PenOthers 和 NewRoot／NewTip。观察读数并校准 L0 两端。",
     "mappings": [
       {
-        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers",
+        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
         "sourceMode": "OgbDepth",
         "role": "Depth"
       }
@@ -26,10 +26,10 @@
   {
     "id": "ogb-touch",
     "name": "OGB / SPS · 振动",
-    "description": "Touch / Frot → V0；自动检查同一对象所需的 Close 门控。",
+    "description": "正式 SPS3 的 TouchOthers／FrotOthers 直接控制 V0；只有旧版需要时才配对同一对象的 Close。",
     "mappings": [
       {
-        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others",
+        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others;OGB/Socket/**/TouchOthers;OGB/Plug/**/TouchOthers;OGB/Plug/**/FrotOthers;OGB/Touch/**/Others",
         "role": "V0",
         "sourceMode": "OgbTouch"
       }
@@ -41,20 +41,83 @@
     "description": "深度控制 L0，Touch / Frot 控制 V0。按设备能力保留需要的轴，并分别校准。",
     "mappings": [
       {
-        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers",
+        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
         "sourceMode": "OgbDepth",
         "role": "Depth"
       },
       {
-        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others",
+        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others;OGB/Socket/**/TouchOthers;OGB/Plug/**/TouchOthers;OGB/Plug/**/FrotOthers;OGB/Touch/**/Others",
         "role": "V0",
         "sourceMode": "OgbTouch"
       }
     ]
   },
   {
+    "id": "native-contact-separation",
+    "name": "原生 Contact · 距离",
+    "description": "距离 0～0.20 m → L0；参考点越远，目标位置越大。两行的 MyContact 都换成接收器参数名。SenderType 门控作用于整组轴映射。",
+    "mappings": [
+      {
+        "oscPath": "MyContact_PointSeparation",
+        "sourceMode": "Direct",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      },
+      {
+        "oscPath": "MyContact_SenderType",
+        "sourceMode": "Direct",
+        "role": "GateEnable",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      }
+    ]
+  },
+  {
+    "id": "native-contact-speed",
+    "name": "原生 Contact · 速度强度",
+    "description": "相对速率 0～1 m/s → V0；任意方向移动越快，振动目标越强。两行使用同一接收器参数名，SenderType 门控作用于整组轴映射。",
+    "mappings": [
+      {
+        "oscPath": "MyContact_SenderVelocityMagnitude",
+        "sourceMode": "Direct",
+        "role": "V0",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      },
+      {
+        "oscPath": "MyContact_SenderType",
+        "sourceMode": "Direct",
+        "role": "GateEnable",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      }
+    ]
+  },
+  {
+    "id": "native-contact-approach",
+    "name": "原生 Contact · 接近时振动",
+    "description": "仅 Proximity 接收器。接近值每秒增加 0～2 → V0；不变或减小时为零。两行使用同一接收器参数名，SenderType 门控作用于整组轴映射。",
+    "mappings": [
+      {
+        "oscPath": "MyContact_ProximitySpeed",
+        "sourceMode": "Direct",
+        "role": "V0",
+        "vrchatMin": 0,
+        "vrchatMax": 2
+      },
+      {
+        "oscPath": "MyContact_SenderType",
+        "sourceMode": "Direct",
+        "role": "GateEnable",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      }
+    ]
+  },
+  {
     "id": "contact-position",
-    "name": "Contact · 位置（SDK Beta）",
+    "name": "Sensa Contact · 位置",
     "description": "专用 Contact 直接定位：将 Root 换成实际对象，选择位置轴并校准两个端点，单位为米。",
     "mappings": [
       {
@@ -69,7 +132,7 @@
   },
   {
     "id": "contact-speed",
-    "name": "Contact · 速度强度（SDK Beta）",
+    "name": "Sensa Contact · 速度强度",
     "description": "专用 Contact 相对速率 → V0；将 Root 换成实际对象，再按 m/s 校准强度范围。",
     "mappings": [
       {

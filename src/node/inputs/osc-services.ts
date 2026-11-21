@@ -282,9 +282,16 @@ export class OscServices {
       settled = true;
       this.#ogbError = error?.message ?? ''; if (!error) { this.#ogbSentAt = new Date(this.now()).toISOString(); this.#ogbSentValue = enabled; } this.options.onChanged?.();
     };
-    const packet = encodeOscMessage('/avatar/parameters/OGB_ENABLED', enabled, 'Bool');
-    if (this.options.sendOgbPacket) this.options.sendOgbPacket(packet, target.port, target.host, sent);
-    else this.#sender(target.host).send(packet, target.port, target.host, sent);
+    // Both generations are in use. Keep ordinary OSC messages for older clients;
+    // only report success when both sends for this heartbeat/withdrawal finish.
+    const addresses = ['/avatar/parameters/OGB/Enabled', '/avatar/parameters/OGB_ENABLED'];
+    let remaining = addresses.length;
+    for (const address of addresses) {
+      const packet = encodeOscMessage(address, enabled, 'Bool');
+      const done = (error: Error | null) => { if (error) sent(error); else if (--remaining === 0) sent(null); };
+      if (this.options.sendOgbPacket) this.options.sendOgbPacket(packet, target.port, target.host, done);
+      else this.#sender(target.host).send(packet, target.port, target.host, done);
+    }
   }
   #discovery(): Bonjour {
     const generation = this.#generation;

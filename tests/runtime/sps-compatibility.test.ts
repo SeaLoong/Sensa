@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { SpsDepthEstimator } from '../../src/core/runtime/motion.ts';
 import { RuntimeEngine } from '../../src/core/runtime/runtime.ts';
 import { normalizeConfiguration } from '../../src/core/runtime/configuration.ts';
-import { ogbDepthAddress } from '../../src/core/runtime/resolver.ts';
+import { ogbDepthAddress, sps3OgbOutput } from '../../src/core/runtime/resolver.ts';
 import { OscParameterStore, type OscSource } from '../../src/core/protocols/osc.ts';
 import type { RuntimeMotionFrame } from '../../src/core/runtime/model.ts';
 
@@ -233,4 +233,23 @@ test('legacy SPS1 Close gates and explicit raw mappings retain their own meaning
     direct.set('Custom/MeasuredValue', .35); direct.runtime.setInputActive(true); await direct.runtime.flush();
     closeTo(direct.last(), .35 * .999);
   } finally { r.runtime.dispose(); direct.runtime.dispose(); }
+});
+
+// Paths from VRCFury 1.1491.0 (0723fc6e), not the legacy Root/Tip fixture.
+for (const [mode, path] of [['OgbDepth', 'OGB/Socket/A/DepthOthers'], ['OgbDepth', 'OGB/Plug/A/DepthSelf'],
+  ['OgbTouch', 'OGB/Plug/A/FrotOthers'], ['OgbTouch', 'OGB/Socket/A/TouchSelf'], ['OgbTouch', 'OGB/Touch/A/Others']] as const) {
+  test('SPS3 scalar follows ' + path + ' without a companion or length calibration', async () => {
+    assert.equal(sps3OgbOutput(path), mode);
+    const r = rig(path.substring(0, path.lastIndexOf('/') + 1) + '*', mode);
+    try {
+      r.set(path, .75); r.runtime.setInputActive(true); await r.runtime.flush(); closeTo(r.last(), .75 * .999);
+      r.set(path, 0); await r.advance(); closeTo(r.last(), 0);
+      r.setTime(1600); r.set(path + '_SenderVelocityMagnitude', 1); await r.advance();
+      assert.equal(r.runtime.getSnapshot()['isEmergency'], true, 'SDK metadata must not keep the mapped sample alive');
+    } finally { r.runtime.dispose(); }
+  });
+}
+test('SPS3 scalar routing excludes undefined outputs and malformed object ids', () => {
+  for (const path of ['OGB/Plug/A/DepthOthers_SenderType', 'OGB/Socket/A/FrotOthers', 'OGB/Plug//TouchSelf',
+    'OGB/Touch/Others', 'OGB/Touch/A/OthersClose', 'OGB/Socket/A/DepthRadius', 'OGB/Plug/A/LengthMult1']) assert.equal(sps3OgbOutput(path), null);
 });

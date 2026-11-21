@@ -325,10 +325,21 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     expect(await page.locator('#scene option').evaluateAll(options => options.map(option => option.value))).toEqual(scenarioIds);
     await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
 
+    await page.locator('#parameter-search').fill('OGB/Plug/Example/DepthOthers');
+    await page.locator('#parameter-search-results button').filter({ has: page.getByText('OGB/Plug/Example/DepthOthers', { exact: true }) }).click();
+    await expect(page.locator('#sps3-path')).toBeFocused();
+    await expect(page.locator('#sps3-path')).toHaveValue('OGB/Plug/Example/DepthOthers');
+    await expect(page.locator('#sps3-definition')).toContainText('不是米或物理插入百分比');
+    await expect(page.locator('#sps3-source')).toHaveAttribute('href', /0723fc6e.*BakeHapticPlugsService/);
+    await page.locator('#sps3-path').selectOption('OGB/Socket/Example/TouchOthers');
+    await expect(page.locator('#sps3-definition')).toContainText('没有配套 Close');
+    await expect(page.locator('#scene')).toHaveValue('socket-modern');
+    await info.attach('stable-sps3-parameter-reference', { body: await page.locator('#sps3-parameters').screenshot(), contentType: 'image/png' });
+
     // Independent distances: R=1, root r=.01, length-sphere r=.2, centre distance=.5.
     // 独立预期：接收球1、根球.01、长度球.2、中心距.5。
     await chooseScene(page, 'socket-modern');
-    await expect(page.locator('#scene-title')).toHaveText('SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip');
+    await expect(page.locator('#scene-title')).toHaveText('OGB/Orf · PenOthersNewRoot / PenOthersNewTip');
     expect(await page.locator('#values tr').evaluateAll(rows => rows.map(row => row.dataset.name)))
       .toEqual(['PenOthersNewRoot', 'PenOthersNewTip']);
     await expect(page.locator('#parameter-meaning')).toContainText('Socket');
@@ -356,7 +367,7 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     await page.locator('#show-dimensions').uncheck();
     await page.locator('#locale').selectOption('en-US');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
-    await expect(page.locator('#scene-title')).toHaveText('SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip');
+    await expect(page.locator('#scene-title')).toHaveText('OGB/Orf · PenOthersNewRoot / PenOthersNewTip');
     await expect(page.locator('#parameter-meaning')).toContainText('length sphere');
     await expect(tipReference.getByTestId('parameter-reference-definition')).toContainText(/sphere/i);
     await expect(tipReference.getByTestId('parameter-reference-usage')).toContainText(/depth/i);
@@ -1523,7 +1534,8 @@ hostedTest('parameter details open the localized interactive guide without devic
     const path = 'OGB/Orf/GeometryGuide/PenOthersNewRoot';
     const contactSpeedPath = 'Sensa/Contact/Guide/Proximity_SenderVelocityMagnitude';
     const proximitySpeedPath = 'Sensa/Contact/Guide/Proximity_ProximitySpeed';
-    await rig.send([[path, .51], [contactSpeedPath, .4], [proximitySpeedPath, -.2]]);
+    const separation = 'Hands/Brush_PointSeparation', scaleY = 'Hands/Brush_SenderLossyScaleY';
+    await rig.send([[path, .51], [contactSpeedPath, .4], [proximitySpeedPath, -.2], [separation, -1], [scaleY, 1]]);
     await oscWorkspace(page, '参数');
     await expect(page.getByRole('button', { name: path, exact: true })).toBeVisible();
     const before = rig.commands.filter(command => command.method !== 'GET').length;
@@ -1555,12 +1567,14 @@ hostedTest('parameter details open the localized interactive guide without devic
       for (const [parameterPath, unit, definition] of [
         [contactSpeedPath, 'm/s', /接触点|contact point/i],
         [proximitySpeedPath, '1/s', /变化率|change|rate/i],
+        [separation, 'm', /0\.001 m/],
+        [scaleY, locale === 'en-US' ? 'Dimensionless' : '无量纲', /三轴均回到 1|all three axes reset to 1/],
       ]) {
         await page.getByRole('button', { name: parameterPath, exact: true }).click();
         await expect(dialog.getByTestId('parameter-reference-unit')).toHaveText(unit);
         await expect(dialog.getByTestId('parameter-reference-definition')).toContainText(definition);
         await expect(dialog.getByTestId('parameter-reference-usage')).toBeVisible();
-        const source = dialog.getByTestId('parameter-reference-sources').locator('a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3"]').first();
+        const source = dialog.getByTestId('parameter-reference-sources').locator('a[href="https://github.com/vrchat/packages/releases/tag/3.10.6"]').first();
         await expect(source).toBeVisible();
         if (parameterPath === contactSpeedPath)
           await parameterDetailCheckpoint(page, dialog, 'osc-parameter-reference-contact-speed-' + locale);
@@ -1588,7 +1602,7 @@ threeTest('SDK Contact diagrams expose native metre vectors, independent velocit
   { tag: ['@osc', '@config', '@i18n'] }, async ({ page }, info) => {
     const url = new URL(guideFile);
     await page.goto(url.href); await chooseScene(page, 'contact-sdk');
-    await expect(page.locator('#scene-title')).toHaveText('Contact 直接定位（SDK Beta）');
+    await expect(page.locator('#scene-title')).toHaveText('Contact 直接定位');
     await addressPattern(page, 'contact-sdk');
     const names = ['Proximity', 'Proximity_ProximitySpeed', 'Proximity_SenderLocalPositionX',
       'Proximity_SenderLocalPositionY', 'Proximity_SenderLocalPositionZ', 'Proximity_SenderType',
@@ -1598,6 +1612,12 @@ threeTest('SDK Contact diagrams expose native metre vectors, independent velocit
     expect((await referenceCards(page)).map(card => card.name)).toEqual(names);
     await setRange(page, 'x', -.25); await setRange(page, 'y', 1); await setRange(page, 'z', .15);
     await setRange(page, 'vx', .3); await setRange(page, 'vy', .4); await setRange(page, 'vz', 0);
+    const sdk = name => page.locator(`[data-sdk-field="Brush_${name}"] output`);
+    await expect(sdk('PointSeparation')).toHaveText('1.042 m');
+    await setRange(page, 'scaleX', 2); await setRange(page, 'scaleZ', .5);
+    await expect(sdk('SenderLossyScaleX')).toHaveText('2.000×');
+    await expect(sdk('SenderLossyScaleZ')).toHaveText('0.500×');
+    await expect(sdk('PointSeparation')).toHaveText('1.042 m');
     await nearCell(page, 'Proximity_SenderLocalPositionX', -.25);
     await nearCell(page, 'Proximity_SenderVelocityMagnitude', .5);
     await nearCell(page, 'Proximity_SenderType', 1);
@@ -1609,7 +1629,7 @@ threeTest('SDK Contact diagrams expose native metre vectors, independent velocit
     await expect(speedReference).toHaveAttribute('data-selected', 'true');
     await expect(speedReference.getByTestId('parameter-reference-unit')).toHaveText('m/s');
     await expect(speedReference.getByTestId('parameter-reference-definition')).toContainText('接触点');
-    await expect(speedReference.getByTestId('parameter-reference-sources').locator('a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3"]').first()).toBeVisible();
+    await expect(speedReference.getByTestId('parameter-reference-sources').locator('a[href="https://github.com/vrchat/packages/releases/tag/3.10.6"]').first()).toBeVisible();
     await parameter(page, 'Proximity_ProximitySpeed').getByRole('button').click();
     await expect(referenceCard(page, 'Proximity_ProximitySpeed').getByTestId('parameter-reference-unit')).toHaveText('1/s');
     await parameter(page, 'Sample').getByRole('button').click();
@@ -1618,7 +1638,7 @@ threeTest('SDK Contact diagrams expose native metre vectors, independent velocit
     await expect(sampleReference.getByTestId('parameter-reference-sources').locator('a[href^="https://github.com/SeaLoong/Sensa/"]').first()).toBeVisible();
     await parameter(page, 'Proximity_SenderVelocityMagnitude').getByRole('button').click();
     await page.locator('#locale').selectOption('en-US');
-    await expect(page.locator('#scene-title')).toHaveText('Contact direct tracking (SDK Beta)');
+    await expect(page.locator('#scene-title')).toHaveText('Contact direct tracking');
     await expect(page.locator('#parameter-meaning')).toContainText('m/s');
     await expect(speedReference.getByTestId('parameter-reference-unit')).toHaveText('m/s');
     await expect(speedReference.getByTestId('parameter-reference-definition')).toContainText(/contact point/i);
@@ -1629,6 +1649,8 @@ threeTest('SDK Contact diagrams expose native metre vectors, independent velocit
     await expect(page.locator('#validity')).toHaveAttribute('data-valid', 'true');
     await setRange(page, 'x', 2); await setRange(page, 'y', 1);
     await nearCell(page, 'Proximity', 0); await nearCell(page, 'Proximity_SenderType', 0);
+    await expect(sdk('PointSeparation')).toHaveText('-1.000 m (no Sender)');
+    await expect(sdk('SenderLossyScaleX')).toHaveText('1.000× (no Sender)');
     await expect(page.locator('#validity')).toHaveAttribute('data-valid', 'false');
     await nearCell(page, 'Proximity_SenderLocalPositionX', 0);
     await setRange(page, 'x', 0); await setRange(page, 'y', 1);
@@ -1637,7 +1659,7 @@ threeTest('SDK Contact diagrams expose native metre vectors, independent velocit
     await expect(page.locator('#validity')).toHaveAttribute('data-valid', 'false');
     await finiteDrawing(page); await documentFits(page);
     await info.attach('contact-guide-simulation.json', { body: JSON.stringify({
-      fixtureOnly: true, sdkClientExecution: false, fields: names, zeroOriginValid: true,
+      fixtureOnly: true, sdkClientExecution: false, fields: names, noSenderSeparation: -1, noSenderScaleX: 1, zeroOriginValid: true,
       zeroVelocityValid: true, lossType: 0, positionUnits: 'm', velocityUnits: 'm/s',
       frozenActivityMs: 1100, independentPositionVelocity: true,
     }), contentType: 'application/json' });

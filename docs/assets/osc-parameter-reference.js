@@ -6,12 +6,14 @@
 
   const fury = 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/';
   const furySps3 = 'https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/';
+  const sps3Service = 'https://github.com/VRCFury/VRCFury/blob/0723fc6eeb764c37b5ed00b3ae27f48cadcc0596/com.vrcfury.vrcfury/Editor-Avatars/Service/';
+  const sps3ServiceSource = (file, lines) => ({ label: ['VRCFury 1.1491.0：' + file, 'VRCFury 1.1491.0: ' + file], url: sps3Service + file + '.cs#' + lines, kind: 'generator-source' });
   const sensa = 'https://github.com/SeaLoong/Sensa/blob/main/';
   const sources = {
+    stable: { label: ['VRChat SDK 3.10.6 正式版', 'VRChat SDK 3.10.6 stable'], url: 'https://github.com/vrchat/packages/releases/tag/3.10.6', kind: 'official-sdk' },
+    advanced: { label: ['VRChat 官方：Advanced Parameters', 'VRChat: Advanced Parameters'], url: 'https://creators.vrchat.com/common-components/contacts/#advanced-parameters', kind: 'official-doc' },
     contacts: { label: ['VRChat 官方：Contacts', 'VRChat: Contacts'], url: 'https://creators.vrchat.com/common-components/contacts/', kind: 'official-doc' },
-    beta: { label: ['VRChat SDK 3.10.6-beta.2', 'VRChat SDK 3.10.6-beta.2'], url: 'https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2', kind: 'official-sdk' },
-    beta3: { label: ['VRChat SDK 3.10.6-beta.3', 'VRChat SDK 3.10.6-beta.3'], url: 'https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3', kind: 'official-sdk' },
-    contactChanges: { label: ['VRChat 官方：高级 Contact 参数', 'VRChat: advanced Contact parameters'], url: 'https://vrc-beta-docs.netlify.app/releases/release-3-10-6', kind: 'official-doc' },
+    stableDocs: { label: ['VRChat：3.10.6 发布时的参数定义', 'VRChat: Contact definitions at 3.10.6 release'], url: 'https://github.com/vrchat-community/creator-docs/blob/af01805db07a0a95013601988e04f4b743a3bcd2/Docs/docs/common-components/contacts/index.md#advanced-parameters', kind: 'official-doc' },
     sockets: { label: ['VRCFury：Socket 参数生成', 'VRCFury: Socket parameter generation'], url: fury + 'Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273', kind: 'generator-source' },
     sps3Sockets: { label: ['VRCFury SPS3 Beta：OGB 参数生成', 'VRCFury SPS3 Beta: OGB parameter generation'], url: furySps3 + 'Editor-Avatars/Service/BakeHapticSocketsService.cs#L194-L221', kind: 'generator-source' },
     sps3Plugs: { label: ['VRCFury SPS3 Beta：Plug 参数生成', 'VRCFury SPS3 Beta: Plug parameter generation'], url: furySps3 + 'Editor-Avatars/Service/BakeHapticPlugsService.cs#L123-L178', kind: 'generator-source' },
@@ -51,18 +53,18 @@
   const constant = data => ({ valueType: 'Float', range: '0 / 1', unit: unitless, ...data });
 
   function contact(name) {
-    const common = { sources: [sources.beta3, sources.contactChanges, sources.beta, sources.contacts, sources.contactProtocol] };
+    const common = { sources: [sources.advanced, sources.stable, sources.stableDocs, sources.contactProtocol] };
     if (name === 'Proximity') return entry(name, 'sdk', proximity({ ...common,
       title: ['接近程度', 'Proximity'],
       summary: ['表示专用根点标记离接收区域中心有多近，数值越大表示越靠近。', 'Shows how close the dedicated root marker is to the receiver region’s center; higher means closer.'],
-      definition: ['Proximity Receiver 按 Sender 最近表面到接收形状中心的距离输出 0–1。多个匹配目标同时出现时，选择接近值严格大于零且最大的 Sender。SDK Beta.3 在多个目标接近值均为 1 时，优先选择内部最近点距离更小的目标。', 'A Proximity Receiver reports 0–1 from the nearest Sender surface to the receiver shape center. Among matching targets, it selects the Sender with the greatest strictly positive proximity. In SDK Beta.3, ties at 1 select the target with the smaller distance between nearest inner points.'],
+      definition: ['Proximity Receiver 按 Sender 最近表面到接收形状中心的距离输出 0–1。多个匹配目标同时出现时，选择接近值严格大于零且最大的 Sender。多个目标接近值均为 1 时，优先选择内部最近点距离更小的目标。', 'A Proximity Receiver reports 0–1 from the nearest Sender surface to the receiver shape center. Among matching targets, it selects the Sender with the greatest strictly positive proximity. For ties at 1, select the target with the smaller distance between nearest inner points.'],
       usage: ['可表示接近强度；读取具体位置或速度时，同时使用 SenderType、Radius 与活动 Sample 确认这组测量可用。', 'Use it for approach intensity. Combine SenderType, Radius and active Sample when reading the associated position or velocity.'],
     }));
     if (name === 'Proximity_SenderType') return entry(name, 'sdk', { ...common,
-      valueType: 'Int', range: ['0 无目标；1 自身；2 他人；3 世界', '0 none; 1 self; 2 another avatar; 3 world'], unit: unitless,
+      valueType: 'Int', range: ['0 无或未知；1 自身；2 他人；3 世界；4 生成物品', '0 none or unknown; 1 self; 2 another avatar; 3 world; 4 spawned item'], unit: unitless,
       title: ['当前目标的类别', 'Selected target category'],
       summary: ['说明 SDK 当前选中的匹配目标来自哪里。Sensa 专用根点使用自身 Avatar 的目标。', 'Identifies where the SDK’s selected matching target comes from. Sensa’s dedicated root marker belongs to the local Avatar.'],
-      definition: ['SDK 以 0 表示没有选中的 Sender，1 表示自身 Avatar，2 表示其他 Avatar，3 表示世界 Sender。没有目标时，报告的位置和速度归零。', 'The SDK reports 0 for no selected Sender, 1 for the local Avatar, 2 for another Avatar, and 3 for a world Sender. Position and velocity reports return to zero when there is no selected target.'],
+      definition: ['SDK 以 0 表示没有选中的 Sender，1 表示自身 Avatar，2 表示其他 Avatar，3 表示世界 Sender，4 表示生成物品；未识别来源也可为 0。没有目标时，报告的位置和速度归零。', 'The SDK reports 0 for no selected Sender, 1 for the local Avatar, 2 for another Avatar, 3 for a world Sender, and 4 for a spawned item; an unrecognized owner can also report 0. Position and velocity reports return to zero when there is no selected target.'],
       usage: ['Sensa Contact 根点以类型 1 配合活动 Sample 判断测量有效性，原点坐标和静止零速度也能正常使用。', 'Sensa Contact roots use type 1 together with active Sample to determine validity, including an origin position or zero velocity at rest.'],
     });
     const position = /^Proximity_SenderLocalPosition([XYZ])$/.exec(name);
@@ -88,7 +90,7 @@
     if (name === 'Proximity_ProximitySpeed') return entry(name, 'sdk', { ...common,
       title: ['接近值的变化速度', 'Rate of proximity change'], valueType: 'Float', range: ['带符号；读数稳定时为 0', 'Signed; 0 when the reading is steady'], unit: '1/s',
       summary: ['表示接近程度每秒增加或减少多少：正值为增加，负值为减少。', 'Shows how much proximity increases or decreases each second: positive for increasing and negative for decreasing.'],
-      definition: ['SDK 按相邻帧 Proximity 的差除以时间间隔求变化率。进入或离开接收区时可能出现短暂变化。', 'The SDK divides the change in Proximity between frames by elapsed time. Entry into or exit from the receiver region may produce a transient.'],
+      definition: ['SDK 按相邻帧 Proximity 的差除以时间间隔求变化率；SDK 3.10.6 将绝对值不超过 0.001 的变化率记为 0。进入或离开接收区时可能出现短暂变化。', 'The SDK divides the change in Proximity between frames by elapsed time. SDK 3.10.6 reports zero for rates whose absolute value is at most 0.001. Entry into or exit from the receiver region may produce a transient.'],
       usage: ['可分别校准靠近与退出时的动作强度，使用接近值／秒的量程；m/s 的相对速度使用自己的量程。', 'Calibrate approach and retreat intensity using a proximity-units-per-second range. Relative velocity in m/s uses its own range.'],
     });
     if (name === 'Radius') return entry(name, 'sensa', { sources: [sources.contactProtocol, sources.contacts],
@@ -252,9 +254,87 @@
     return null;
   }
 
+  // A suffix is a naming convention, not proof of the parameter's publisher.
+  function nativeContact(path) {
+    const match = /^(.+)_(PointSeparation|SenderLossyScale[XYZ]|SenderType|SenderLocalPosition[XYZ]|SenderVelocity(?:[XYZ]|Magnitude)|ProximitySpeed|CollisionTag_(.+))$/.exec(path);
+    if (!match || !match[1].split('/').every(Boolean)) return null;
+    const [, base, suffix, tag] = match, name = path.split('/').at(-1);
+    const common = { sources: [sources.advanced, sources.stable, sources.stableDocs], valueType: 'Float', unit: unitless,
+      usage: [`若这是 Receiver 的高级参数，基名是 ${base}。在 SDK 中启用所需字段，并在客户端核对实际 OSC 路径；同名自定义参数不一定来自 Contact。`,
+        `If this is a Receiver advanced parameter, its base is ${base}. Enable the required field in the SDK and verify the actual OSC address in the client; a matching suffix alone cannot identify its publisher.`] };
+    if (suffix === 'PointSeparation') return entry(name, 'sdk', { ...common, title: ['最近内部点间距', 'Nearest inner-point separation'], unit: 'm', range: ['−1 或 ≥0', '−1 or ≥0'],
+      summary: ['接近时通常变小，远离时变大；不是球面之间的间隙，也不是 0–1 接近值。', 'Typically decreases on approach and increases on retreat. Not the gap between surfaces or normalized proximity.'],
+      definition: ['世界空间中最近内部点间的距离：球与盒用中心，胶囊用中心线上的最近点。SDK 3.10.6 将不超过 0.001 m 的距离记为 0；无触碰 Sender 时是 −1。', 'World-space distance between the nearest inner points: centers for spheres and boxes, closest points on the center line for capsules. SDK 3.10.6 reports 0 at or below 0.001 m; no touching Sender reports −1.'] });
+    if (suffix.startsWith('SenderLossyScale')) return entry(name, 'sdk', { ...common, title: [`Sender 世界缩放 ${suffix.at(-1)}`, `Sender world scale ${suffix.at(-1)}`], range: ['缩放因子；不是距离', 'Scale factor, not distance'],
+      summary: ['来自被选中 Sender 的 Transform；仅平移不会改变该轴缩放。', 'From the selected Sender transform; translation alone does not change its scale.'],
+      definition: [`${suffix.at(-1)} 轴的 lossy world scale，包含父层级影响。1 表示单位缩放，2 表示该轴约两倍。无选中 Sender 时三轴均回到 1，不代表检测到了单位缩放的目标。`, `Lossy world scale on ${suffix.at(-1)}, including the parent hierarchy. 1 is unit scale and 2 approximately doubles this axis. With no selected Sender all three axes reset to 1; this is a default, not detection of a unit-scale target.`] });
+    if (tag) return entry(name, 'sdk', { ...common, title: ['碰撞标签匹配', 'Collision tag match'], valueType: 'Bool', range: booleanRange,
+      summary: [`${tag} 是否为 Receiver 与 Sender 相匹配的标签。`, `Whether ${tag} matches between the Receiver and Sender.`],
+      definition: ['开启此组后，Receiver 每个配置的碰撞标签各有一个 Bool；标签名由作者指定。', 'When enabled, each configured receiver collision tag gets a Bool; the author chooses the tag names.'] });
+    const existing = contact('Proximity_' + suffix);
+    if (!existing) return null;
+    const value = { ...existing, ...common, name, unit: existing.unit, valueType: existing.valueType };
+    if (suffix === 'SenderType') value.summary = ['报告所选 Sender 的来源类别。', 'Reports the selected Sender’s owner category.'];
+    if (suffix.startsWith('SenderLocalPosition')) {
+      value.range = ['带符号的位移', 'Signed displacement'];
+      value.definition = [`Sender 形状中点相对 Receiver 的 ${suffix.at(-1)} 轴位置分量，单位米。坐标随 Receiver 旋转，不一定是 Avatar 根坐标。`, `Position of the Sender midpoint along Receiver axis ${suffix.at(-1)}, in metres. Axes rotate with this Receiver, not necessarily the avatar root.`];
+    }
+    return value;
+  }
+
+  function stableSps3(path) {
+    if (path === 'OGB/Enabled') return entry('Enabled', 'fury', gate({ sources: [sps3ServiceSource('OgbEnabledService', 'L17-L38')],
+      title: ['OGB 接收器开关', 'OGB receiver switch'], summary: ['正式 SPS3 的本地启用开关；初始为 false。', 'The local switch for stable SPS3 receivers, initially false.'],
+      definition: ['VRCFury 只在本地 Avatar 且参数打开时启用已注册对象。旧生成器使用 OGB_ENABLED。', 'VRCFury enables registered objects only for the local avatar while this parameter is on. Older generators use OGB_ENABLED.'], usage: ['检查接收器是否启用；它不是设备的“输入启用”，也不是动作值。', 'Check receiver activation. This is neither device input activation nor a motion value.'] }));
+    if (path === 'OGB/Version/11' || path === 'OGB/HapticsDisabled') {
+      const version = path.endsWith('/11');
+      return entry(path.split('/').at(-1), 'fury', gate({ sources: [sps3ServiceSource('BakeHapticVersionsService', 'L16-L32')],
+        title: version ? ['OGB 版本标记', 'OGB version marker'] : ['OGB Haptics 已禁用', 'OGB Haptics disabled'],
+        summary: version ? ['版本在路径末尾的 11，不在 Bool 值里。', 'The version is the 11 in the path, not the Boolean value.'] : ['构建时未启用 Haptics 才生成此标记。', 'This marker is generated when Haptics is disabled at build time.'],
+        definition: ['VRCFury 构建信息，不是碰撞事件。', 'VRCFury build information, not a collision event.'], usage: ['用于诊断，不要映射成动作。', 'Inspect for diagnosis; do not map to motion.'] }));
+    }
+    const zone = /^OGB\/Touch\/[^/]+\/(Self|Others)$/.exec(path);
+    if (zone) return entry(zone[1], 'fury', proximity({ title: ['SPS3 · 独立触摸区', 'SPS3 · independent touch zone'], sources: [sources.contacts,
+      { label: ['VRCFury 1.1491.0：触摸区', 'VRCFury 1.1491.0: Touch Zone'], kind: 'generator-source', url: sps3Service.replace('Service/', 'Feature/') + 'VRCFuryHapticTouchReceiverBuilder.cs#L24-L49' }],
+      summary: ['匹配的身体目标靠近该触摸区时，接近值升高。', 'Proximity rises as a matching body contact approaches the zone.'], definition: ['Self 与 Others 分别报告自身与他人的触碰；沿用该区域自己的接收半径，不需要 Close。', 'Self and Others report the local and other avatars separately, using the zone’s own receiver radius without a Close gate.'], usage: ['可将触碰响应映射到振动强度 V0。', 'Map touch response to vibration intensity V0.'] }));
+    const match = /^OGB\/(Socket|Plug)\/([^/]+)\/([^/]+)$/.exec(path);
+    if (!match) return null;
+    const [, kind, , name] = match, socket = kind === 'Socket';
+    const generator = socket ? sps3ServiceSource('BakeHapticSocketsService', 'L141-L168') : sps3ServiceSource('BakeHapticPlugsService', 'L118-L158');
+    if (!socket && /^LengthMult[12]$/.test(name)) {
+      const raw = name === 'LengthMult1';
+      return entry(name, 'fury', { sources: [generator, sps3ServiceSource('WorldScaleDetectorService', 'L115-L149')], valueType: 'Float', unit: raw ? unitless : 'm',
+        range: raw ? '0–1' : ['取决于构建长度', 'Depends on the baked length'], title: raw ? ['长度缩放读数', 'Length scale reading'] : ['长度换算系数', 'Length conversion factor'],
+        summary: raw ? ['Plug 的缩放读数，不是碰撞强度。', 'The Plug’s scale reading, not contact intensity.'] : ['构建时记录的长度系数，不是实时深度。', 'A length factor recorded at build time, not live depth.'],
+        definition: raw ? ['VRCFury 的缩放探测器输出原始接近值，默认 0.01 对应构建时缩放。', 'The VRCFury scale detector outputs raw proximity; the default 0.01 represents the baked scale.'] : ['VRCFury 以构建时世界长度乘以 MaxDetectedScale（100）作为默认值。', 'VRCFury sets the default to the baked world length multiplied by MaxDetectedScale (100).'],
+        usage: ['两项配合用于表示随缩放调整的长度，不应单独驱动 L0 或 V0。', 'Together these fields represent length adjusted for scale. Neither should drive L0 or V0 on its own.'] });
+    }
+    if (socket && name === 'DepthRadius') return entry(name, 'fury', {
+      sources: [generator], valueType: 'Float', unit: 'm', range: ['接收半径', 'Receiver radius'], title: ['深度接收器半径', 'Depth receiver radius'],
+      summary: ['构建时写入的世界半径，不是当前距离。', 'The world radius recorded at build time, not the current distance.'],
+      definition: ['VRCFury 把接收器的 worldRadius 写入未同步的参数默认值。', 'VRCFury writes the receiver worldRadius as the default value of an unsynced parameter.'], usage: ['用于核对量程，不要映射为深度。', 'Use it to check dimensions, not as the depth reading.'] });
+    const depth = /^Depth(Self|Others)$/.test(name);
+    if (!depth && !/^Touch(Self|Others)$/.test(name) && (socket || name !== 'FrotOthers')) return null;
+    const party = name.endsWith('Self') ? ['自身 Avatar', 'the local avatar'] : ['其他 Avatar', 'another avatar'];
+    return entry(name, 'fury', proximity({ sources: [generator, ...(depth ? [sps3ServiceSource('SelfAndOthersReceiverAnimatorService', 'L71-L82')] : []), sources.contacts],
+      title: depth ? ['SPS3 · 接近程度', 'SPS3 · proximity'] : ['SPS3 · 接触强度', 'SPS3 · contact intensity'],
+      summary: depth ? [`${kind} 对${party[0]}匹配目标的单路接近读数。`, `A single ${kind} proximity reading for a matching target from ${party[1]}.`]
+        : [`${kind} 对${party[0]}的${name === 'FrotOthers' ? 'Plug 摩擦' : '身体触碰'}响应。`, `${kind} response to ${name === 'FrotOthers' ? 'Plug rubbing' : 'body contact'} from ${party[1]}.`],
+      definition: depth ? ['这是 Receiver 自身的 0–1 值，不是米或物理插入百分比。它不需要 NewRoot/NewTip 配对。', 'This is the receiver’s 0–1 output, not metres or percentage of physical insertion. There is no NewRoot/NewTip pair.']
+        : socket ? ['启用此可选 Socket 触碰接收器时，接近值随匹配的身体目标靠近而增大。没有配套 Close。', 'When this optional Socket touch receiver is built, proximity rises as the matching body target approaches. There is no paired Close field.']
+        : ['Plug 使用面向根部的 Face Proximity 盒形接收器，合格触碰越靠近根侧，读数越大。没有配套 Close。', 'The Plug uses a box in Face Proximity mode facing the base. Eligible contact toward the base reads higher. There is no paired Close field.'],
+      usage: depth ? ['观察实际浅端和深端，把两端读数校准到 L0；不要套用旧 Orf 的估长公式。', 'Observe the shallow and deep endpoints and calibrate their readings to L0. Do not apply the old Orf length formula.']
+        : ['可映射到 V0；读数越高，振动目标越强。', 'Map to V0 for a stronger vibration target as the reading rises.'] }));
+  }
+
   function describe(path) {
+    const stable = stableSps3(path);
+    if (stable) return stable;
     const contactPath = /^Sensa\/Contact\/[^/]+\/([^/]+)$/.exec(path);
-    if (contactPath) return contact(contactPath[1]);
+    if (contactPath) {
+      const protocolField = contact(contactPath[1]);
+      if (protocolField) return protocolField;
+    }
     const ogbPath = /^OGB\/(Orf|Pen)\/.+\/([^/]+)$/.exec(path);
     if (ogbPath) {
       const value = ogb(ogbPath[1], ogbPath[2]);
@@ -300,7 +380,7 @@
       definition: ['VRCFury／OGB 通过版本标记路径约定所支持的参数能力，具体版本号包含在参数路径中。SPS2 和 SPS3 都可发布 VFH/Version/10，不能据此区分 SPS 形变代际。', 'VRCFury/OGB use version-marker paths to advertise supported parameter capabilities, with the version number in the path. Both SPS2 and SPS3 can publish VFH/Version/10; it does not identify the SPS deformation generation.'],
       usage: ['用于识别输入能力；联动强度读取实际接触或定位参数。', 'Use it to identify input capabilities; contact and tracking parameters provide interaction intensity.'],
     }));
-    return builtin(path);
+    return builtin(path) || nativeContact(path);
   }
 
   function lookup(path, language = 'zh-CN') {

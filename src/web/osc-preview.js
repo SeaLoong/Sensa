@@ -1,4 +1,6 @@
-import { t } from './i18n.js';
+import { getLocale, t } from './i18n.js';
+import '../../docs/assets/osc-parameter-reference.js';
+import { sps3OgbOutput } from '../core/runtime/resolver.ts';
 // Reuse compiled patterns across live snapshots. Neither
 // cache stores incoming values, so data freshness always comes from the caller.
 const comparePaths = (left, right) => left < right ? -1 : left > right ? 1 : 0;
@@ -148,6 +150,10 @@ export function probePresentation(path) {
 
 export function parameterMeaning(path) {
   const normalized = String(path || '').replace(/^\/avatar\/parameters\//, '');
+  if (/^OGB\/(?:Socket|Plug|Touch|Version|Enabled|HapticsDisabled)(?:\/|$)/.test(normalized)) {
+    const ref = globalThis.SensaOscParameterReference.lookup(normalized, getLocale());
+    if (ref) return `${ref.summary} ${ref.usage}`;
+  }
   const probe = probePresentation(normalized);
   return (probe ? `${probe.hint} ` : '') + baseParameterMeaning(normalized);
 }
@@ -158,7 +164,7 @@ function baseParameterMeaning(path) {
     if (leaf === 'Sample') return t('Sample=0 表示 Contact 测量已停止或失效；1/32…1 循环变化表示生产端仍在更新。Sensa 同时检查自身发送器、接近值和完整参数。');
     if (leaf === 'Radius') return t('Radius 是接收器当前的世界覆盖半径，单位为米。它随 Avatar 缩放更新，用于检查接收范围。');
     if (leaf === 'Proximity') return t('Contact 接近值在 0–1 之间。大于 0 表示选中了匹配的发送器；多个发送器同时进入时，SDK 选择接近值最大的一个。');
-    if (leaf === 'Proximity_SenderType') return t('发送器类型：0 无目标，1 自身 Avatar，2 其他 Avatar，3 世界。Sensa 专用根点使用自身发送器，并用独立碰撞通道配对。');
+    if (leaf === 'Proximity_SenderType') return t('发送器类型：0 无目标或未知，1 自身 Avatar，2 其他 Avatar，3 世界，4 生成物品。Sensa 专用根点使用自身发送器，并用独立碰撞通道配对。');
     if (/^Proximity_SenderLocalPosition[XYZ]$/.test(leaf)) return t('SDK 直接报告发送器形状中心相对接收器中心的坐标，单位为米。Sensa 接收器采用 Avatar 根的原点和旋转轴；坐标保留实际米制距离。');
     if (/^Proximity_SenderVelocity[XYZ]$/.test(leaf)) return t('SDK 报告接触点处发送器相对接收器的速度分量，单位为 m/s，方向采用接收器坐标轴。速度包含旋转产生的运动。');
     if (leaf === 'Proximity_SenderVelocityMagnitude') return t('SDK 报告接触点处的相对速率，单位为 m/s。可校准为振动强度，并通过空间输入检查控制有效性。');
@@ -304,7 +310,7 @@ export function pointMetricValue(point, metric) {
 }
 
 export function pointTrackingLabel(point) {
-  if (point?.kind === 'ContactRoot') return t('Contact 直接定位（SDK Beta）');
+  if (point?.kind === 'ContactRoot') return t('Contact 直接定位');
   if (point?.kind === 'SpsRoot') return t('SPS 四点定位');
   return point?.kind || '';
 }
@@ -342,6 +348,15 @@ export function pointCalibrationProgress(point, metric, zero, full) {
   if (!endpoint || !calibratedPointDraft(point,metric,zero,full).draft) return null;
   const raw=(endpoint.value-zero.value)/(full.value-zero.value);
   return {percent:Math.max(0,Math.min(100,raw*100)),outside:raw<0 || raw>1};
+}
+
+// undefined: use the normal parameter workflow; null: inspect metadata, do not propose motion.
+export function sps3MappingSuggestion(path) {
+  const sourceMode = sps3OgbOutput(path);
+  if (sourceMode) return { oscPath: path, sourceMode, role: sourceMode === 'OgbDepth' ? 'Depth' : 'V0' };
+  if (/^OGB\/(?:Version\/11|Enabled|HapticsDisabled|Socket\/[^/]+\/DepthRadius|Plug\/[^/]+\/LengthMult[12])$/.test(path)) return null;
+  if (/^OGB\/(?:Plug|Socket)\/[^/]+\/Depth(?:Self|Others)_SenderVelocityMagnitude$/.test(path)) return { oscPath: path, sourceMode: 'Direct', role: 'V0' };
+  return undefined;
 }
 
 export function isOgbOscPath(path) {

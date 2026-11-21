@@ -78,7 +78,7 @@ Computed signals produce reusable raw values before calibration, using OSC param
 | Family | Coordinate/freshness rules |
 | --- | --- |
 | Legacy Point/Handle/Pose | ReferenceLocal; oldest participating channel, including Handle grab; default 1000 ms or positive timeout |
-| Contact direct tracking (SDK Beta) | AvatarRootMeters; one dedicated Self Sender/Receiver, complete twelve-field report, positive Proximity and supported Radius; Sample change age at most 1000 ms |
+| Contact direct tracking | AvatarRootMeters; one dedicated Self Sender/Receiver, complete twelve-field report, positive Proximity and supported Radius; Sample change age at most 1000 ms |
 | SPS four-anchor tracking | AvatarRootLocal; known P0–P3 geometry, unsaturated inputs and residual checks; stationary P may cache, changing Sample defaults to 1000 ms, capped at 1250 ms |
 | Native Shader | AvatarRootLocal; complete measurement packets, provenance, frame progression and validity; fields, encoding and recovery follow the [positioning protocol](positioning.en.md) |
 

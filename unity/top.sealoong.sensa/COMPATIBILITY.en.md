@@ -11,7 +11,7 @@ Author settings use one NDMF generation plugin and MA merging. Every author scri
 | Input | Measurement | Reference and use |
 | --- | --- | --- |
 | SPS four-anchor tracking | One selected root in AvatarRootLocal authored units | Four fixed Receivers and one dedicated own-root Sender |
-| Contact direct tracking (SDK Beta) | One selected root in AvatarRootMeters and relative contact-point velocity in m/s | One Receiver and one dedicated own-root Sender; SDK advanced Proximity parameters |
+| Contact direct tracking | One selected root in AvatarRootMeters and relative contact-point velocity in m/s | One Receiver and one dedicated own-root Sender; SDK advanced Proximity parameters |
 | Paired Root/Tip/Side Pose | Straight-pose experiment in a known paired frame | Paired markers with a defined layout |
 | OGB NewRoot/NewTip | Root-sphere length/radial estimate | Same-instance proximity pair and calibrated depth trend |
 | Native PB Stretch/IsGrabbed | Stretch intensity and grab gate | Scalar linkage from PhysBone parameters |

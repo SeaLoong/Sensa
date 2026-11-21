@@ -16,8 +16,7 @@ namespace UnityBox.Sensa
         private static Type FindType(string name) => AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType(name)).FirstOrDefault(t=>t!=null);
         private static Type Type(string name) => FindType(name)
             ?? throw new InvalidOperationException(SensaEditorLocalization.Text("Install supported VRCFury SPS: missing ")+name);
-        // SPS3 beta 59fa4fa keeps the authoring component geometry API, but adds a
-        // distinct channel-tag/encoded-scale ABI. Recognize its contract, not a package version.
+        // Match the encoded-scale ABI. The SPS3 beta and release use distinct not-hips channel names.
         public static bool HasSps3ContactApi => IsSps3ContactApiSchema(FindType("VF.Builder.Haptics.SpsTags"));
         internal static bool IsSps3ContactApiSchema(Type schema)
         {
@@ -29,7 +28,7 @@ namespace UnityBox.Sensa
                     && Equals(field.GetRawConstantValue(), expected);
             }
             return Constant("Prefix", "SPS/") && Constant("PublicChannel", "_public")
-                && Constant("NotHipsChannel", "_nothips")
+                && (Constant("NotHipsChannel", "nothips") || Constant("NotHipsChannel", "_nothips"))
                 && Constant("LegacyPlugSphere", "TPS_Pen_Penetrating")
                 && Constant("LegacySocket", "TPS_Orf_Root")
                 && Constant("LegacySocket2", "SPSLL_Socket_Root")
@@ -137,12 +136,16 @@ namespace UnityBox.Sensa
         {
             SensaSensorUtility.Uniform(component.transform);
             if(component.GetType().FullName==SocketType) {
-                var method=Type("VF.Inspector.VRCFuryHapticSocketBaker").GetMethod("GetInfoFromLightsOrComponent",BindingFlags.NonPublic|BindingFlags.Static);
+                var baker=Type("VF.Inspector.VRCFuryHapticSocketBaker");
+                var args=new[] { component.GetType(), typeof(HumanBodyBones?) };
+                var flags=BindingFlags.NonPublic|BindingFlags.Static;
+                var method=baker.GetMethod("GetSocketTransform",flags,null,args,null)
+                    ?? baker.GetMethod("GetInfoFromLightsOrComponent",flags,null,args,null);
                 if(method==null)throw new InvalidOperationException(SensaEditorLocalization.Text("Unsupported VRCFury socket geometry API; no guessed placement was generated."));
                 var result=method.Invoke(null,new object[]{component,null});var t=result.GetType();
                 return new Placement{source=component,position=(Vector3)t.GetProperty("Item2").GetValue(result),rotation=(Quaternion)t.GetProperty("Item3").GetValue(result)};
             }
-            var sizeMethod=Type("VF.Builder.Haptics.PlugSizeDetector").GetMethod("GetWorldSize",BindingFlags.Public|BindingFlags.Static);
+            var sizeMethod=Type("VF.Builder.Haptics.PlugSizeDetector").GetMethod("GetWorldSize",BindingFlags.Public|BindingFlags.Static,null,new[] { component.GetType() },null);
             if(sizeMethod==null)throw new InvalidOperationException(SensaEditorLocalization.Text("Unsupported VRCFury plug geometry API."));
             var size=sizeMethod.Invoke(null,new object[]{component});var type=size.GetType();
             var length=(float)type.GetField("worldLength").GetValue(size)/component.transform.lossyScale.x;

@@ -20,6 +20,15 @@ namespace UnityBox.Sensa.Tests
             public static string FormatSocket(string channel) => Prefix + "Socket/" + channel;
             public static string FormatSocketPath(string channel) => Prefix + "SocketPath/" + channel;
         }
+        // Release 1.1491.0, 0723fc6e: the encoded fields/formats remain the same.
+        private static class ReleasedSps3Schema
+        {
+            public const string Prefix = "SPS/", PublicChannel = "_public", NotHipsChannel = "nothips";
+            public const string LegacyPlugSphere = "TPS_Pen_Penetrating", LegacySocket = "TPS_Orf_Root", LegacySocket2 = "SPSLL_Socket_Root";
+            public static string FormatPlug(string channel) => Prefix + "Plug/" + channel;
+            public static string FormatSocket(string channel) => Prefix + "Socket/" + channel;
+            public static string FormatSocketPath(string channel) => Prefix + "SocketPath/" + channel;
+        }
         private static class MissingPathSchema
         {
             public const string Prefix = "SPS/", PublicChannel = "_public", NotHipsChannel = "_nothips";
@@ -45,6 +54,7 @@ namespace UnityBox.Sensa.Tests
         }
 
         [TestCase(typeof(Sps3Schema), true)]
+        [TestCase(typeof(ReleasedSps3Schema), true)]
         [TestCase(typeof(MissingPathSchema), false)]
         [TestCase(typeof(WrongPathSignatureSchema), false)]
         [TestCase(typeof(UnrelatedSchema), false)]
@@ -59,9 +69,9 @@ namespace UnityBox.Sensa.Tests
         {
             var schema = AppDomain.CurrentDomain.GetAssemblies().Select(assembly => assembly.GetType("VF.Builder.Haptics.SpsTags"))
                 .FirstOrDefault(type => type != null);
-            if (schema == null) Assert.Ignore("This contract requires the optional VRCFury SPS3 beta.");
+            if (schema == null) Assert.Ignore("This contract requires the optional VRCFury SPS3.");
             Assert.That(SensaSpsAdapter.HasSps3ContactApi, Is.True);
-            foreach (var channel in new[] { "_public", "_nothips", "private-channel" })
+            foreach (var channel in new[] { "_public", "nothips", "_nothips", "private-channel" })
                 foreach (var name in new[] { "Plug", "Socket", "SocketPath" })
                     Assert.That(schema.GetMethod("Format" + name).Invoke(null, new object[] { channel }),
                         Is.EqualTo("SPS/" + name + "/" + channel));
