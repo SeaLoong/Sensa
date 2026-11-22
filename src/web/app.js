@@ -2380,10 +2380,25 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   }
 
   function renderParameters() {
+    const hasFilters = Boolean(oscPreviewSearch || previewSourceTab !== 'all' || previewCategory !== 'all');
+    function clearFilters() {
+      setOscPreviewSearch('');
+      setPreviewSourceTab('all');
+      setPreviewCategory('all');
+      document.getElementById('osc-parameter-search')?.focus();
+    }
+    function emptyMessage() {
+      if (!visibleCatalog.length) return frozenPreview
+        ? t('冻结时没有参数。继续预览可查看新收到的参数。')
+        : t('当前目录为空。收到 OSC 参数后会在这里显示。');
+      if (hasFilters) return t('暂无匹配参数');
+      return t('当前参数均已隐藏。打开“显示 FT 参数”可查看。');
+    }
     return (
       <div className="stack">
         <div className="parameter-filters">
           <Field
+            id="osc-parameter-search"
             label={t('搜索参数')}
             type="search"
             value={oscPreviewSearch}
@@ -2415,10 +2430,11 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           <Button onClick={() => setFrozenPreview((previous) => (previous ? null : [...oscPreview]))}>
             {frozenPreview ? t('继续预览') : t('冻结预览')}
           </Button>
+          {hasFilters && <Button onClick={clearFilters}>{t('清除筛选')}</Button>}
           <span className="muted">{t('{0} 项', [rankedOscPreview.length])}</span>
         </div>
         {frozenPreview && <Notice>{t('当前列表显示冻结时的数据，便于逐项查看；OSC 接收和设备运行继续进行。')}</Notice>}
-        <OscParameterTable entries={rankedOscPreview} pinnedPaths={pinnedPaths}
+        <OscParameterTable emptyMessage={rankedOscPreview.length ? '' : emptyMessage()} entries={rankedOscPreview} pinnedPaths={pinnedPaths}
           filterKey={JSON.stringify([oscPreviewSearch, previewSourceTab, previewCategory, showFaceTracking])}
           onTogglePinned={togglePinned}
           onInspect={entry => { clearErrorNotification(); setParameterDetail(entry); }}

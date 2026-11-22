@@ -9,12 +9,13 @@ test('large parameter catalogs keep browsing and path editing bounded without ac
     await page.addInitScript(() => Object.defineProperty(globalThis, 'SharedWorker', { configurable: true, value: undefined }));
     let generation = 0, timer, fixedValue = null, sourceKey = 'catalog-fixture';
     const paths = Array.from({ length: 4096 }, (_, index) => `Load/Parameter${String(index).padStart(5, '0')}`);
+    let previewPaths = [];
     await page.routeWebSocket('**/api/ws', route => {
       const server = route.connectToServer();
       const populate = state => {
         const value = fixedValue ?? String(++generation);
         if (fixedValue !== null) generation++;
-        state.osc.preview = paths.map(path => ({ path, value, numericValue: Number(value),
+        state.osc.preview = previewPaths.map(path => ({ path, value, numericValue: Number(value),
           sourceKey, sourceLabel: 'Catalog fixture', timestampMs: Date.now(),
           classification: { relevance: 0 } }));
         state.osc.sources = [{ key: sourceKey, label: 'Catalog fixture' }];
@@ -39,6 +40,17 @@ test('large parameter catalogs keep browsing and path editing bounded without ac
       expect((await rig.overview()).input.mode).toBe('manual');
       await oscWorkspace(page, '参数');
       const rows = page.locator('.parameter-table tbody tr');
+      await expect(page.getByText(await text(page, '当前目录为空。收到 OSC 参数后会在这里显示。'), { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: await text(page, '冻结预览'), exact: true }).click();
+      previewPaths = ['FT/Fixture'];
+      await expect(page.getByText(await text(page, '冻结时没有参数。继续预览可查看新收到的参数。'), { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: await text(page, '继续预览'), exact: true }).click();
+      await expect(page.getByText(await text(page, '当前参数均已隐藏。打开“显示 FT 参数”可查看。'), { exact: true })).toBeVisible();
+      const ftToggle = page.getByLabel(await text(page, '显示 FT 参数'), { exact: true });
+      await ftToggle.check();
+      await expect(rows.first().locator('.parameter-link')).toHaveText('FT/Fixture');
+      await ftToggle.uncheck();
+      previewPaths = paths;
       await expect(rows).toHaveCount(100);
       await expect(rows.first().locator('.parameter-link')).toHaveText(paths[0]);
       const next = page.getByRole('button', { name: await text(page, '下一页'), exact: true });
@@ -61,7 +73,17 @@ test('large parameter catalogs keep browsing and path editing bounded without ac
       await search.fill('04095');
       await expect(rows).toHaveCount(1);
       await expect(rows.first().locator('.parameter-link')).toHaveText(paths.at(-1));
-      await search.clear();
+      const sourceFilter = page.getByRole('combobox', { name: await text(page, '浏览来源'), exact: true });
+      const categoryFilter = page.getByRole('combobox', { name: await text(page, '分类'), exact: true });
+      await sourceFilter.selectOption(sourceKey);
+      await categoryFilter.selectOption('pose');
+      await expect(rows).toHaveCount(0);
+      await expect(page.getByText(await text(page, '暂无匹配参数'), { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: await text(page, '清除筛选'), exact: true }).click();
+      await expect(search).toBeFocused();
+      await expect(search).toHaveValue('');
+      await expect(sourceFilter).toHaveValue('all');
+      await expect(categoryFilter).toHaveValue('all');
       await expect(previous).toBeDisabled();
       await expect(pageNumber).toHaveValue('1');
       await expect(rows).toHaveCount(100);
@@ -122,7 +144,7 @@ test('large parameter catalogs keep browsing and path editing bounded without ac
       expect(rig.commands.filter(command => command.method !== 'GET')).toEqual([]);
       await info.attach('catalog-limits.json', { body: JSON.stringify({ parameters: paths.length,
         maximumTableRows: 100, maximumSuggestions: 50, directPage: 41,
-        sourcePinnedDetails: true, liveAndFrozenDetails: true,
+        sourcePinnedDetails: true, liveAndFrozenDetails: true, clearedCatalogFilters: true, verifiedEmptyStates: ['live', 'frozen', 'hidden-ft', 'filtered'],
         inputActive: false, frames: generation }), contentType: 'application/json' });
     } finally { clearInterval(timer); }
   });

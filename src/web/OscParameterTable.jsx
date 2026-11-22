@@ -4,7 +4,7 @@ import { Button } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { formatPreviewTimestamp, paginateOscPreview } from './osc-workspace.js';
 
-export default function OscParameterTable({ entries, pinnedPaths, filterKey, onTogglePinned, onInspect, onMap }) {
+export default function OscParameterTable({ emptyMessage, entries, pinnedPaths, filterKey, onTogglePinned, onInspect, onMap }) {
   const [selection, setSelection] = useState({ key: filterKey, page: 0 });
   const page = paginateOscPreview(entries, selection.key === filterKey ? selection.page : 0);
   useEffect(() => {
@@ -46,8 +46,8 @@ export default function OscParameterTable({ entries, pinnedPaths, filterKey, onT
             ))}
           </tbody>
         </table>
-        {!page.total && <p className="empty-state">{t('暂无匹配参数')}</p>}
       </div>
+      {!page.total && <p className="empty-state" role="status">{emptyMessage}</p>}
       {page.total > 100 && (
         <nav className="actions" aria-label={t('OSC 参数分页')}>
           <Button disabled={page.page === 0} onClick={() => selectPage(page.page - 1)}>{t('上一页')}</Button>
