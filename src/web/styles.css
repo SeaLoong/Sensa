@@ -945,7 +945,4 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
 .onboarding-instructions { display: grid; gap: 10px; margin: 0 0 12px; padding-left: 22px; font-size: 13px; line-height: 1.6; }
 .onboarding-location { margin: 0 0 12px; }
 
-.mapping-row__main:has(.mapping-processing) { grid-template-columns: minmax(0, 1fr) max-content max-content; }
-.mapping-processing { grid-column: 1 / -1; min-width: 0; }
-.mapping-processing > .button { justify-self: start; overflow-wrap: anywhere; text-align: start; }
-.mapping-row__main:has(.mapping-processing) > .mapping-row__path { grid-column: 1 / -1; }
+.mapping-processing .button { justify-self: start; overflow-wrap: anywhere; text-align: start; }

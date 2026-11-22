@@ -10,7 +10,7 @@ Drive an OSR or another interactive device from VRChat/SPS, funscripts or manual
 
 **Start setup guide** takes you through **Choose a scene → Prepare input → Mapping & transforms → Axis profiles → Connect device → View logs → Review setup**. Each step highlights real controls and dims the rest of the page. Opening an editor suspends the guide until you close it. Save your progress and return with **Resume setup**, or reopen it through **Guided setup**. After **Finish tour**, turn on **Input enabled** when ready.
 
-Configuration templates live in the preset selector under **Mapping & transforms → Axis mapping**, in **Manage computed signals → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
+Configuration templates live in the preset selector under **Mapping & transforms → Axis mapping**, in **Computed signal → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
 
 [First-run steps](quick-start.en.md) · [Configuration templates](presets.en.md) · [Workbench map](guide.en.md)
 
@@ -32,7 +32,7 @@ Manual control offers twelve axes. Funscript playback supports speed, loops, A�
 
 ## Computation and mapping
 
-Add a step inside an axis mapping, expand it to choose blending, smoothing or another operation, then set its inputs and save. Use **Manage computed signals** for standalone calculations. [Calculation examples](computed-signals.en.md)
+Confirm the source and target axis first. For blending or smoothing, expand the steps on that row. Append or click a step to edit its shared calculation on the **Computed signal** tab, then choose **Return to current mapping** to go back to the same row. [Calculation examples](computed-signals.en.md)
 
 ## Devices and output transports
 

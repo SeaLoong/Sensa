@@ -85,7 +85,7 @@ test('all E2E configurations isolate devices and initialize outputs disabled / æ
     assert.equal(config.osc.allowExperimentalSpatialInput, false);
     assert.equal(config.osc.oscQueryReceiver.enabled, false);
     assert.equal(config.osc.oscQueryEnabled, scenario === 'query');
-    if (scenario === 'first-run') assert.deepEqual(config.outputs, []);
+    if (scenario === 'first-run') { assert.deepEqual(config.outputs, []); assert.deepEqual(config.signals, []); }
     config.axisProfiles[0].motion.l0.min = 1;
     assert.notEqual(createRigConfiguration(scenario, '/dev/pts/43').axisProfiles[0].motion.l0.min, 1);
   }

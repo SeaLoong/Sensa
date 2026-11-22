@@ -43,8 +43,7 @@ const buttonTag = (html, id) => {
 };
 const calculation = (id, value = .5) => ({ id, name: id, operation: 'WeightedAverage', maxAgeMs: 0,
   inputs: [{ sourceMode: 'Constant', value, weight: 1 }, { sourceMode: 'Constant', value: .8, weight: 1 }] });
-const mappingProps = overrides => ({ toolbar: React.createElement(Toolbar, { workspace: 'osc', online: true }),
-  onSelectPreset: noop, onApplyPreset: noop, onOpenPreset: noop, onDeletePreset: noop, onOpenComputations: noop,
+const mappingProps = overrides => ({ onSelectPreset: noop, onApplyPreset: noop, onOpenPreset: noop, onDeletePreset: noop,
   onUpdateMapping: noop, onRemoveMapping: noop, onAddMapping: noop, onClearMappings: noop, ...overrides });
 const pipelineProps = overrides => ({ toolbar: React.createElement(Toolbar, { workspace: 'pipeline', online: true }),
   onComputedChange: noop, onMapCalculation: noop, onComputedViewChange: noop, config: createDefaultConfiguration(),
@@ -70,13 +69,13 @@ for (const locale of ['zh-CN', 'en-US']) {
     const computations = buildComputedDrafts([calculation('DraftOnly')]);
     const signals = buildSignalDrafts([{ sourceMode: 'Computed', oscPath: 'DraftOnly', role: 'Depth' }]);
     const html = render(Mappings, mappingProps({ signalDrafts: signals, computedDrafts: computations,
-      toolbar: React.createElement(Toolbar, { workspace: 'osc', mappingCount: 1, computedCount: 1, computedDirty: true, online: true }),
-      computedGraphDirty: true, savedMappings: [{ oscPath: 'Saved/Depth', role: 'Depth' }], actualInputMode: 'osc', listening: true }));
+      savedMappings: [{ oscPath: 'Saved/Depth', role: 'Depth' }], actualInputMode: 'osc', listening: true }));
     assert.match(html, /data-testid="axis-mappings-panel"/);
-    assert.match(html, /data-testid="edit-computations"/);
+    assert.match(html, /<details class="mapping-processing"><summary>/);
+    assert.ok(html.includes(t('计算步骤（{0}）', [1])));
+    assert.match(html, /mapping-row__target[\s\S]*<details class="mapping-processing">/);
     assert.match(html, /class="mapping-row/);
     assert.match(html, /<option value="DraftOnly"[^>]*selected=""/);
-    assert.ok(html.includes(t('未保存')));
     assert.doesNotMatch(html, /data-testid="computed-signals-editor"|data-testid="computed-signal-card"|data-testid="computed-spatial-presets"/);
     const flow = render(Pipeline, pipelineProps({ computedDrafts: computations, computedGraphDirty: true,
       runtimeSignals: [{ id: 'DraftOnly', valid: true, value: .65 }] }));
@@ -90,6 +89,18 @@ for (const locale of ['zh-CN', 'en-US']) {
     assert.doesNotMatch(flow, /data-testid="flow-output-routing"/);
   });
 }
+
+test('editing a route step offers a return instead of creating another axis mapping', () => {
+  setLocale('en-US');
+  const props = pipelineProps({ computedDrafts: buildComputedDrafts([calculation('Shared')]),
+    computedView: { selectedId: 'Shared', expandedIds: ['Shared'] }, onReturnToMapping: noop });
+  const step = render(Pipeline, { ...props, editingStepId: 'Shared' });
+  assert.ok(step.includes(t('返回当前映射')));
+  assert.ok(!step.includes(t('用于轴映射')));
+  const standalone = render(Pipeline, props);
+  assert.ok(standalone.includes(t('用于轴映射')));
+  assert.ok(!standalone.includes(t('返回当前映射')));
+});
 
 test('save guards include incomplete drafts owned by the other workspace without blocking navigation or restoration', () => {
   setLocale('en-US');
@@ -134,21 +145,22 @@ test('axis diagnostics use saved gates while mapping drafts remain independent',
 test('axis actions delegate explicit preset, navigation and mapping edits without rendering side effects', () => {
   setLocale('en-US');
   const actions = [];
-  const draft = buildSignalDrafts([{ oscPath: 'CI/Depth', role: 'Depth' }])[0];
+  const draft = buildSignalDrafts([{ oscPath: 'Ready', sourceMode: 'Computed', role: 'Depth' }])[0];
   const props = mappingProps({ signalDrafts: [draft], computedDrafts: [calculation('Ready')],
     selectedOscPreset: 'ogb-depth', selectedOscPresetConfig: { id: 'ogb-depth', isBuiltIn: true },
-    onOpenComputations: () => actions.push(['navigate', 'pipeline']), onApplyPreset: mode => actions.push(['preset', mode]),
+    onEditStep: (mappingId, id) => actions.push(['edit', mappingId, id]), onApplyPreset: mode => actions.push(['preset', mode]),
     onUpdateMapping: (id, patch) => actions.push(['update', id, patch]), onRemoveMapping: id => actions.push(['remove', id]),
     onAddMapping: () => actions.push(['add']), onClearMappings: () => actions.push(['clear']) });
   render(Mappings, props);
   assert.deepEqual(actions, []);
   const tree = Mappings(props);
-  byId(tree, 'edit-computations').props.onClick();
+  const steps = elements(tree).find(element => element.props.onEdit === props.onEditStep);
+  elements(steps.type(steps.props)).find(element => element.props.variant === 'text').props.onClick();
   byLabel(tree, '追加草稿').props.onClick();
   const row = elements(tree).find(element => element.props.draft === draft);
   row.props.onChange({ role: 'V0' }); row.props.onRemove();
   byLabel(tree, '新增映射').props.onClick(); byLabel(tree, '清空映射').props.onClick();
-  assert.deepEqual(actions, [['navigate', 'pipeline'], ['preset', 'append'], ['update', draft._draftId, { role: 'V0' }], ['remove', draft._draftId], ['add'], ['clear']]);
+  assert.deepEqual(actions, [['edit', draft._draftId, 'Ready'], ['preset', 'append'], ['update', draft._draftId, { role: 'V0' }], ['remove', draft._draftId], ['add'], ['clear']]);
   assert.equal(draft.role, 'Depth');
 });
 

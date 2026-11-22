@@ -182,7 +182,7 @@ export function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], 
   );
 }
 
-export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSignals = [], allowComputed = true, children, onChange, onRemove }) {
+export function SignalMappingRow({ draft, guided = false, latestEntry, pathOptions, computedSignals = [], allowComputed = true, children, onChange, onRemove }) {
   const pathListId = useId();
   const [pathFocused, setPathFocused] = useState(false);
   const pathSuggestions = useMemo(() => mappingPathSuggestions(pathOptions, draft.oscPath, { focused: pathFocused }),
@@ -244,7 +244,6 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSign
             <option key={path} value={path} />
           ))}
         </datalist>
-        {children}
         <SelectField
           className="mapping-row__target"
           label={t('目标轴')}
@@ -270,6 +269,12 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSign
         </span>
         {latestEntry?.matchCount > 1 && <Badge>{t('命中 {0} 条参数', [latestEntry.matchCount])}</Badge>}
       </div>
+      {guided && draft.sourceMode === 'Direct' && !draft.simulateEnabled && <p className="caption muted" data-testid="guided-mapping-reading">
+        {!latestEntry ? t('未命中：请核对“输入 → OSC → 参数”中收到的路径。Depth 只是示例，要换成你做动作时数值会变的那一项。')
+          : Number.isFinite(latestEntry.numericValue) ? t('再做一次动作，观察“实时输入”和“预估位置”。预估位置是映射结果，不是设备的实际位置。')
+          : t('已收到参数，但它没有可映射的数值。请改选数值随动作变化的参数。')}
+      </p>}
+      {children}
       <details>
         <summary>{t('范围与高级设置')}</summary>
         <div className="stack">

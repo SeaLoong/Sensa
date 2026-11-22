@@ -40,7 +40,7 @@ export function pruneComputedView(current, drafts = []) {
     ? current : { selectedId, expandedIds };
 }
 
-export function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, open, pathOptions, pointOptions, onToggle, onChange, onRemove, onMap }) {
+export function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, open, pathOptions, pointOptions, onToggle, onChange, onRemove, onMap, onReturnToMapping }) {
   const valid = runtime?.valid && Number.isFinite(runtime.value);
   const others = useMemo(() => signals.filter(signal => signal.id !== draft.id), [signals, draft.id]);
   const reason = graphDirty || !runtime ? t('保存后查看结果') : diagnostic(runtime.reason) || t('等待完整输入');
@@ -53,6 +53,7 @@ export function ComputedSignalCard({ draft, signals, runtime, graphDirty, select
       open={open} onToggle={event => onToggle(event.currentTarget.open)}>
       <summary><span className="computed-signal__identity"><strong>{draft.name || draft.id}</strong><code>{draft.id}</code></span><Badge tone={valid && !graphDirty ? 'success' : 'default'}>{computedOperationOptions().find(option => option.value === draft.operation)?.label || draft.operation}</Badge><output data-testid="computed-signal-value">{result}</output></summary>
       {open && <div className="stack computed-signal__body">
+        {onReturnToMapping && <p className="caption muted">{t('此处修改计算信号，引用它的映射和输出会一起使用新结果。')}</p>}
         <div className="computed-signal__configuration">
           <div className="computed-signal__settings">
             <Field label={t('信号名称')} value={draft.name || ''} maxLength={80} onChange={event => onChange({ name: event.target.value })} />
@@ -78,7 +79,7 @@ export function ComputedSignalCard({ draft, signals, runtime, graphDirty, select
           onRemove={() => onChange({ inputs: draft.inputs.filter((_, inputIndex) => inputIndex !== index) })} />)}</div>}</div>
         <div className="actions">
           {!groups.length && <Button disabled={draft.inputs.length >= computedInputLimit(draft.operation)} onClick={() => onChange({ inputs: [...draft.inputs, makeComputedInput()] })}>{t('新增输入')}</Button>}
-          {onMap && <Button onClick={onMap}>{t('用于轴映射')}</Button>}
+          {onReturnToMapping ? <Button onClick={onReturnToMapping}>{t('返回当前映射')}</Button> : <Button onClick={onMap}>{t('用于轴映射')}</Button>}
           {onRemove && <Button tone="danger" onClick={onRemove}>{t('移除计算信号')}</Button>}
         </div>
         <p className="caption muted" data-testid="computed-signal-status">{valid && !graphDirty ? t('已保存计算的实时结果：{0}', [result]) : reason}</p>
@@ -88,7 +89,7 @@ export function ComputedSignalCard({ draft, signals, runtime, graphDirty, select
 }
 
 export default function ComputedSignalsPanel({ drafts = [], runtimeSignals = [], observations = [], selectedSourceKey = '', graphDirty = false, pathOptions = [],
-  viewState, onViewStateChange, onChange, onMap, actions }) {
+  viewState, onViewStateChange, onChange, onMap, actions, editingStepId, onReturnToMapping }) {
   const locale = getLocale();
   const [localView, setLocalView] = useState({ selectedId: '', expandedIds: [] });
   const view = viewState || localView;
@@ -117,7 +118,7 @@ export default function ComputedSignalsPanel({ drafts = [], runtimeSignals = [],
           onChange(drafts.filter(existing => existing.id !== draft.id));
           setView(current => ({ selectedId: current.selectedId === draft.id ? '' : current.selectedId,
             expandedIds: (current.expandedIds || []).filter(id => id !== draft.id) }));
-        }} onMap={() => onMap(draft)} />)}
+        }} onMap={() => onMap(draft)} onReturnToMapping={draft.id === editingStepId ? onReturnToMapping : undefined} />)}
       <div className="actions"><Button disabled={drafts.length >= COMPUTED_SIGNAL_LIMIT} onClick={() => { const draft = newComputedDraft(drafts); select(draft.id); onChange([...drafts, draft]); }}>{t('新增计算信号')}</Button></div>
       <ComputedSpatialPresets drafts={drafts} pointOptions={pointOptions} onAdd={added => {
         if (!added.length) return;

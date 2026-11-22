@@ -111,7 +111,7 @@ for (const locale of ['zh-CN', 'en-US']) {
 
         await mode(page, 'OSC');
         await oscWorkspace(page, '映射');
-        await page.locator('.mapping-row').first().locator('summary').click();
+        await page.locator('.mapping-row').first().locator('summary', { hasText: await label(page, '范围与高级设置') }).click();
         await expand(page, await label(page, '管理预设'));
         await report.audit('osc-mappings-expanded');
 
@@ -373,7 +373,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await report.check('target-samples-select-and-slider / 选择框与滑条命中区域抽检', () => inspectBasicTargets(page, page.locator('.manual-workspace select, .manual-primary input[type=range]'), 'Select and slider'));
 
         await oscWorkspace(page, '映射');
-        await page.locator('.mapping-row').first().locator('summary').click();
+        await page.locator('.mapping-row').first().locator('summary', { hasText: await label(page, '范围与高级设置') }).click();
         await report.check('reflow-320-mapping-expanded / 映射展开时 320 CSS px 重排', async () => ({
           reflow: await inspectReflow(page), alignment: await inspectMappingAlignment(page),
           fields: await inspectNarrowFormAlignment(page.locator('.mapping-row').first()),

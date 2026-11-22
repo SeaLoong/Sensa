@@ -26,7 +26,7 @@ async function assertComputedFormLayout(card) {
       overflow: element.scrollWidth > element.clientWidth + 1,
       controlsFit: [...element.querySelectorAll('input, select')].every(control => { const value = box(control); return value.x >= bounds.x - 1 && value.right <= bounds.right + 1; }) };
   });
-  expect(layout.overflow, 'Computed editor does not overflow / 计算编辑器不溢出').toBe(false);
+  expect(layout.overflow, 'Computed editor does not overflow / 计算信号不溢出').toBe(false);
   expect(layout.controlsFit).toBe(true);
   expect(layout.weight.width).toBeGreaterThanOrEqual(60);
   expect(layout.weight.width).toBeLessThanOrEqual(88);
@@ -74,7 +74,8 @@ for (const locale of ['zh-CN', 'en-US']) {
         const beforeDrafts = await savedConfig(page, rig);
         const mutations = rig.commands.filter(command => command.method !== 'GET').length;
         await expect(page.getByTestId('computed-signals-editor')).toHaveCount(0);
-        await page.getByTestId('edit-computations').click();
+        await page.getByRole('tablist', { name: await text(page, '映射与变换'), exact: true })
+          .getByRole('tab', { name: await text(page, '计算信号'), exact: true }).click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await page.getByRole('button', { name: await text(page, '新增计算信号'), exact: true }).click();
         const card = page.getByTestId('computed-signal-card').first();
@@ -117,7 +118,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
         await expect.poll(async () => (await computation(rig, 'Signal1'))?.value).toBeCloseTo(.65, 5);
         await expect(card.getByTestId('computed-signal-value')).toContainText('0.65');
-        await checkpointViewport(page, 'computed-signal-editor-' + locale, page.getByTestId('computed-signals-editor'));
+        await checkpointViewport(page, 'computed-signal-editor-' + locale);
         await checkpoint(page, card.locator('.computed-signal__configuration'), 'computed-signal-settings-' + locale);
         await checkpoint(page, rows.first(), 'computed-signal-input-' + locale);
         const report = createUiQualityReport(page, info, { kind: 'computed-editor',
@@ -125,9 +126,9 @@ for (const locale of ['zh-CN', 'en-US']) {
         const viewport = page.viewportSize();
         try {
           await report.audit('osc-computed-signal-saved');
-          await report.check('computed-editor-semantic-columns / 计算编辑器语义列宽', () => assertComputedFormLayout(card));
+          await report.check('computed-editor-semantic-columns / 计算信号语义列宽', () => assertComputedFormLayout(card));
           await page.setViewportSize({ ...viewport, width: 320 });
-          await report.check('computed-editor-reflow-320 / 计算编辑器 320 CSS px 重排', async () => ({
+          await report.check('computed-editor-reflow-320 / 计算信号 320 CSS px 重排', async () => ({
             ...await inspectReflow(page), computedForm: await assertComputedFormLayout(card),
           }));
         } catch (error) { report.fail(error); throw error; }
