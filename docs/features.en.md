@@ -58,7 +58,7 @@ Explore contact and tracking with movable targets, 3D views and live parameter c
 
 ## Unity and tracking
 
-Avatar authors can add SPS four-anchor tracking, Contact direct tracking (SDK Beta), Shader capture and following reference planes. [Choose a tracking route](usage-scenarios.en.md) · [Unity package](../unity/top.sealoong.sensa/README.md) · [Units and calibration](positioning.en.md)
+Avatar authors can add SPS four-anchor tracking, Contact direct tracking, Shader capture and following reference planes. [Choose a tracking route](usage-scenarios.en.md) · [Unity package](../unity/top.sealoong.sensa/README.md) · [Units and calibration](positioning.en.md)
 
 ## Configuration and development
 

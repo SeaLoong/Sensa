@@ -4,23 +4,28 @@
 
 Configuration templates live in the preset selector under **Mapping & transforms → Axis mapping**, in **Computed signal → Common transforms**, and in **Axis profiles → Device motion presets**. There is no separate combined preset dialog. Mappings and calculations load editable drafts and require an explicit save. Review travel, direction and speed in the axis editor, save, then select the profile on a TCode output. Loading a template does not enable input.
 
-## Seven built-in mapping templates
+## Built-in mapping templates
 
 A mapping preset fills common paths and motion roles so you can build a mapping quickly. Choose the matching Avatar feature, select its live source, capture your input endpoints and save. The rows remain editable for your own paths, direction, range and conditions.
 
 | Template ID | Purpose | Default destination |
 | --- | --- | --- |
 | `osc-l0` | Replace Depth with a received OSC parameter, optionally add a dead zone and smoothing | 0–1 → L0 0–999 |
-| `ogb-depth` | SPS2/SPS3 paired estimate, SPS1 or Plug depth trend | Depth → L0 |
+| `ogb-depth` | Stable SPS3 DepthOthers, or a legacy paired estimate/depth trend | Depth → L0 |
 | `ogb-depth-touch` | Prepare SPS depth and touch-strength mappings together | Depth → L0; Touch → V0 |
 | `ogb-touch` | Touch/Frot or standalone VFH Touch Zone | V0 |
+| `native-contact-separation` | Native Contact reference-point distance | 0–0.20 m → L0 |
+| `native-contact-speed` | Relative contact-point speed in any direction | 0–1 m/s → V0 |
+| `native-contact-approach` | Positive change in proximity, not physical speed | 0–2 proximity units/s → V0 |
 | `contact-position` | Contact direct position; calibrate the selected axis in metres | SensaPoint Z → Depth / L0 |
 | `contact-speed` | Contact relative speed; calibrate strength in m/s | SensaPoint Speed → V0 |
 | `native-pb-stretch` | Native PB Stretch/IsGrabbed | Depth + GateEnable |
 
 ## OGB / SPS · Depth
 
-The default Others aliases are:
+**Stable SPS3:** The preset reads `OGB/Socket/<id>/DepthOthers` or `OGB/Plug/<id>/DepthOthers` directly. It is a 0–1 proximity reading, not insertion depth in metres or a percentage of plug length. Use the actual range for L0. If several objects match, narrow the path to the one you intend. If upgrading an avatar leaves an old mapping pointing only to `OGB/Orf` or `OGB/Pen`, update the path or reload the preset; saved user mappings are not overwritten. [Stable SPS3 details](sps3.en.md)
+
+**Older avatars:** The preset also accepts these Others aliases:
 
 ```text
 OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers
@@ -34,6 +39,8 @@ When SPS2/SPS3 is absent or both readings are zero, it uses the same instance’
 
 ## OGB / SPS · Vibration
 
+Stable SPS3 maps `OGB/Socket/<id>/TouchOthers` or `OGB/Plug/<id>/TouchOthers` and `FrotOthers` directly to V0. No `Close` parameter is required; standalone touch zones use `OGB/Touch/<id>/Others`. Only use paths the avatar actually publishes. Legacy paths:
+
 ```text
 OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others
 ```
@@ -44,9 +51,21 @@ OgbTouch pairs `TouchOthers` with the same instance’s `TouchOthersClose`, usin
 
 The template uses `MyPB_Stretch` and `MyPB_IsGrabbed`. Replace MyPB with the actual PhysBone prefix. Grabbing opens GateEnable, releasing closes it, and stretch amount becomes a motion target.
 
+## Native Contact: which preset should I use?
+
+In [Avatars SDK 3.10.6](https://github.com/vrchat/packages/releases/tag/3.10.6), select **Sender Type** and the measurement you need under the receiver’s **Advanced Parameters**. Ensure both animator parameters are available through avatar OSC. In **Input → OSC → Parameters**, confirm their paths and values change. Load one preset and replace `MyContact` in **both** rows with the receiver’s parameter name (not its GameObject name). No Sensa root probe is needed.
+
+| Preset | Try this with input disabled | Expected target at the default range |
+| --- | --- | --- |
+| Distance (`_PointSeparation`) | With a recognized sender in contact, move the reference points from 5 cm to 15 cm apart | L0 goes from about 250 to 749 out of 999. Measures inner reference points, not the gap between the outer surfaces; `-1` means no contact. |
+| Speed intensity (`_SenderVelocityMagnitude`) | Move past the receiver at 0.5 m/s, then hold still relative to it | V0 is about 50%, then zero. Moving away can also produce vibration while still in contact. |
+| Vibration on approach (`_ProximitySpeed`) | With a **Proximity** receiver, increase proximity from 0.3 to 0.4 in 0.1 s, then withdraw | +1/s gives about 50% V0. A steady or decreasing value gives zero. This responds to a change, not sustained proximity. |
+
+All three include a second row: `_SenderType` → `GateEnable`. A missing value or type 0 (absent/unrecognized sender) keeps the gate closed; types 1–4 open it. This gates the **whole OSC axis mapping set**, not just the adjacent row. Try one preset at a time rather than appending it to unrelated mappings. Select one OSC source; raw parameters do not provide Sensa’s activity Sample. Save after checking the preview; saving leaves input off. The table describes command targets, not measured hardware motion. [Contact fields, units and limits](contact-sdk.en.md) · [Parameter explorer](parameter-geometry.html#parameter-reference)
+
 ## Contact direct tracking: calibrated root mappings
 
-Use `contact-position` or `contact-speed` after building the dedicated own-root Sender/Receiver with the supported beta SDK. Both use `Sensa/Contact/Root/*`; replace `Root` with the actual instance. Position starts with Z mapped from 0–0.2 m to Depth, and speed starts with 0–1 m/s mapped to V0. Calibrate these example ranges for the actual movement. You can also generate a mapping from the root panel. Select **X/Y/Z/Distance** for position, or **VelocityX/Y/Z/Speed/ProximitySpeed** for movement strength, capture 0%/100% endpoints, inspect the preview and save. The generated SensaPoint mapping uses `Sensa/Contact/<id>/**` with the selected source and metric; position defaults to Depth, velocity metrics to V0. Choose a calibrated axis for subtle depth trends and a separate touch/Close gate when contact confirmation is needed. [Contact setup](contact-sdk.en.md)
+Use `contact-position` or `contact-speed` after building the dedicated own-root Sender/Receiver. Both use `Sensa/Contact/Root/*`; replace `Root` with the actual instance. Position starts with Z mapped from 0–0.2 m to Depth, and speed starts with 0–1 m/s mapped to V0. Calibrate these example ranges for the actual movement. You can also generate a mapping from the root panel. Select **X/Y/Z/Distance** for position, or **VelocityX/Y/Z/Speed/ProximitySpeed** for movement strength, capture 0%/100% endpoints, inspect the preview and save. The generated SensaPoint mapping uses `Sensa/Contact/<id>/**` with the selected source and metric; position defaults to Depth, velocity metrics to V0. Choose a calibrated axis for subtle depth trends and a separate touch/Close gate when contact confirmation is needed. [Contact setup](contact-sdk.en.md)
 
 ## Apply and customize
 

@@ -9,7 +9,7 @@ Build your Avatar from editable Sensa authoring components. NDMF reads the setti
 | Route and prefab | What it measures | Coordinates and requirements |
 | --- | --- | --- |
 | SPS four-anchor tracking: `SensaSpsRootProbe.prefab` | SPS Socket/Plug root position, with explicit bone or marker targets also supported | `AvatarRootLocal` authored units; four Receivers and one Sender |
-| Contact direct tracking (SDK Beta): `SensaContactRootProbe.prefab` | Root position, relative velocity and proximity change rate | `AvatarRootMeters` in metres; one Receiver and one Sender; advanced Proximity parameters required |
+| Contact direct tracking: `SensaContactRootProbe.prefab` | Root position, relative velocity and proximity change rate | `AvatarRootMeters` in metres; one Receiver and one Sender; advanced Proximity parameters required |
 | Shader root capture: `SensaShaderCapture.prefab` | Position, X/Z axes and world scale encoded into a desktop image | `AvatarRootLocal` authored units; PC Built-in, a geometry-shader-capable backend and desktop bridge |
 | Following plane: `SensaTrackingFrame.prefab` | A plane that moves and rotates with a bone or root, for depth and lateral offset | Choose SPS four-anchor or Contact direct tracking; generates Origin/Forward/Right points |
 | Point/Handle/Pose | Points, grabbable handles or paired orientation in a chosen frame | Each uses its own reference, protocol and freshness rules |
@@ -20,7 +20,7 @@ Use **Automatic SPS Setup** for several existing SPS targets, choosing SPS four-
 
 ## Place and configure a prefab
 
-1. Install the Unity package's VPM dependencies: NDMF **1.5.0+**, Modular Avatar **1.10.0+** and matching VRChat Avatars SDK. Install official VRCFury when selecting SPS author targets. Contact direct tracking supports **3.10.6-beta.3** through `advancedParameters`, with compatibility for Beta.2's `advancedProximityParameters`.
+1. Install the Unity package's VPM dependencies: NDMF **1.5.0+**, Modular Avatar **1.10.0+** and matching VRChat Avatars SDK. Install official VRCFury when selecting SPS author targets. For Contact direct tracking, use matching **stable Base and Avatars 3.10.6** packages. The builder selects the required `advancedParameters` reports.
 2. Create your chosen route from **GameObject → Sensa**, or place its prefab inside the Avatar hierarchy. Check that `Target` selects the root you intend to measure.
 3. SPS four-anchor tracking and Contact prefabs default to instance `Root`. Use distinct names such as `Root`, `Chest` and `Hand` for multiple points. An empty `Collision Channel` derives a stable channel from the instance name; enter an override when managing channels explicitly. Rename a duplicate to give it an independent automatic channel.
 4. Give Shader capture a unique `Producer Id` from 1–65535 and pin the same ID in the desktop bridge. Follow [Shader setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for presentation and capture registration.

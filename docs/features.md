@@ -58,7 +58,7 @@ Desktop／CLI 提供实时 VRChat OSC、UDP／TCP 监听、原生连接与文件
 
 ## Unity 与定位
 
-Avatar 作者可以添加 SPS 四点定位、Contact 直接定位（SDK Beta）、Shader 捕获与跟随参考平面。[选择定位方案](usage-scenarios.md) · [Unity 组件包](../unity/top.sealoong.sensa/README.zh-CN.md) · [单位与校准](positioning.md)
+Avatar 作者可以添加 SPS 四点定位、Contact 直接定位、Shader 捕获与跟随参考平面。[选择定位方案](usage-scenarios.md) · [Unity 组件包](../unity/top.sealoong.sensa/README.zh-CN.md) · [单位与校准](positioning.md)
 
 ## 配置与开发
 

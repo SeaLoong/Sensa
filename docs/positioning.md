@@ -8,7 +8,7 @@
 
 | 方案 | 你能得到什么 | 什么时候会失效 |
 | --- | --- | --- |
-| Contact 直接定位（SDK Beta） | AvatarRootMeters 根点位置及相对接触点速度 | 离开专用接收区、完整字段非法或活动停止 |
+| Contact 直接定位 | AvatarRootMeters 根点位置及相对接触点速度 | 离开专用接收区、完整字段非法或活动停止 |
 | SPS 四点定位 | 自己选定根点的位置，坐标系为 AvatarRootLocal | 超出四个接收球的共同覆盖区、接近值饱和、采样停止或几何不一致 |
 | Shader 捕获 | 从屏幕编码图块读出的根点位置，同为 AvatarRootLocal | 坐标越界、图块无法定位或校验失败、画面冻结 |
 | 独立 Point／Handle／Pose | 各自参考对象下的位置或姿态实验 | 参与参数过期，或配对／抓取／几何条件不满足 |
@@ -20,7 +20,7 @@
 
 ## Contact 直接定位：一个 Receiver 提供位置与速度
 
-Sensa 已适配 SDK **3.10.6-beta.3** 的高级 Contact 报告，并兼容 Beta.2 的 Proximity 接口。Sensa 使用跟随所选自身根点的微小球形 Sender，并在 Avatar 根放置零偏移、各轴对齐的球形 Receiver。独立通道与 Self-only 选择用于对应期望目标；明确选择 Sensa／原生 Contact 根点时，可独立于 VRCFury 使用。[Beta 设置与安装包依据](contact-sdk.md)
+Sensa 支持 SDK **3.10.6 正式版**的高级 Contact 报告；无需安装测试版。Sensa 使用跟随所选自身根点的微小球形 Sender，并在 Avatar 根放置零偏移、各轴对齐的球形 Receiver。独立通道与 Self-only 选择用于对应期望目标；明确选择 Sensa／原生 Contact 根点时，可独立于 VRCFury 使用。[Contact 设置与安装包依据](contact-sdk.md)
 
 SDK 报告发送形状中点相对接收形状中点的位移，旋转到 Receiver 坐标轴并保留物理米单位；本布置的坐标框为 **AvatarRootMeters**。半径覆盖以 Avatar 原点为中心，Receiver 制作半径为 2 个局部单位，`Radius` 发布当前世界半径。Avatar 缩放同时改变物理位移和 Radius，门控会在达到 3 m Contact 半径上限前停止测量。
 

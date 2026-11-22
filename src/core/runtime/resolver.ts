@@ -37,6 +37,17 @@ export class ComputedSignalResolver {
     this.scalars.set(pattern,result);return result;
   }
 }
+// OGB/Version/11: these receiver values are already scalar. Never consume
+// SDK suffixes, radius/scale metadata or legacy Close values as the base value.
+export function sps3OgbOutput(path:string):'OgbDepth'|'OgbTouch'|null {
+  const [prefix,kind,...tail]=path.split('/');
+  if(prefix!=='OGB'||tail.length<2||tail.some(part=>!part.trim()))return null;
+  const leaf=tail.at(-1);
+  if(kind==='Touch')return leaf==='Self'||leaf==='Others'?'OgbTouch':null;
+  if(kind!=='Plug'&&kind!=='Socket')return null;
+  if(leaf==='DepthSelf'||leaf==='DepthOthers')return 'OgbDepth';
+  return leaf==='TouchSelf'||leaf==='TouchOthers'||kind==='Plug'&&leaf==='FrotOthers'?'OgbTouch':null;
+}
 interface OgbDepth {parent:string;party:string;socket:boolean;legacy:string;root:string;tip:string;close:string;}
 export function ogbDepthAddress(path:string):OgbDepth|null {
   const socket=path.startsWith('OGB/Orf/');if(!socket&&!path.startsWith('OGB/Pen/'))return null;const slash=path.lastIndexOf('/');if(slash<=8)return null;

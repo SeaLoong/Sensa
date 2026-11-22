@@ -26,7 +26,7 @@ async function assertComputedFormLayout(card) {
       overflow: element.scrollWidth > element.clientWidth + 1,
       controlsFit: [...element.querySelectorAll('input, select')].every(control => { const value = box(control); return value.x >= bounds.x - 1 && value.right <= bounds.right + 1; }) };
   });
-  expect(layout.overflow, 'Computed editor does not overflow / 计算编辑器不溢出').toBe(false);
+  expect(layout.overflow, 'Computed editor does not overflow / 计算信号不溢出').toBe(false);
   expect(layout.controlsFit).toBe(true);
   expect(layout.weight.width).toBeGreaterThanOrEqual(60);
   expect(layout.weight.width).toBeLessThanOrEqual(88);
@@ -126,9 +126,9 @@ for (const locale of ['zh-CN', 'en-US']) {
         const viewport = page.viewportSize();
         try {
           await report.audit('osc-computed-signal-saved');
-          await report.check('computed-editor-semantic-columns / 计算编辑器语义列宽', () => assertComputedFormLayout(card));
+          await report.check('computed-editor-semantic-columns / 计算信号语义列宽', () => assertComputedFormLayout(card));
           await page.setViewportSize({ ...viewport, width: 320 });
-          await report.check('computed-editor-reflow-320 / 计算编辑器 320 CSS px 重排', async () => ({
+          await report.check('computed-editor-reflow-320 / 计算信号 320 CSS px 重排', async () => ({
             ...await inspectReflow(page), computedForm: await assertComputedFormLayout(card),
           }));
         } catch (error) { report.fail(error); throw error; }

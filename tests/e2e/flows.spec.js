@@ -190,7 +190,7 @@ test.describe('modern OGB SPS', () => {
     await page.getByRole('button', { name: '替换草稿', exact: true }).click();
     await expect(page.getByText('未保存', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
-    await expect.poll(async () => (await rig.overview()).signals[0].signal.oscPath).toBe('OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers');
+    await expect.poll(async () => (await rig.overview()).signals[0].signal.oscPath).toBe('OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers');
     await expect(page.getByText('未保存', { exact: true })).toHaveCount(0);
     await checkpointViewport(page, 'osc-mappings-page');
     await active(page);

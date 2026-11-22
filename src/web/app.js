@@ -98,6 +98,7 @@ import {
   createOscPreviewLookup,
   createOscPathSuggester,
   filterOscPreviewEntriesBySource,
+  sps3MappingSuggestion,
 } from './osc-preview.js';
 import PosePanel from './PosePanel.jsx';
 import SpsRootPanel from './SpsRootPanel.jsx';
@@ -669,7 +670,15 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   }
 
   function mapPreviewParameter(entry) {
-    if (/^Sensa\/(Point|Handle)\/v1\//.test(entry.path)) {
+    const sps3 = sps3MappingSuggestion(entry.path);
+    if (sps3 === null) {
+      notify(t('这是 SPS3 配置或状态参数，不会添加动作映射。'), 'info');
+      return oscWorkspaceTab;
+    }
+    if (sps3) {
+      setSignalDrafts(previous => [...previous, makeSignalDraft(sps3)]);
+      notify(t('已添加映射草稿，请确认参数含义、目标轴和范围后保存。'), 'info');
+    } else if (/^Sensa\/(Point|Handle)\/v1\//.test(entry.path)) {
       usePointRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
     } else if (/^Sensa\/Shader\/[^/]+\/(?:(?:Right|Forward)[XYZ]|AvatarScale)$/.test(entry.path)) {
       const pointMetric = entry.path.split('/').at(-1);
@@ -2475,7 +2484,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             <div className="stack">
               <Toggle label={t('向 VRChat 启用 OGB 参数')} checked={oscDraft.ogbControlEnabled}
                 onChange={(ogbControlEnabled) => updateOsc({ ogbControlEnabled })} />
-              <p className="caption muted">{t('请求 Avatar 持续报告 OGB / SPS 参数：每 5 秒发送 OGB_ENABLED，停止 OSC 时撤销。设备动作由顶栏的“输入启用”控制。')}</p>
+              <p className="caption muted">{t('请求 Avatar 持续报告 OGB / SPS 参数：每 5 秒发送 OGB/Enabled 和旧版 OGB_ENABLED，停止 OSC 时撤销。设备动作由顶栏的“输入启用”控制。')}</p>
               <div className="form-grid">
                 <Field label={t('VRChat 控制 IP')} value={oscDraft.ogbControlHost} disabled={!oscDraft.ogbControlEnabled}
                   onChange={(event) => updateOsc({ ogbControlHost: event.target.value })} />

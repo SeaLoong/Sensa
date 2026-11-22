@@ -148,7 +148,7 @@ namespace UnityBox.Sensa
         public static void Socket() => Create("SensaPoseSocket");
         [MenuItem("GameObject/Sensa/SPS four-anchor tracking", false, 10)]
         public static void SpsRoot() => Create("SensaSpsRootProbe");
-        [MenuItem("GameObject/Sensa/Contact direct tracking (SDK Beta)", false, 10)]
+        [MenuItem("GameObject/Sensa/Contact direct tracking", false, 10)]
         public static void ContactRoot() => Create("SensaContactRootProbe");
         [MenuItem("GameObject/Sensa/Tracking Frame", false, 10)]
         public static void TrackingFrame() => Create("SensaTrackingFrame");

@@ -21,7 +21,7 @@
 
 SPS2／SPS3 公开 Root／Tip 参数配对估计深度趋势。先分开物体，再沿预期方向靠近，让学习过程收集样本。SPS1 使用深度与附近区域读数。所选预设会说明所需通道，[SPS3 指南](sps3.md)介绍公开通道设置。[预设步骤](presets.md) · [OGB 参数含义与限制](ogb-compatibility.md)
 
-## Contact 直接定位（SDK Beta）
+## Contact 直接定位
 
 适合需要米制根点位置与相对速度的 Avatar 作者。需要支持高级 Proximity 的 SDK 与 Sensa Contact 组件。[Contact 设置](contact-sdk.md) · [校准](positioning.md)
 

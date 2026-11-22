@@ -76,7 +76,7 @@ namespace UnityBox.Sensa
             { "Dedicated", "Dedicated (simultaneous)" },
             { "Exclusive", "Exclusive (one at a time)" },
             { "FourAnchor", "SPS four-anchor tracking" },
-            { "ContactDirect", "Contact direct tracking (SDK Beta)" },
+            { "ContactDirect", "Contact direct tracking" },
             { "PhysBone", "PhysBone" },
             { "Contact", "Contact" },
             { "ExistingParameter", "Existing parameter" },
