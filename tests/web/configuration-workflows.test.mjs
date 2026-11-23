@@ -55,6 +55,7 @@ test('each depth setup offers both responses with the same calibrated travel', (
   assert.deepEqual(gentle.map(preset => preset.setup).sort(), standard.map(preset => preset.setup).sort());
   for (const base of standard) {
     const variant = gentle.find(preset => preset.setup === base.setup);
+    assert.ok(base.mappings.every(mapping => ['Depth', 'GateEnable'].includes(mapping.role)));
     const [depth, ...conditions] = base.mappings;
     assert.deepEqual(variant.mappings.slice(1), conditions);
     assert.deepEqual(variant.mappings[0], { ...depth, curve: 'EaseIn',

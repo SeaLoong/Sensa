@@ -8,10 +8,12 @@ Configuration templates live in the preset selector under **Mapping & transforms
 
 A mapping preset fills common paths and motion roles so you can build a mapping quickly. Choose the matching Avatar feature, select its live source, capture your input endpoints and save. The rows remain editable for your own paths, direction, range and conditions.
 
-Select the **Desired response** first, then **My avatar setup**. Both depth responses offer the same five setups. Switching responses retains the selected setup. Replace or append the draft to load the selected mappings.
+For a standard OSR, Follow depth and Gentle start drive only the main axis (L0). For a device with vibration, choose a vibration option under More presets.
 
-- **Follow forward travel and hold steady sideways** uses a linear response. Holding depth holds the target; half travel produces half travel.
-- **Gentle on entry, stronger deeper in** follows the same depth. The first 20% of the default range holds the start position, then travel increases quadratically. At 60% of the default range, the target reaches about 25%. Adjust the input start to choose where feedback begins.
+Select the **Motion response** first, then **Avatar setup**. Both depth responses offer the same five setups. Switching responses retains the selected setup. Replace or append the draft to load the selected mappings.
+
+- **Follow depth** uses a linear response. Holding depth holds the target; half travel produces half travel.
+- **Gentle start** follows the same depth. The first 20% of the default range holds the start position, then travel increases quadratically. At 60% of the default range, the target reaches about 25%. Adjust the input start to choose where feedback begins.
 
 | Available setup | How it measures the same movement |
 | --- | --- |
@@ -20,7 +22,7 @@ Select the **Desired response** first, then **My avatar setup**. Both depth resp
 | Sensa four-anchor or Contact self tracker | Measures a target on your own avatar along avatar-root Z. A Tracking Frame provides a moving plane for an entrance that turns independently. |
 | Paired Pose Socket and Pose Plug | Measures insertion relative to the entrance. Engagement ends outside the aperture or tilt limits. |
 
-Sensa self tracking and paired pose require experimental spatial input. Touch, speed, combined outputs, parameter examples and saved presets are under **Other mappings and custom presets**.
+Sensa self tracking and paired pose require experimental spatial input. Touch, speed, combined outputs, parameter examples and saved presets are under **More presets**.
 
 | Template ID | Purpose | Default destination |
 | --- | --- | --- |

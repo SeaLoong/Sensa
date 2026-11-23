@@ -76,7 +76,7 @@ test.describe('vibration-only Intiface peer / 纯振动 Intiface 模拟端', () 
     await active(page, false);
 
     await oscWorkspace(page, '映射');
-    await page.getByLabel(await text(page, '想要的体验'), { exact: true }).selectOption('other');
+    await page.getByLabel(await text(page, '动作效果'), { exact: true }).selectOption('other');
     await page.locator('#mapping-preset-variant').selectOption('ogb-touch');
     await page.getByRole('button', { name: '替换草稿', exact: true }).click();
     await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();

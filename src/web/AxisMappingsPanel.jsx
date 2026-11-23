@@ -45,10 +45,10 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
       <Button id="add-axis-mapping" tone="primary" onClick={() => onAddMapping()}>{t('新增映射')}</Button>
     </div>
     <div className="preset-strip">
-      <SelectField label={t('想要的体验')} id="mapping-experience" value={experience} onChange={selectExperience}
-        options={[{ value: 'follow', label: t('前后跟手，横移尽量稳住') },
-          { value: 'gentle', label: t('浅碰轻，深入后逐渐跟上') }, { value: 'other', label: t('其他映射与自定义') }]} />
-      <SelectField label={experience === 'other' ? t('预设方案') : t('我的安装情况')} id="mapping-preset-variant" value={selectedOscPreset}
+      <SelectField label={t('动作效果')} id="mapping-experience" value={experience} onChange={selectExperience}
+        options={[{ value: 'follow', label: t('前后跟随') },
+          { value: 'gentle', label: t('轻柔起步') }, { value: 'other', label: t('其他预设') }]} />
+      <SelectField label={experience === 'other' ? t('预设方案') : t('Avatar 配置')} id="mapping-preset-variant" value={selectedOscPreset}
         options={variants.map(preset => ({ value: preset.id, label: preset.setup || preset.name,
           group: experience === 'other' ? preset.group || t('自定义预设') : undefined }))} onChange={onSelectPreset} />
       <div className="actions">
@@ -66,10 +66,10 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
         <Button tone="danger" disabled={!selectedOscPresetConfig || selectedOscPresetConfig.isBuiltIn || busy} onClick={onDeletePreset}>{t('删除预设')}</Button>
       </div>
     </details>
-    {experience === 'gentle' && <p className="caption muted">{t('默认忽略浅端 20%，之后逐渐加大行程。可把输入起点改为你希望主轴开始移动的位置。')}</p>}
+    {experience === 'gentle' && <p className="caption muted">{t('按默认设置，前 20% 的输入让主轴保持原位。再往前，主轴从小幅移动逐渐走到满行程。')}</p>}
     {selectedOscPresetConfig?.description && <p className="caption muted">{selectedOscPresetConfig.description}</p>}
     {selectedOscPresetConfig?.isBuiltIn && selectedOscPresetConfig.mappings?.some(row => row.sourceMode === 'SensaPoint') &&
-      <Button onClick={onOpenFollowingPlane}>{t('我还装了 Tracking Frame：让主轴跟随入口转向')}</Button>}
+      <Button onClick={onOpenFollowingPlane}>{t('设置随入口转动的参考平面')}</Button>}
     <details className="workflow-details"><summary>{t('映射检查')}</summary>
       <OscFlowStatus mappings={savedMappings} drafts={signalDrafts} dirty={hasUnsavedMappings} runtime={runtime}
         mode={actualInputMode} listening={listening} />

@@ -150,7 +150,7 @@ test('English presets, script and compact help use localized documentation', {ta
   await checkpoint(page,page.locator('.script-player__controls'),'english-script-loaded');
   await checkpoint(page,page.locator('.script-player__options'),'english-script-options');
   await oscWorkspace(page,'映射');
-  const experience = page.getByLabel('Desired response', { exact: true });
+  const experience = page.getByLabel('Motion response', { exact: true });
   const presets = page.locator('#mapping-preset-variant');
   await experience.selectOption('follow');
   await expect(presets.locator('option')).toHaveCount(5);
@@ -161,12 +161,12 @@ test('English presets, script and compact help use localized documentation', {ta
   await experience.selectOption('follow');
   await expect(presets).toHaveValue('native-contact-axial');
   await presets.selectOption('self-four-anchor-axial');
-  await page.getByRole('button', { name: 'I also installed a Tracking Frame: follow the turning entrance' }).click();
+  await page.getByRole('button', { name: 'Set up a plane that follows the entrance' }).click();
   await expect(page.getByTestId('computed-spatial-presets')).toHaveJSProperty('open', true);
   await oscWorkspace(page, '映射');
   for (const [id, name, field] of [
     ['native-contact-separation', 'Move the main axis as two points separate', 'PointSeparation'],
-    ['native-contact-axial', 'My receiver publishes advanced Contact position', 'SenderLocalPositionZ'],
+    ['native-contact-axial', 'Advanced Contact position', 'SenderLocalPositionZ'],
     ['native-contact-speed', 'Vibrate more with faster movement', 'SenderVelocityMagnitude'],
     ['native-contact-approach', 'Native Contact · Vibration on approach', 'ProximitySpeed'],
   ]) {

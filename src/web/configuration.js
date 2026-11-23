@@ -700,7 +700,7 @@ function normalizeOscPreset(preset, index = 0, options = {}) {
   return {
     id: (preset?.id || `osc-preset-${index + 1}`).trim(),
     name: options.isBuiltIn && preset.setup && preset.id.endsWith('-soft-entry')
-      ? t('轻柔跟随 · {0}', [t(preset.setup)]) : (preset?.name || t("OSC 预设 {0}", [index + 1])).trim(),
+      ? t('轻柔起步 · {0}', [t(preset.setup)]) : (preset?.name || t("OSC 预设 {0}", [index + 1])).trim(),
     description: (preset?.description || '').trim(),
     isBuiltIn: Boolean(options.isBuiltIn),
     ...(options.isBuiltIn && { group: t(preset.group) }),

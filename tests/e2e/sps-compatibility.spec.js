@@ -37,7 +37,7 @@ async function saveMapping(page, rig, path) {
 
 async function applyDepthPreset(page, rig) {
   await oscWorkspace(page, '映射');
-  await page.getByLabel(await text(page, '想要的体验'), { exact: true }).selectOption('follow');
+  await page.getByLabel(await text(page, '动作效果'), { exact: true }).selectOption('follow');
     await page.locator('#mapping-preset-variant').selectOption('ogb-depth');
   await page.getByRole('button', { name: await text(page, '替换草稿'), exact: true }).click();
   const row = page.locator('.mapping-row');
