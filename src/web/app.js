@@ -2371,6 +2371,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       signalDrafts={signalDrafts} computedDrafts={computedDrafts}
       oscMappingPresets={oscMappingPresets} selectedOscPreset={selectedOscPreset}
       selectedOscPresetConfig={selectedOscPresetConfig} busy={Boolean(busyKey)} onSelectPreset={setSelectedOscPreset}
+      onOpenFollowingPlane={() => { selectMappingTab('computations'); setNavigationTarget('#following-plane-setup'); }}
       onApplyPreset={applyOscPreset} onOpenPreset={openPresetDialog} onDeletePreset={deleteSelectedPreset}
       savedMappings={config?.signals || []}
       runtime={runtimeOverview || {}} actualInputMode={actualInputMode} listening={Boolean(overview?.osc?.listening)}

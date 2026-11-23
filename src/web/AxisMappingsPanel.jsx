@@ -30,7 +30,7 @@ function MappingSteps({ draft, signals, onEdit, onAppend, onChange }) {
 
 export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppendSteps, signalDrafts = [], computedDrafts = [],
   oscMappingPresets = [], selectedOscPreset = '', selectedOscPresetConfig, busy = false,
-  onSelectPreset, onApplyPreset, onOpenPreset, onDeletePreset,
+  onSelectPreset, onApplyPreset, onOpenPreset, onDeletePreset, onOpenFollowingPlane,
   savedMappings = [], runtime = {}, actualInputMode = '', listening = false, hasUnsavedMappings = false,
   signalOverlapWarnings = [], latestForDraft, pathOptions = [], onUpdateMapping, onRemoveMapping, onAddMapping, onClearMappings }) {
   return <div className="axis-mappings-panel stack" data-testid="axis-mappings-panel">
@@ -39,7 +39,7 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
     </div>
     <div className="preset-strip">
       <SelectField label={t('预设方案')} value={selectedOscPreset}
-        options={oscMappingPresets.map(preset => ({ value: preset.id, label: preset.name }))} onChange={onSelectPreset} />
+        options={oscMappingPresets.map(preset => ({ value: preset.id, label: preset.name, group: preset.group || t('自定义预设') }))} onChange={onSelectPreset} />
       <div className="actions">
         <Button onClick={() => onApplyPreset('replace')} disabled={!selectedOscPresetConfig}>{t('替换草稿')}</Button>
         <Button id="append-mapping-preset" onClick={() => onApplyPreset('append')} disabled={!selectedOscPresetConfig}>{t('追加草稿')}</Button>
@@ -56,6 +56,8 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
       </div>
     </details>
     {selectedOscPresetConfig?.description && <p className="caption muted">{selectedOscPresetConfig.description}</p>}
+    {selectedOscPresetConfig?.isBuiltIn && selectedOscPresetConfig.mappings?.some(row => row.sourceMode === 'SensaPoint') &&
+      <Button onClick={onOpenFollowingPlane}>{t('我还装了 Tracking Frame：让主轴跟随入口转向')}</Button>}
     <details className="workflow-details"><summary>{t('映射检查')}</summary>
       <OscFlowStatus mappings={savedMappings} drafts={signalDrafts} dirty={hasUnsavedMappings} runtime={runtime}
         mode={actualInputMode} listening={listening} />

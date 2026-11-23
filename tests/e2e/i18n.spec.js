@@ -151,14 +151,20 @@ test('English presets, script and compact help use localized documentation', {ta
   await checkpoint(page,page.locator('.script-player__options'),'english-script-options');
   await oscWorkspace(page,'映射');
   const presets = page.getByLabel(await text(page,'预设方案'),{exact:true});
-  await expect(presets.locator('option')).toHaveCount(10);
-  await expect(presets).toHaveValue('osc-l0');
+  await expect(presets.locator('option')).toHaveCount(15);
+  await expect(presets.locator('optgroup')).toHaveCount(5);
+  await expect(presets.locator('optgroup option[value=pose-aligned-depth]')).toHaveCount(1);
   await expect(presets.locator('option[value=ogb-depth-touch]')).toHaveCount(1);
-  await expect(presets.locator('option[value=contact-position]')).toHaveText('Sensa Contact · Position');
-  await expect(presets.locator('option[value=contact-speed]')).toHaveText('Sensa Contact · Speed intensity');
+  await expect(presets.locator('option[value=contact-position]')).toHaveText('Follow my forward position');
+  await expect(presets.locator('option[value=contact-speed]')).toHaveText('Vibrate with my movement in any direction');
+  await presets.selectOption('self-four-anchor-axial');
+  await page.getByRole('button', { name: 'I also installed a Tracking Frame: follow the turning entrance' }).click();
+  await expect(page.getByTestId('computed-spatial-presets')).toHaveJSProperty('open', true);
+  await oscWorkspace(page, '映射');
   for (const [id, name, field] of [
-    ['native-contact-separation', 'Native Contact · Distance', 'PointSeparation'],
-    ['native-contact-speed', 'Native Contact · Speed intensity', 'SenderVelocityMagnitude'],
+    ['native-contact-separation', 'Move the main axis as two points separate', 'PointSeparation'],
+    ['native-contact-axial', 'Keep the main axis steady through sideways motion', 'SenderLocalPositionZ'],
+    ['native-contact-speed', 'Vibrate more with faster movement', 'SenderVelocityMagnitude'],
     ['native-contact-approach', 'Native Contact · Vibration on approach', 'ProximitySpeed'],
   ]) {
     await expect(presets.locator(`option[value="${id}"]`)).toHaveText(name);

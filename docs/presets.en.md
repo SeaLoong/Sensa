@@ -8,6 +8,18 @@ Configuration templates live in the preset selector under **Mapping & transforms
 
 A mapping preset fills common paths and motion roles so you can build a mapping quickly. Choose the matching Avatar feature, select its live source, capture your input endpoints and save. The rows remain editable for your own paths, direction, range and conditions.
 
+Start with what is installed on each avatar. Choose Standard when both avatars use compatible SPS. If your receiver publishes advanced position, the other avatar only needs a matching sender. Self tracking and paired pose components have their own groups.
+
+| Desired response | Preset and setup |
+| --- | --- |
+| Keep shallow brushes quiet with SPS alone | `sps-soft-entry` holds the first 20% of the proximity range at the start and squares the remaining normalized input. A 60% reading gives about 25% travel. Deeper sideways motion can still affect the result. |
+| Hold depth during sideways motion as the receiver turns | `native-contact-axial` uses receiver-local Z (initially 0–0.20 m). Replace the base name on both advanced position and SenderType rows, then calibrate along the entrance. Loss of contact gates all mappings. |
+| Follow my forward movement with a four-anchor tracker | `self-four-anchor-axial` uses avatar-root Z. Replace Root with your instance. If you also installed a Tracking Frame, open the moving-plane setup from the preset and map its depth to L0. |
+| Follow my position and add vibration on the forward stroke | `self-contact-stroke` uses Z for position and positive VelocityZ for V0. Set both rows to the same Sensa Contact self tracker and calibrate position and speed separately. |
+| Follow a partner relative to the entrance | `pose-aligned-depth` uses the insertion fraction from paired Pose Socket and Pose Plug components on the same channel. Engagement requires valid geometry inside the aperture. |
+
+The last three setups require experimental spatial input. Check the L0 preview first with a sideways shift at constant depth, then with forward travel over the same distance.
+
 | Template ID | Purpose | Default destination |
 | --- | --- | --- |
 | `osc-l0` | Replace Depth with a received OSC parameter, optionally add a dead zone and smoothing | 0–1 → L0 0–999 |

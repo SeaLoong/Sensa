@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { editConfiguration, buildOutputDialogDraft, buildOscDraftFromConfig, buildSignalDrafts, computeSignalHash, getOscMappingPresets, buildPresetDialogDraft, createOutputConfig, getOutputTargetConflicts, buildSuggestedOutputTarget, normalizeAxisProfiles } from '../../src/web/configuration.js';
 import { computeSignalPreviewOutput } from '../../src/web/osc-workspace.js';
 
+import { contactRootSamples, fixedRootSamples, poseSamples } from '../e2e/mocks.js';
 import { OscParameterStore } from '../../src/core/protocols/osc.ts';
 import { RuntimeEngine } from '../../src/core/runtime/runtime.ts';
 
@@ -29,9 +30,9 @@ test('profile lifecycle keeps one default and repairs output references without 
 
 test('all built-ins round-trip as independent drafts; custom presets preserve built-ins / 内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
   const source = initial(), builtIns = getOscMappingPresets(source);
-  assert.equal(builtIns.length, 10);
-  assert.equal(builtIns[0].id, 'osc-l0');
-  assert.partialDeepStrictEqual(builtIns[0].mappings, [{ sourceMode: 'Direct', oscPath: 'Depth', role: 'Depth', vrchatMin: 0, vrchatMax: 1, mappedMin: 0, mappedMax: 999 }]);
+  assert.equal(builtIns.length, 15);
+  assert.equal(builtIns[0].id, 'ogb-depth-touch');
+  assert.partialDeepStrictEqual(builtIns.find(preset => preset.id === 'osc-l0').mappings, [{ sourceMode: 'Direct', oscPath: 'Depth', role: 'Depth', vrchatMin: 0, vrchatMax: 1, mappedMin: 0, mappedMax: 999 }]);
   for (const preset of builtIns) {
     const dialog = buildPresetDialogDraft(source, preset.id);
     assert.equal(dialog.isNew, true); assert.notEqual(dialog.presetId, preset.id);
@@ -49,6 +50,8 @@ test('all built-ins round-trip as independent drafts; custom presets preserve bu
 test('the shipped OGB depth and touch templates deliver stable SPS3 OSC values without legacy partners', async () => {
   const presets = getOscMappingPresets(initial());
   for (const [id, entries, expected] of [
+    ['sps-soft-entry', [['OGB/Socket/Front/DepthOthers', .19]], { L0: 0 }],
+    ['sps-soft-entry', [['OGB/Socket/Front/DepthOthers', .6]], { L0: .25 }],
     ['ogb-depth', [['OGB/Socket/Front/DepthOthers', .4]], { L0: .4 }],
     ['ogb-depth', [['OGB/Plug/Test/DepthOthers', .7]], { L0: .7 }],
     ['ogb-touch', [['OGB/Socket/Front/TouchOthers', .3]], { V0: .3 }],
@@ -70,6 +73,7 @@ test('the shipped OGB depth and touch templates deliver stable SPS3 OSC values w
 test('native Contact presets use ordinary OSC readings and require a recognized sender', async () => {
   const presets = getOscMappingPresets(initial());
   for (const [id, field, axis, samples] of [
+    ['native-contact-axial', 'SenderLocalPositionZ', 'L0', [[.1, .5], [.1, .5], [.15, .75]]],
     ['native-contact-separation', 'PointSeparation', 'L0', [[.05, .25], [.15, .75], [.4, 1]]],
     ['native-contact-speed', 'SenderVelocityMagnitude', 'V0', [[.5, .5], [0, 0], [2, 1]]],
     ['native-contact-approach', 'ProximitySpeed', 'V0', [[1, .5], [-1, 0], [3, 1]]],
@@ -88,6 +92,7 @@ test('native Contact presets use ordinary OSC readings and require a recognized 
     assert.deepEqual(frames, [], `${id}: missing type must not open gate`);
     store.set('MyContact_SenderType', 2);
     for (const [input, expected] of samples) {
+      store.set('MyContact_SenderLocalPositionX', now / 10000);
       store.set(`MyContact_${field}`, input);
       await tick();
       assert.ok(Math.abs(frames.at(-1) - expected) < .002, `${id}: ${input} -> ${expected}; got ${frames.at(-1)}`);
@@ -98,6 +103,26 @@ test('native Contact presets use ordinary OSC readings and require a recognized 
     await tick();
     assert.equal(frames.length, count, `${id}: sender loss does not publish a new target`);
     assert.ok(stops.length > stopCount, `${id}: sender loss requests a stop`);
+  }
+});
+
+test('shipped spatial scenarios route calibrated samples from the configured instance', async () => {
+  const presets = getOscMappingPresets(initial());
+  for (const [id, samples, instance, example, expected] of [
+    ['self-four-anchor-axial', fixedRootSamples(.1, .5), 'CIFixedRoot', 'Root', { L0: .5 }],
+    ['self-contact-stroke', contactRootSamples(.1, .5, true, { velocityZ: .3 }), 'CIContactRoot', 'Root', { L0: .5, V0: .3 }],
+    ['self-contact-stroke', contactRootSamples(.1, .5, true, { velocityZ: -.3 }), 'CIContactRoot', 'Root', { L0: .5, V0: 0 }],
+    ['pose-aligned-depth', poseSamples(), 'Demo', 'Main', { L0: .5 }],
+  ]) {
+    const store = new OscParameterStore(() => 1000), frames = [];
+    const signals = presets.find(preset => preset.id === id).mappings;
+    const runtime = new RuntimeEngine({ signals, osc: { allowExperimentalSpatialInput: true } }, {
+      now: () => 1000, oscStore: store, sendFrame(frame) { frames.push(frame.values); },
+    });
+    runtime.setInputMode('Osc');
+    for (const [path, value] of samples) store.set(path.replace('/' + instance + '/', '/' + example + '/'), value);
+    runtime.setInputActive(true); runtime.tick(); await runtime.flush();
+    for (const [axis, value] of Object.entries(expected)) assert.ok(Math.abs(frames.at(-1)?.[axis] - value) < .002, id + ' ' + axis);
   }
 });
 

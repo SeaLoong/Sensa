@@ -393,7 +393,11 @@ for (const locale of ['zh-CN', 'en-US']) {
         const library = page.getByTestId('axis-mappings-panel');
         await library.getByRole('combobox', { name: await text(page, '预设方案'), exact: true }).selectOption('ogb-depth');
         await unchanged(page, rig, initial);
-        await attachState(page, info, 'scene-preset-library', { locale, selectedPreset: 'ogb-depth', draftOnly: true }, library);
+        const scenarios = await library.locator('.preset-strip select optgroup').evaluateAll(groups => groups.map(group => ({
+          setup: group.label, presets: Array.from(group.children, option => option.value),
+        })));
+        expect(scenarios.flatMap(group => group.presets)).toContain('native-contact-axial');
+        await attachState(page, info, 'scene-preset-library', { locale, scenarios, selectedPreset: 'ogb-depth', draftOnly: true }, library);
         await library.getByRole('button', { name: await text(page, '替换草稿'), exact: true }).click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.locator('.mapping-row')).toHaveCount(1);

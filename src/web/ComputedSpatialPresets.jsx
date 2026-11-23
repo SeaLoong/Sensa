@@ -26,7 +26,7 @@ export default function ComputedSpatialPresets({ drafts, pointOptions, onAdd }) 
             pointOptions[0]?.value, pointOptions.find(point => /^Sensa\/Shader\//.test(point.value))?.value)])}>{t('新增空间计算')}</Button>
         </div>
       </div>
-      <div className="editor-group">
+      <div className="editor-group" id="following-plane-setup">
         <h4>{t('跟随移动平面')}</h4>
         <p className="caption muted">{t('选择自己 Avatar 内的测量位置和参考对象，一起创建深度和平面内偏移。参考对象移动或转动时，计算使用它当前的位置和朝向。')}</p>
         <SelectField label={t('平面定位方式')} value={mode} options={[
