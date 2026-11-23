@@ -30,8 +30,8 @@ test('profile lifecycle keeps one default and repairs output references without 
 
 test('all built-ins round-trip as independent drafts; custom presets preserve built-ins / 内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
   const source = initial(), builtIns = getOscMappingPresets(source);
-  assert.equal(builtIns.length, 15);
-  assert.equal(builtIns[0].id, 'ogb-depth-touch');
+  assert.equal(builtIns.length, 19);
+  assert.equal(builtIns[0].id, 'ogb-depth');
   assert.partialDeepStrictEqual(builtIns.find(preset => preset.id === 'osc-l0').mappings, [{ sourceMode: 'Direct', oscPath: 'Depth', role: 'Depth', vrchatMin: 0, vrchatMax: 1, mappedMin: 0, mappedMax: 999 }]);
   for (const preset of builtIns) {
     const dialog = buildPresetDialogDraft(source, preset.id);
@@ -44,6 +44,21 @@ test('all built-ins round-trip as independent drafts; custom presets preserve bu
     const removed = editConfiguration(config, { kind: 'preset-remove', id: dialog.presetId });
     assert.equal(getOscMappingPresets(removed).length, builtIns.length);
     assert.throws(() => editConfiguration(source, { kind: 'preset-remove', id: preset.id }));
+  }
+});
+
+test('each depth setup offers both responses with the same calibrated travel', () => {
+  const presets = getOscMappingPresets(initial());
+  const standard = presets.filter(preset => preset.experience === 'follow');
+  const gentle = presets.filter(preset => preset.experience === 'gentle');
+  assert.equal(standard.length, 5);
+  assert.deepEqual(gentle.map(preset => preset.setup).sort(), standard.map(preset => preset.setup).sort());
+  for (const base of standard) {
+    const variant = gentle.find(preset => preset.setup === base.setup);
+    const [depth, ...conditions] = base.mappings;
+    assert.deepEqual(variant.mappings.slice(1), conditions);
+    assert.deepEqual(variant.mappings[0], { ...depth, curve: 'EaseIn',
+      vrchatMin: depth.vrchatMin + .2 * (depth.vrchatMax - depth.vrchatMin) });
   }
 });
 

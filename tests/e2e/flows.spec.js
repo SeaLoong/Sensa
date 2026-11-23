@@ -186,7 +186,8 @@ test.describe('modern OGB SPS', () => {
   test('modern Socket preset uses NewRoot and NewTip for radial learning', { tag: ['@osc','@transport','@visual'] }, async ({ page, rig }) => {
     await enable(page, ['Mock UDP']); await mode(page, 'OSC');
     await oscWorkspace(page, '映射');
-    await page.getByLabel('预设方案', { exact: true }).selectOption('ogb-depth');
+    await page.getByLabel(await text(page, '想要的体验'), { exact: true }).selectOption('follow');
+    await page.locator('#mapping-preset-variant').selectOption('ogb-depth');
     await page.getByRole('button', { name: '替换草稿', exact: true }).click();
     await expect(page.getByText('未保存', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();

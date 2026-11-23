@@ -391,13 +391,13 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.getByTestId('axis-mappings-panel')).toBeVisible();
         await page.getByTestId('onboarding-edit-mappings').click();
         const library = page.getByTestId('axis-mappings-panel');
-        await library.getByRole('combobox', { name: await text(page, '预设方案'), exact: true }).selectOption('ogb-depth');
+        const experience = library.locator('#mapping-experience'), variants = library.locator('#mapping-preset-variant');
+        await experience.selectOption('follow');
+        await variants.selectOption('ogb-depth');
         await unchanged(page, rig, initial);
-        const scenarios = await library.locator('.preset-strip select optgroup').evaluateAll(groups => groups.map(group => ({
-          setup: group.label, presets: Array.from(group.children, option => option.value),
-        })));
-        expect(scenarios.flatMap(group => group.presets)).toContain('native-contact-axial');
-        await attachState(page, info, 'scene-preset-library', { locale, scenarios, selectedPreset: 'ogb-depth', draftOnly: true }, library);
+        const setups = await variants.locator('option').allTextContents();
+        expect(setups).toHaveLength(5);
+        await attachState(page, info, 'scene-preset-library', { locale, experience: 'follow', setups, selectedPreset: 'ogb-depth', draftOnly: true }, library);
         await library.getByRole('button', { name: await text(page, '替换草稿'), exact: true }).click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.locator('.mapping-row')).toHaveCount(1);
@@ -410,7 +410,8 @@ for (const locale of ['zh-CN', 'en-US']) {
         const depth = await passiveSnapshot(page, rig);
         expect(depth.config.computedSignals).toEqual(initial.config.computedSignals);
         expect(depth.config.outputs).toEqual(initial.config.outputs);
-        await library.getByRole('combobox', { name: await text(page, '预设方案'), exact: true }).selectOption('ogb-touch');
+        await experience.selectOption('other');
+        await variants.selectOption('ogb-touch');
         await library.getByRole('button', { name: await text(page, '追加草稿'), exact: true }).click();
         await expect(page.locator('.mapping-row')).toHaveCount(2);
         await expect(page.locator('.mapping-row__target select').nth(1)).toHaveValue('V0');

@@ -1,9 +1,23 @@
 [
   {
+    "id": "ogb-depth",
+    "group": "我和对方用 SPS，自己只收到深度或触碰",
+    "name": "仅前后跟随",
+    "description": "左右移动时，只有 SPS 深度可能让主轴误退。沿入口直进直退校准两端。正式 SPS3 读取 DepthOthers，旧版识别 PenOthers 或 NewRoot／NewTip。",
+    "mappings": [
+      {
+        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
+        "sourceMode": "OgbDepth",
+        "role": "Depth"
+      }
+    ],
+    "setup": "只有 SPS 深度"
+  },
+  {
     "id": "ogb-depth-touch",
     "group": "我和对方用 SPS，自己只收到深度或触碰",
     "name": "标准 · 前后跟随，触碰时振动",
-    "description": "自己和对方使用兼容的 SPS 通道时，从这里开始。前后靠近驱动主轴，触碰驱动振动。左右偏移也可能改变深度。用同一对象试一次直进直退，分别校准两条映射。",
+    "description": "同时需要主轴和振动时可选。主轴跟随 SPS 深度，触碰强度控制振动。左右偏移也可能改变深度。用同一对象试一次直进直退，分别校准两条映射。",
     "mappings": [
       {
         "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
@@ -30,20 +44,8 @@
         "vrchatMin": 0.2,
         "curve": "EaseIn"
       }
-    ]
-  },
-  {
-    "id": "ogb-depth",
-    "group": "我和对方用 SPS，自己只收到深度或触碰",
-    "name": "仅前后跟随",
-    "description": "正式 SPS3 读取 Socket／Plug 的 DepthOthers；旧版仍识别 PenOthers 和 NewRoot／NewTip。观察读数并校准 L0 两端。",
-    "mappings": [
-      {
-        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
-        "sourceMode": "OgbDepth",
-        "role": "Depth"
-      }
-    ]
+    ],
+    "setup": "只有 SPS 深度"
   },
   {
     "id": "ogb-touch",
@@ -78,7 +80,8 @@
         "vrchatMin": 0,
         "vrchatMax": 1
       }
-    ]
+    ],
+    "setup": "我的接收器启用了 Contact 高级位置"
   },
   {
     "id": "native-contact-approach",
@@ -184,7 +187,8 @@
         "vrchatMin": 0,
         "vrchatMax": 0.2
       }
-    ]
+    ],
+    "setup": "我装了 Sensa 四点定位"
   },
   {
     "id": "contact-position",
@@ -200,7 +204,8 @@
         "vrchatMin": 0,
         "vrchatMax": 0.2
       }
-    ]
+    ],
+    "setup": "我装了 Sensa Contact 自身定位"
   },
   {
     "id": "contact-speed",
@@ -230,7 +235,8 @@
         "poseMetric": "Depth",
         "role": "Depth"
       }
-    ]
+    ],
+    "setup": "双方装了配对的 Sensa 姿态组件"
   },
   {
     "id": "osc-l0",

@@ -150,23 +150,27 @@ test('English presets, script and compact help use localized documentation', {ta
   await checkpoint(page,page.locator('.script-player__controls'),'english-script-loaded');
   await checkpoint(page,page.locator('.script-player__options'),'english-script-options');
   await oscWorkspace(page,'映射');
-  const presets = page.getByLabel(await text(page,'预设方案'),{exact:true});
-  await expect(presets.locator('option')).toHaveCount(15);
-  await expect(presets.locator('optgroup')).toHaveCount(5);
-  await expect(presets.locator('optgroup option[value=pose-aligned-depth]')).toHaveCount(1);
-  await expect(presets.locator('option[value=ogb-depth-touch]')).toHaveCount(1);
-  await expect(presets.locator('option[value=contact-position]')).toHaveText('Follow my forward position');
-  await expect(presets.locator('option[value=contact-speed]')).toHaveText('Vibrate with my movement in any direction');
+  const experience = page.getByLabel('Desired response', { exact: true });
+  const presets = page.locator('#mapping-preset-variant');
+  await experience.selectOption('follow');
+  await expect(presets.locator('option')).toHaveCount(5);
+  await presets.selectOption('native-contact-axial');
+  await experience.selectOption('gentle');
+  await expect(presets).toHaveValue('native-contact-axial-soft-entry');
+  await expect(presets.locator('option')).toHaveCount(5);
+  await experience.selectOption('follow');
+  await expect(presets).toHaveValue('native-contact-axial');
   await presets.selectOption('self-four-anchor-axial');
   await page.getByRole('button', { name: 'I also installed a Tracking Frame: follow the turning entrance' }).click();
   await expect(page.getByTestId('computed-spatial-presets')).toHaveJSProperty('open', true);
   await oscWorkspace(page, '映射');
   for (const [id, name, field] of [
     ['native-contact-separation', 'Move the main axis as two points separate', 'PointSeparation'],
-    ['native-contact-axial', 'Keep the main axis steady through sideways motion', 'SenderLocalPositionZ'],
+    ['native-contact-axial', 'My receiver publishes advanced Contact position', 'SenderLocalPositionZ'],
     ['native-contact-speed', 'Vibrate more with faster movement', 'SenderVelocityMagnitude'],
     ['native-contact-approach', 'Native Contact · Vibration on approach', 'ProximitySpeed'],
   ]) {
+    await experience.selectOption(id === 'native-contact-axial' ? 'follow' : 'other');
     await expect(presets.locator(`option[value="${id}"]`)).toHaveText(name);
     await presets.selectOption(id);
     await page.getByRole('button', { name: await text(page, '替换草稿'), exact: true }).click();
@@ -175,7 +179,8 @@ test('English presets, script and compact help use localized documentation', {ta
     await expect(paths.nth(0)).toHaveValue('MyContact_' + field);
     await expect(paths.nth(1)).toHaveValue('MyContact_SenderType');
   }
-  await page.getByLabel(await text(page,'预设方案'),{exact:true}).selectOption('ogb-depth');
+  await experience.selectOption('follow');
+  await presets.selectOption('ogb-depth');
   await expect(page.getByRole('button',{name:await text(page,'替换草稿'),exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'Help',exact:true}).click();
   const help = page.getByRole('dialog', { name: await text(page, '帮助与指南'), exact: true });

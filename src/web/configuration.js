@@ -3,7 +3,7 @@ import { roundToStep } from './numeric.js';
 import { outputTargetsOverlap } from '../core/runtime/configuration.ts';
 import { localized, t } from './i18n.js';
 import firstRunMotion from './data/first-run-motion.json' with { type: 'json' };
-import BUILT_IN_OSC_MAPPING_PRESETS from './data/osc-presets.json' with { type: 'json' };
+import oscPresetTemplates from './data/osc-presets.json' with { type: 'json' };
 import { stripComputedDraft } from './computed-signals.js';
 import { buildSignalOutputDraft, isSignalOutputType, makeOutputBinding, recordingFormatOptions, stripSignalOutputDraft } from './signal-outputs.js';
 import { VENDOR_OUTPUT_TYPES, normalizeDeviceOutput } from './protocol-inputs.js';
@@ -308,6 +308,17 @@ const AXIS_PROFILE_PRESETS = localized(() => ([
   },
 ]));
 
+// Each setup uses the same response curve in its own calibrated units.
+const gentleVariants = oscPresetTemplates.filter(preset => preset.setup && !['ogb-depth', 'sps-soft-entry'].includes(preset.id)).map(preset => ({
+  ...preset,
+  id: preset.id + '-soft-entry',
+  mappings: preset.mappings.map(mapping => {
+    if (mapping.role !== 'Depth') return mapping;
+    const start = mapping.vrchatMin ?? 0, end = mapping.vrchatMax ?? 1;
+    return { ...mapping, vrchatMin: start + .2 * (end - start), curve: 'EaseIn' };
+  }),
+}));
+const BUILT_IN_OSC_MAPPING_PRESETS = [...oscPresetTemplates, ...gentleVariants];
 const BUILT_IN_OSC_PRESET_IDS = new Set(BUILT_IN_OSC_MAPPING_PRESETS.map(preset => preset.id));
 
 function createDefaultMotionProfile(useGlobal = false) {
@@ -688,10 +699,14 @@ function createOscPresetDraft(name = t("新预设"), options = {}) {
 function normalizeOscPreset(preset, index = 0, options = {}) {
   return {
     id: (preset?.id || `osc-preset-${index + 1}`).trim(),
-    name: (preset?.name || t("OSC 预设 {0}", [index + 1])).trim(),
+    name: options.isBuiltIn && preset.setup && preset.id.endsWith('-soft-entry')
+      ? t('轻柔跟随 · {0}', [t(preset.setup)]) : (preset?.name || t("OSC 预设 {0}", [index + 1])).trim(),
     description: (preset?.description || '').trim(),
     isBuiltIn: Boolean(options.isBuiltIn),
     ...(options.isBuiltIn && { group: t(preset.group) }),
+    ...(options.isBuiltIn && preset.setup && {
+      setup: t(preset.setup), experience: preset.id.endsWith('-soft-entry') ? 'gentle' : 'follow',
+    }),
     mappings: Array.isArray(preset?.mappings) ? preset.mappings.map(mapping => ({ ...stripSignalDraft(makeSignalDraft(mapping)) })).filter(mapping => Boolean(mapping.oscPath)) : [],
   };
 }

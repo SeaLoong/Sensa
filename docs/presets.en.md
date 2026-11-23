@@ -8,17 +8,19 @@ Configuration templates live in the preset selector under **Mapping & transforms
 
 A mapping preset fills common paths and motion roles so you can build a mapping quickly. Choose the matching Avatar feature, select its live source, capture your input endpoints and save. The rows remain editable for your own paths, direction, range and conditions.
 
-Start with what is installed on each avatar. Choose Standard when both avatars use compatible SPS. If your receiver publishes advanced position, the other avatar only needs a matching sender. Self tracking and paired pose components have their own groups.
+Select the **Desired response** first, then **My avatar setup**. Both depth responses offer the same five setups. Switching responses retains the selected setup. Replace or append the draft to load the selected mappings.
 
-| Desired response | Preset and setup |
+- **Follow forward travel and hold steady sideways** uses a linear response. Holding depth holds the target; half travel produces half travel.
+- **Gentle on entry, stronger deeper in** follows the same depth. The first 20% of the default range holds the start position, then travel increases quadratically. At 60% of the default range, the target reaches about 25%. Adjust the input start to choose where feedback begins.
+
+| Available setup | How it measures the same movement |
 | --- | --- |
-| Keep shallow brushes quiet with SPS alone | `sps-soft-entry` holds the first 20% of the proximity range at the start and squares the remaining normalized input. A 60% reading gives about 25% travel. Deeper sideways motion can still affect the result. |
-| Hold depth during sideways motion as the receiver turns | `native-contact-axial` uses receiver-local Z (initially 0–0.20 m). Replace the base name on both advanced position and SenderType rows, then calibrate along the entrance. Loss of contact gates all mappings. |
-| Follow my forward movement with a four-anchor tracker | `self-four-anchor-axial` uses avatar-root Z. Replace Root with your instance. If you also installed a Tracking Frame, open the moving-plane setup from the preset and map its depth to L0. |
-| Follow my position and add vibration on the forward stroke | `self-contact-stroke` uses Z for position and positive VelocityZ for V0. Set both rows to the same Sensa Contact self tracker and calibrate position and speed separately. |
-| Follow a partner relative to the entrance | `pose-aligned-depth` uses the insertion fraction from paired Pose Socket and Pose Plug components on the same channel. Engagement requires valid geometry inside the aperture. |
+| SPS depth only | Proximity estimates forward travel. Sideways motion can also appear as retreat. |
+| Advanced Contact position | Receiver-local Z rejects sideways displacement. Align Z with the entrance and set both rows to the same receiver. |
+| Sensa four-anchor or Contact self tracker | Measures a target on your own avatar along avatar-root Z. A Tracking Frame provides a moving plane for an entrance that turns independently. |
+| Paired Pose Socket and Pose Plug | Measures insertion relative to the entrance. Engagement ends outside the aperture or tilt limits. |
 
-The last three setups require experimental spatial input. Check the L0 preview first with a sideways shift at constant depth, then with forward travel over the same distance.
+Sensa self tracking and paired pose require experimental spatial input. Touch, speed, combined outputs, parameter examples and saved presets are under **Other mappings and custom presets**.
 
 | Template ID | Purpose | Default destination |
 | --- | --- | --- |
