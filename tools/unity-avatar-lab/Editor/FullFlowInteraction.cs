@@ -183,7 +183,7 @@ namespace SensaAvatarLab
                 EditorUtility.SetDirty(menu);rootMenu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text(titles[i]),type=VRCExpressionsMenu.Control.ControlType.SubMenu,subMenu=menu});
             }
             rootMenu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text("Visible labels / probes"),type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=Hints},value=1});
-            rootMenu.controls.Add(Toggle("SPS OSC","OGB_ENABLED",1));
+            rootMenu.controls.Add(Toggle("SPS OSC",AvatarCapabilities.OgbEnableParameter,1));
             int plugIndex=Array.FindIndex(measured,c=>c.GetType().FullName==SensaSpsAdapter.PlugType);if(plugIndex>=0)rootMenu.controls.Add(Toggle("Measure plug","Sensa/Select/"+setup.groupName,plugIndex+1));
             EditorUtility.SetDirty(rootMenu);MovePropMenu(avatar,rootMenu);
             foreach(var asset in AssetDatabase.LoadAllAssetsAtPath(Root+"/Placement.controller"))EditorUtility.SetDirty(asset);

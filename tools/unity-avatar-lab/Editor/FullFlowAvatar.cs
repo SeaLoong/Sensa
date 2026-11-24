@@ -44,6 +44,8 @@ namespace SensaAvatarLab
             public int contacts, cameras, parameterCost, movableTargets, unsupportedTextComponents, probeGuideCount;
             public string[] missingAnimatorParameters, menuLabels, missingSharedControls;
             public string scope;
+            public bool quickStartParametersPresent, ogbGateValid;
+            public string[] menuGateNames, ogbDepthReceivers;
         }
         public static Report Inspect(GameObject avatar, string scope)
         {
@@ -66,10 +68,12 @@ namespace SensaAvatarLab
             foreach (var bone in avatar.GetComponentsInChildren<VRCPhysBone>(true).Where(b => b.parameter != null && b.parameter.StartsWith("Sensa/")))
                 required.AddRange(new[] { bone.parameter + "_IsGrabbed", bone.parameter + "_Stretch" });
             var baseline = AvatarLab.Inspect(avatar);
+            if (!baseline.passed) Debug.LogError("FullFlow avatar checks: " + JsonUtility.ToJson(baseline));
             var labels = new List<string>();
+            var gates = new List<string>();
             var visited = new HashSet<VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionsMenu>();
             void Menu(VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionsMenu menu)
-            { if (menu == null || !visited.Add(menu)) return; foreach (var control in menu.controls) { labels.Add(control.name); if (control.subMenu != null) Menu(control.subMenu); } }
+            { if (menu == null || !visited.Add(menu)) return; foreach (var control in menu.controls) { labels.Add(control.name); if (AvatarLabLocalization.Original(control.name) == "Enable SPS OSC (local)" || AvatarLabLocalization.Original(control.name) == "SPS OSC") gates.Add(control.parameter?.name); if (control.subMenu != null) Menu(control.subMenu); } }
             Menu(descriptor.expressionsMenu);
             var report = new Report { scope = scope, contacts = baseline.contacts, parameterCost = baseline.parameterCost,
                 handlesGrabWithoutCollision = baseline.handlesGrabWithoutCollision,
@@ -87,11 +91,17 @@ namespace SensaAvatarLab
                 return receivers.Any(r=>r.parameter!=null&&r.parameter.EndsWith("/A"+index)&&
                     (compact?(r.parameter.StartsWith("Sensa/Point/")||r.parameter.StartsWith("Sensa/Handle/")):r.parameter.StartsWith("Sensa/Pose/"))&&Vector3.Distance(g.transform.position,r.transform.TransformPoint(r.position))<.001f);
             });
+            report.quickStartParametersPresent = names.Contains(SensaQuickStartProtocol.Depth) && names.Contains(SensaQuickStartProtocol.Active);
+            report.menuGateNames = gates.ToArray();
+            report.ogbDepthReceivers = receivers.Where(r => r.allowOthers && r.parameter != null && r.parameter.StartsWith("OGB/")
+                && (r.parameter.EndsWith("/DepthOthers") || r.parameter.EndsWith("/PenOthersNewRoot") || r.parameter.EndsWith("/PenOthers")))
+                .Select(r => r.parameter).Distinct().OrderBy(p => p).ToArray();
+            report.ogbGateValid = gates.Count > 0 && gates.All(g => g == AvatarCapabilities.OgbEnableParameter)
+                && parameters.Any(p => p.name == gates[0] && !p.networkSynced && p.defaultValue == 0);
             report.passed = report.missingSharedControls.Length == 0 && baseline.passed && report.cameras == 2 && report.shaderDefaultsOff && report.selectorsDefaultOff
                 && report.placementBindingsValid && report.unsupportedTextComponents==0 && report.probeGuidesAligned
                 && labels.Any(label => AvatarLabLocalization.Original(label) == "Place in world")
-                && report.missingAnimatorParameters.Length == 0 && names.Contains(SensaQuickStartProtocol.Depth) && names.Contains(SensaQuickStartProtocol.Active)
-                && parameters.Any(p => p.name == "OGB_ENABLED") && labels.Any(label => AvatarLabLocalization.Original(label) == "Enable SPS OSC (local)") && labels.Any(label => AvatarLabLocalization.Original(label) == "Corrupt shader CRC");
+                && report.missingAnimatorParameters.Length == 0 && report.quickStartParametersPresent && report.ogbGateValid && report.ogbDepthReceivers.Length > 0 && labels.Any(label => AvatarLabLocalization.Original(label) == "Enable SPS OSC (local)") && labels.Any(label => AvatarLabLocalization.Original(label) == "Corrupt shader CRC");
             return report;
         }
         [MenuItem("Tools/Sensa Avatar Lab/Validate full-flow test avatar")]

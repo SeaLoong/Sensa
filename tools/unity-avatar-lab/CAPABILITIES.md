@@ -9,7 +9,7 @@
 | Contact | 四路本地点 Point | 已知 fixture 几何，不证明远端身份 |
 | PB | 原生 Stretch／IsGrabbed | 强度与门控，没有 XYZ |
 | PBContact | PB 目标与 Point／Handle 采样 | 实验局部位置，仍需抓取／时效门控 |
-| SPS | 原生 VRCFury Socket／Plug 与 OGB | 必须启用 OGB_ENABLED 和实际目标 |
+| SPS | 原生 VRCFury Socket／Plug 与 OGB | 启用 SPS OSC 开关（v11 为 `OGB/Enabled`，v10 为 `OGB_ENABLED`）和实际目标 |
 | SPSContact | 原生 SPS 与 Sensa 测量 | SPS 四点定位／本地点／Pose 字段分离，不能混为一个阵列 |
 | Shader | 合成编码与 CRC／冻结恢复 | 诊断传输，不是实际根点 |
 | SPSShader | SPS 模型与编辑器采集相机 | Avatar 外部相机不上传 |

@@ -37,7 +37,7 @@ python -X utf8 scripts/install-avatar-lab.py "<Avatar project>" --tests
 | Capabilities/* | Contact、PB、SPS 和 Shader 分项 |
 | Capabilities/QuickStart.unity | 隐藏合成传输 fixture，不是产品入门路线 |
 
-原生 SPS、OGB_ENABLED、测量选择、道具可见性和桌面输入相互独立。棒棒糖和合成 Shader 初始关闭。安装 Gesture Manager 后可用它预览，但不能代替真实客户端抓取或 OSC。
+原生 SPS、SPS OSC 开关、测量选择、道具可见性和桌面输入相互独立。棒棒糖和合成 Shader 初始关闭。安装 Gesture Manager 后可用它预览，但不能代替真实客户端抓取或 OSC。
 
 ## 检查与边界
 

@@ -9,7 +9,7 @@ Use [FullFlow](FULL-FLOW.en.md) for integrated interaction and `Assets/SensaAvat
 | Contact | Four-sample local Point | Known fixture geometry, not remote identity |
 | PB | Native Stretch / IsGrabbed | Intensity and gate, no XYZ |
 | PBContact | PB target plus Point/Handle samples | Experimental local position; grab/age gates still required |
-| SPS | Native VRCFury Socket/Plug and OGB | Enable OGB_ENABLED and actual Socket/Plug |
+| SPS | Native VRCFury Socket/Plug and OGB | Enable SPS OSC (`OGB/Enabled` in v11, `OGB_ENABLED` in v10) and the actual Socket/Plug |
 | SPSContact | Native SPS plus Sensa measurements | Separate SPS four-anchor tracking/local/Pose fields, not one interchangeable array |
 | Shader | Synthetic code and CRC/freeze recovery | Diagnostic transport, not an actual root |
 | SPSShader | SPS model with an editor capture camera | Camera outside the Avatar is not uploaded |

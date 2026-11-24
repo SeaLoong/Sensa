@@ -37,7 +37,7 @@ Editor menu paths remain stable English IDs for automation. Generated Avatar men
 | Capabilities/* | Contact, PB, SPS and shader isolation |
 | Capabilities/QuickStart.unity | Hidden synthetic transport fixture, not product onboarding |
 
-Native SPS activation, OGB_ENABLED, measurement selection, prop visibility and desktop input are separate. The lollipop and synthetic shader start off. Gesture Manager, when installed, is an optional preview aid and does not replace real client grabbing or OSC.
+Native SPS activation, the SPS OSC toggle, measurement selection, prop visibility and desktop input are separate. The lollipop and synthetic shader start off. Gesture Manager, when installed, is an optional preview aid and does not replace real client grabbing or OSC.
 
 ## Checks and boundaries
 

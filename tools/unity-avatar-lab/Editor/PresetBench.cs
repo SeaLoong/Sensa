@@ -214,6 +214,7 @@ namespace SensaAvatarLab
         [Serializable] class BundleReport
         {
             public int verifiedParameters, rootSteps, poseReceivers;
+            public string avatarsSdk, vrcFury;
             public string[] sharedParameters;
         }
 
@@ -257,6 +258,8 @@ namespace SensaAvatarLab
                     receivers.Count(r => r.parameter != null && r.parameter.StartsWith("Sensa/Pose/v1/Main/Others/")) != 24)
                     throw new InvalidOperationException("PresetBench native inputs did not survive the SDK build.");
                 File.WriteAllText("Validation/sdk-preset-bench-contents.json", JsonUtility.ToJson(new BundleReport {
+                    avatarsSdk = UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.vrchat.avatars/package.json").version,
+                    vrcFury = UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.vrcfury.vrcfury/package.json").version,
                     verifiedParameters = required.Length, rootSteps = Steps.Length, poseReceivers = 24,
                     sharedParameters = new[] { Step, "Depth" }
                 }, true));

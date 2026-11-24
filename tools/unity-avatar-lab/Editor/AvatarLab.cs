@@ -65,7 +65,7 @@ namespace SensaAvatarLab
         [Serializable] public class BuildReport
         {
             public string avatar, utc, unity, error, contactAdvancedParametersField;
-            public bool passed, humanoid, selectorValid, spsResolver, handlesGrabWithoutCollision, contactDirectSupported;
+            public bool passed, humanoid, selectorValid, spsResolver, spsRendererContacts, handlesGrabWithoutCollision, contactDirectSupported;
             public int missingScripts, contacts, sensaReceivers, physBones, parameterCost;
             public string[] sensaParameters, shaders;
         }
@@ -220,6 +220,24 @@ namespace SensaAvatarLab
             Debug.Log("SENSA_AVATAR_PREPROCESS_PASSED");
         }
 
+        internal static bool HasSpsRendererContacts(GameObject avatar)
+        {
+            return avatar.GetComponentsInChildren<VRCContactReceiver>(true).Any(receiver =>
+            {
+                // The 3.10.6 SDK can write Contact data directly into a baked SPS3 surface.
+                var serialized = new SerializedObject(receiver);
+                var renderers = serialized.FindProperty("shaderTargetRenderers");
+                if (serialized.FindProperty("writeToMaterials")?.boolValue != true || renderers == null) return false;
+                for (int i = 0; i < renderers.arraySize; i++)
+                {
+                    var renderer = renderers.GetArrayElementAtIndex(i).objectReferenceValue as Renderer;
+                    if (renderer != null && renderer.sharedMaterials.Any(m => m != null && SensaGpuProbe.UsesRendererContactData(m.HasProperty)))
+                        return true;
+                }
+                return false;
+            });
+        }
+
         public static BuildReport Inspect(GameObject avatar, bool exclusive = true)
         {
             var descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
@@ -242,10 +260,10 @@ namespace SensaAvatarLab
                 selectorValid = exclusive ? parameters.Any(p => p.name == "Sensa/Select/Lab" && p.networkSynced && p.defaultValue == 0)
                     : parameters.All(p => p.name != "Sensa/Select/Lab"),
                 sensaParameters = parameters.Where(p => p.name.StartsWith("Sensa/")).Select(p => p.name).ToArray(),
-                shaders = shaders, spsResolver = shaders.Any(s => s.Contains("SpsResolver"))
+                shaders = shaders, spsResolver = shaders.Contains("Hidden/VRCFury/SpsResolver"), spsRendererContacts = HasSpsRendererContacts(avatar)
             };
             report.passed = report.humanoid && report.handlesGrabWithoutCollision && report.missingScripts == 0 && report.contacts <= 256 && report.sensaReceivers > 0
-                && report.physBones > 0 && report.selectorValid && report.parameterCost <= 256 && report.spsResolver
+                && report.physBones > 0 && report.selectorValid && report.parameterCost <= 256 && (report.spsResolver || report.spsRendererContacts)
                 && avatar.GetComponentsInChildren<SensaAutoSetup>(true).Length == 0
                 && avatar.GetComponentsInChildren<SensaPointProbe>(true).Length == 0
                 && !shaders.Any(s => s == "MISSING" || s.Contains("InternalErrorShader"));

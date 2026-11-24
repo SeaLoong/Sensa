@@ -251,7 +251,7 @@ namespace UnityBox.Sensa.Tests
             Assert.Throws<InvalidOperationException>(() => SensaContactRootBuilder.ProcessAvatar(avatar));
             Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>(true));
             probe.target = Target(); nadena.dev.ndmf.AvatarProcessor.ProcessAvatar(avatar);
-            Assert.IsNull(instance.GetComponent<SensaContactRootProbe>());
+            Assert.IsEmpty(avatar.GetComponentsInChildren<SensaContactRootProbe>(true));
             var exported = avatar.GetComponent<VRCAvatarDescriptor>().expressionParameters.parameters
                 .Where(parameter => parameter.name.StartsWith("Sensa/Contact/", StringComparison.Ordinal)).ToArray();
             CollectionAssert.AreEquivalent(SensaContactProtocol.PublicLeaves.Select(leaf => "Sensa/Contact/Root/" + leaf),

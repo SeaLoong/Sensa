@@ -16,6 +16,17 @@ namespace SensaLab
         static Vector3[] homes,placed;
         static Vector3 playerHome;
         public static bool Passed=>report!=null&&report.passed;
+        internal static bool HasPlugContacts(Transform plug)
+        {
+            var senders = plug.GetComponentsInChildren<VRCContactSender>(true);
+            return senders.Any(s => s.collisionTags.Contains("TPS_Pen_Root")) &&
+                senders.Any(s => s.collisionTags.Contains("TPS_Pen_Penetrating"));
+        }
+
+        internal static bool HasSocketContacts(Transform socket) =>
+            socket.GetComponentsInChildren<VRCContactSender>(true).Any(s => s.collisionTags.Contains("SPSLL_Socket_Root") ||
+                s.collisionTags.Contains("TPS_Orf_Root"));
+
         public static void Step(int stage)
         {
             if(stage==0)
@@ -31,9 +42,8 @@ namespace SensaLab
                 report.markerSwitchWorks &= markers.activeSelf && markers.GetComponentsInChildren<VRCContactSender>().Length == 3;
                 program.Interact();
                 report.markerSwitchWorks &= !markers.activeSelf;
-                var senders=plug.GetComponentsInChildren<VRCContactSender>(true);
-                report.nativePlugBaked=senders.Any(s=>s.collisionTags.Contains("TPS_Pen_Root"))&&senders.Any(s=>s.collisionTags.Contains("TPS_Pen_Penetrating"));
-                report.nativeSocketBaked=socket.GetComponentsInChildren<Light>(true).Length>0;
+                report.nativePlugBaked = HasPlugContacts(plug);
+                report.nativeSocketBaked = HasSocketContacts(socket);
                 report.probeMarkersMatch=UnityEngine.Object.FindObjectsOfType<CapabilityStation>().Where(s=>s.receivers.Length>0).All(s=>s.receivers.Select((r,i)=>r.transform.Find("Probe display")!=null&&r.transform.Find("Probe label").GetComponent<TextMesh>().text=="P"+(i+1)
                     && r.transform.Find("Probe display").GetComponent<Renderer>().sharedMaterial.color==InteractiveLab.ProbeColor(i)
                     && r.transform.Find("Probe label").GetComponent<TextMesh>().color==InteractiveLab.ProbeColor(i)

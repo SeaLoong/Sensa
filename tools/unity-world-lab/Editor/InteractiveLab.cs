@@ -172,6 +172,10 @@ namespace SensaLab
                 LabPointCases.AlignReceivers(station.receivers);
             var quick = UnityEngine.Object.FindObjectOfType<QuickStartStation>();
             if (quick != null) quick.status.text = quick.status.text.Replace("In Sensa import Quick Start preset; apply OSC input.", "Load osc-l0. Set Depth to Sensa/QuickStart/Depth and add Active as GateEnable.");
+            var boardText = area.Find("Your avatar SPS instructions").GetComponent<Text>();
+            boardText.text = LabEditorLocalization.Original(boardText).Replace("Open avatar SPS / OGB_ENABLED, then use the matching preset.",
+                "Enable SPS and the avatar SPS OSC toggle, then load the preset.").Replace("Start separated to learn length. Aligned 10 cm / 20 cm is ~50%.",
+                "At the band the plug is halfway in. SPS3 DepthOthers reports proximity.");
             var plug = area.Find("World SPS Plug");
             var markers = plug.Find("Preset markers") ?? Child(plug, "Preset markers", Vector3.zero);
             var offsets = new[] { Vector3.zero, Vector3.forward * .20f, Vector3.right * .03f };
@@ -286,6 +290,47 @@ namespace SensaLab
             }
         }
 
+        [Serializable] class PresetBakeReport
+        {
+            public string worldsSdk, vrcFury;
+            public bool nativePlug, nativeSocket, pairedMarkers;
+        }
+
+        [MenuItem("Tools/Sensa Lab/Validate baked preset routes")]
+        public static void ValidateBakedPresetRoutes()
+        {
+            UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync();
+            if (UdonSharpProgramAsset.AnyUdonSharpScriptHasError()) throw new InvalidOperationException("UdonSharp compilation failed.");
+            ValidatePresetRoutes();
+            var area = GameObject.Find("08 MY AVATAR SPS").transform;
+            var scratch = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            try
+            {
+                Transform Clone(string name)
+                {
+                    var copy = UnityEngine.Object.Instantiate(area.Find(name).gameObject);
+                    UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(copy, scratch);
+                    return copy.transform;
+                }
+                var plug = Clone("World SPS Plug");
+                var socket = Clone("World SPS Socket");
+                Type("VF.Features.BuildSps").GetMethod("Process").Invoke(null, new object[] { scratch });
+                var markers = plug.Find("Preset markers");
+                if (!InteractiveValidation.HasPlugContacts(plug) || !InteractiveValidation.HasSocketContacts(socket) ||
+                    markers == null || markers.gameObject.activeSelf || SensaPoseProtocol.Markers.Any(marker =>
+                        !markers.Find(marker).GetComponent<VRCContactSender>().collisionTags.Contains(SensaPoseProtocol.Tag("LabPair", marker))) ||
+                    !markers.Find("Tip").GetComponent<VRCContactSender>().collisionTags.Contains("SensaLabContact"))
+                    throw new InvalidOperationException("Native SPS contacts or paired markers missing after world bake.");
+                File.WriteAllText("Validation/interaction/preset-bake.json", JsonUtility.ToJson(new PresetBakeReport {
+                    worldsSdk = UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.vrchat.worlds/package.json").version,
+                    vrcFury = UnityEditor.PackageManager.PackageInfo.FindForAssetPath("Packages/com.vrcfury.vrcfury/package.json").version,
+                    nativePlug = true, nativeSocket = true, pairedMarkers = true
+                }, true));
+                Debug.Log("SENSA_PRESET_WORLD_BAKE_VALIDATED");
+            }
+            finally { EditorSceneManager.CloseScene(scratch, true); }
+        }
+
         public static void ValidatePresetRoutes()
         {
             var scene = LabEditorLocalization.OpenScene(FunctionalLab.Scene);
@@ -339,7 +384,7 @@ namespace SensaLab
             AddPlacement(root,plug,"PLUG controls",new Vector3(-.95f,.75f,-.55f),"Use with your avatar SOCKET. Enable SPS OSC. Watch actual OGB values in Sensa.");
             AddPlacement(root,socket,"SOCKET controls",new Vector3(.95f,.75f,-.55f),"Use with your avatar PLUG. Pickup or LEFT/RIGHT, PLACE to leave here.");
             var board=FunctionalLab.Board(root,"Your avatar SPS instructions",new Vector3(0,2,.4f),
-                "NATIVE SPS - TRY YOUR OWN AVATAR\nAmber: world plug -> your avatar socket\nBlue frame: world socket -> your avatar plug\nOpen avatar SPS / OGB_ENABLED, then use the matching preset.\nStart separated to learn length. Aligned 10 cm / 20 cm is ~50%.\nMove sideways to see radial-depth error. World contacts may reach both Self/Others.\nWorld labels are geometry hints, NOT OSC acknowledgements.\nCheck actual received OGB parameters in Sensa. HOME resets props.\nProbe P1..P8 elsewhere are sensor inputs, NOT output axes.");board.fontSize=38;
+                "NATIVE SPS - TRY YOUR OWN AVATAR\nAmber: world plug -> your avatar socket\nBlue frame: world socket -> your avatar plug\nEnable SPS and the avatar SPS OSC toggle, then load the preset.\nAt the band the plug is halfway in. SPS3 DepthOthers reports proximity.\nMove sideways to see radial-depth error. World contacts may reach both Self/Others.\nWorld labels are geometry hints, NOT OSC acknowledgements.\nCheck actual received OGB parameters in Sensa. HOME resets props.\nProbe P1..P8 elsewhere are sensor inputs, NOT output axes.");board.fontSize=38;
         }
     }
 }

@@ -15,8 +15,33 @@ using VRC.SDK3.Dynamics.Contact.Components;
 using VRC.SDK3.Dynamics.PhysBone.Components;
 using VRC.SDKBase.Editor.BuildPipeline;
 
+[assembly: nadena.dev.ndmf.ExportsPlugin(typeof(SensaAvatarLab.LabOgbMenuPlugin))]
+
 namespace SensaAvatarLab
 {
+    // Modular Avatar builds menus before VRCFury creates the native OGB gate.
+    // Declare it on the build clone so the installed menu keeps a writable parameter.
+    public sealed class LabOgbMenuPlugin : nadena.dev.ndmf.Plugin<LabOgbMenuPlugin>
+    {
+        public override string QualifiedName => "top.sealoong.sensa.lab-ogb-menu";
+        public override string DisplayName => "Sensa Lab SPS OSC";
+        protected override void Configure()
+        {
+            InPhase(nadena.dev.ndmf.BuildPhase.Generating).BeforePlugin("nadena.dev.modular-avatar")
+                .Run("Bind the lab SPS OSC toggle", context =>
+                {
+                    var avatar = context.AvatarRootObject;
+                    var host = avatar.transform.Find("Lab OSC enable");
+                    var installer = host == null ? null : host.GetComponent<ModularAvatarMenuInstaller>();
+                    if (installer == null || installer.menuToAppend == null ||
+                        !AssetDatabase.GetAssetPath(installer.menuToAppend).StartsWith("Assets/SensaAvatarLab/", StringComparison.Ordinal)) return;
+                    string name = AvatarCapabilities.OgbEnableParameter;
+                    if (!avatar.GetComponentsInChildren<ModularAvatarParameters>(true).Any(config => config.parameters.Any(p => p.nameOrPrefix == name)))
+                        SensaSensorUtility.Parameter(host.gameObject, name, ParameterSyncType.Bool);
+                });
+        }
+    }
+
     public static class AvatarCapabilities
     {
         const string Root="Assets/SensaAvatarLab/Capabilities";
@@ -83,11 +108,39 @@ namespace SensaAvatarLab
             }
             AvatarLabLocalization.SaveAssets();EditorSceneManager.OpenScene(Root+"/Contact.unity");
         }
+        internal static string OgbEnableParameter
+        {
+            get
+            {
+                var service = Type("VF.Service.BakeHapticVersionsService");
+                var version = service.GetField("LocalVersion", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+                return (int)version.GetRawConstantValue() >= 11 ? "OGB/Enabled" : "OGB_ENABLED";
+            }
+        }
+
+        [MenuItem("Tools/Sensa Avatar Lab/Refresh SPS OSC controls for installed VRCFury")]
+        public static void RefreshOgbControls()
+        {
+            AvatarLab.PrepareTests();
+            string parameter = OgbEnableParameter;
+            foreach (string id in AssetDatabase.FindAssets("t:VRCExpressionsMenu", new[] { "Assets/SensaAvatarLab" }))
+            {
+                var menu = AssetDatabase.LoadAssetAtPath<VRCExpressionsMenu>(AssetDatabase.GUIDToAssetPath(id));
+                foreach (var control in menu.controls.Where(c => c.parameter != null &&
+                    (c.parameter.name == "OGB_ENABLED" || c.parameter.name == "OGB/Enabled") && c.parameter.name != parameter))
+                {
+                    control.parameter.name = parameter;
+                    EditorUtility.SetDirty(menu);
+                }
+            }
+            AssetDatabase.SaveAssets();
+        }
+
         static void OgbMenu(GameObject avatar,string name)
         {
             if(avatar.transform.Find("Lab OSC enable")!=null)return;
             string path=Root+"/"+name+"OgbMenu.asset";var menu=AssetDatabase.LoadAssetAtPath<VRCExpressionsMenu>(path);
-            if(menu==null){menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text("Enable SPS OSC (local)"),type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name="OGB_ENABLED"},value=1});AssetDatabase.CreateAsset(menu,path);}
+            if(menu==null){menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text("Enable SPS OSC (local)"),type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=OgbEnableParameter},value=1});AssetDatabase.CreateAsset(menu,path);}
             var host=Child(avatar.transform,"Lab OSC enable",Vector3.zero);host.gameObject.AddComponent<ModularAvatarMenuInstaller>().menuToAppend=menu;
         }
         public static void UpgradeOgbMenus()
@@ -187,12 +240,12 @@ namespace SensaAvatarLab
                     var parameters=clone.GetComponent<VRCAvatarDescriptor>().expressionParameters.parameters.Select(p=>p.name).ToArray();
                     var row=new Row{name=name,contacts=receivers.Length+senders.Length,sensaReceivers=receivers.Count(r=>r.parameter!=null&&r.parameter.StartsWith("Sensa/")),pbHandles=handles.Length,parameters=parameters,contactParameters=receivers.Select(r=>r.parameter).Where(p=>!string.IsNullOrEmpty(p)).Distinct().ToArray()};
                     row.passed=row.contacts<=256 && handles.All(b=>b.allowGrabbing==VRCPhysBoneBase.AdvancedBool.True&&b.allowCollision==VRCPhysBoneBase.AdvancedBool.False&&b.colliders.Count==0&&b.radius>0&&b.GetComponentsInChildren<Collider>().Length==0);
-                    if(name.StartsWith("SPS")) {row.selfSpsTagsMatch=receivers.Any(r=>r.parameter!=null&&r.parameter.EndsWith("/PenSelfNewRoot")&&r.allowSelf&&senders.Any(s=>s.collisionTags.Intersect(r.collisionTags).Any()));row.passed&=row.selfSpsTagsMatch;}
+                    if(name.StartsWith("SPS")) {row.selfSpsTagsMatch=receivers.Any(r=>r.parameter!=null&&(r.parameter.EndsWith("/PenSelfNewRoot")||r.parameter.EndsWith("/DepthSelf"))&&r.allowSelf&&senders.Any(s=>s.collisionTags.Intersect(r.collisionTags).Any()));row.passed&=row.selfSpsTagsMatch;}
                     if(name=="Contact" || name.StartsWith("SPS")) row.passed &= clone.GetComponent<VRCAvatarDescriptor>().expressionParameters.parameters.Any(p=>p.name=="Sensa/Lab/Fixture" && p.networkSynced);
                     if(name=="Contact")row.passed&=row.sensaReceivers==4&&handles.Length==0;
                     if(name=="PB")row.passed&=row.sensaReceivers==0&&handles.Length==1;
                     if(name=="PBContact")row.passed&=row.sensaReceivers==4&&handles.Length==1;
-                    if(name=="SPS"||name=="SPSShader")row.passed&=row.sensaReceivers==0 && clone.GetComponentsInChildren<Renderer>(true).Any(r=>r.sharedMaterials.Any(m=>m!=null&&m.shader.name=="Hidden/VRCFury/SpsResolver"));
+                    if(name=="SPS"||name=="SPSShader")row.passed&=row.sensaReceivers==0 && (AvatarLab.HasSpsRendererContacts(clone) || clone.GetComponentsInChildren<Renderer>(true).Any(r=>r.sharedMaterials.Any(m=>m!=null&&m.shader.name=="Hidden/VRCFury/SpsResolver")));
                     if(name=="SPSContact")row.passed&=row.sensaReceivers==12;
                     if(name=="Shader")
                     {

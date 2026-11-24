@@ -8,7 +8,9 @@ Open `Assets/SensaAvatarLab/Generated/FullFlow.unity`. It combines the licensed 
 
 **Sensa Test Props** groups Home/reset, Left hand, Right hand and Place in world. Move a prop with a hand, place it, then move relative to it. Placement mode, guide visibility and Lab measurement selection sync to peers and reset on avatar reload. Place in world freezes the pose on each client when it receives the switch. Moving during placement and joining late can produce different frozen coordinates. Visibility changes helpers, not measurement or input permission.
 
-Native SPS/prop activation, **SPS OSC** (OGB_ENABLED), **Measure plug / Measure this socket**, shader selection and desktop input are independent controls. Menus use the author's generated language; English names here identify the stable fixture operation.
+Native SPS/prop activation, **SPS OSC** (`OGB/Enabled` in OGB v11, `OGB_ENABLED` in v10), **Measure plug / Measure this socket**, shader selection and desktop input are independent controls. Menus use the author's generated language; English names here identify the stable fixture operation.
+
+After updating VRCFury, run **Tools → Sensa Avatar Lab → Refresh SPS OSC controls for installed VRCFury** to update the existing menu assets.
 
 White Socket centers and +Z show entry/inward direction. Root/Tip/Side are paired reference landmarks. Helper P1–P4 and C1–C8 belong to independent Point/Pose experiments with A0-based fields. They are **not** SPS four-anchor tracking P0–P3, TCode auxiliary axes, or a visualization of Contact radius. SPS four-anchor tracking parameters must be inspected as their own protocol.
 
@@ -21,7 +23,7 @@ Start Sensa with no outputs and input off. Apply OSC mode, enable receiving and 
 | Route | Avatar/world operation | Inspect |
 | --- | --- | --- |
 | PB | Place reference, grab/stretch/release the white handle | Actual Stretch plus IsGrabbed gate; scalar PB needs no XYZ |
-| Native SPS | Activate SPS and OGB_ENABLED; move an enabled Plug against a Socket | Actual Self/Others paths; root/paired length channel before saturation, then radial estimate |
+| Native SPS | Activate SPS and **SPS OSC**; move an enabled Plug against a Socket | Observe the actual Self/Others paths. SPS3 DepthOthers reports proximity from 0 to 1. For legacy paired contacts, start separated to learn plug length. |
 | SPS four-anchor tracking | Select your own root measurement | `Sensa/SPS/<id>/P0…P3` and changing `Sample`; Avatar-root coordinates |
 | Independent local/Pose | Move relative to the chosen reference, or use matching LabPair landmarks | Separate experimental estimate, oldest-channel freshness; no default motion permission |
 | Synthetic shader | Enable code, corrupt CRC, freeze/disable | Diagnostic Frame/XYZ/Valid transport; not an SPS measurement |
