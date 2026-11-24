@@ -8,21 +8,16 @@ Configuration templates live in the preset selector under **Mapping & transforms
 
 A mapping preset fills common paths and motion roles so you can build a mapping quickly. Choose the matching Avatar feature, select its live source, capture your input endpoints and save. The rows remain editable for your own paths, direction, range and conditions.
 
-For a standard OSR, Follow depth and Gentle start drive only the main axis (L0). For a device with vibration, choose a vibration option under More presets.
+On a standard OSR, the main axis (L0) follows forward and backward travel. Under **How is forward and backward movement measured?**, choose whose motion to follow and the setup you have. Replace or append the draft, review the travel and save.
 
-Select the **Motion response** first, then **Avatar setup**. Both depth responses offer the same five setups. Switching responses retains the selected setup. Replace or append the draft to load the selected mappings.
+| Motion | Installed setup | What happens during sideways motion |
+| --- | --- | --- |
+| Relative motion between avatars | Both avatars use SPS and only depth is available | Sideways movement can change the spherical contact reading and make the axis retreat. |
+| Relative motion between avatars | My Contact receiver reports advanced position and the partner has a matching sender | Align receiver Z with the entrance to hold depth during sideways motion. |
+| Relative motion between avatars | I have a Pose Socket and my partner has its matching Pose Plug | Depth can remain steady inside the aperture. Leaving the aperture ends engagement. |
+| A point on my own avatar | I installed Sensa four-anchor tracking or set up Contact self tracking with Sensa | The main axis follows displacement along avatar-root Z. Use a Tracking Frame for an entrance that turns independently. |
 
-- **Follow depth** uses a linear response. Holding depth holds the target; half travel produces half travel.
-- **Gentle start** follows the same depth. The first 20% of the default range holds the start position, then travel increases quadratically. At 60% of the default range, the target reaches about 25%. Adjust the input start to choose where feedback begins.
-
-| Available setup | How it measures the same movement |
-| --- | --- |
-| SPS depth only | Proximity estimates forward travel. Sideways motion can also appear as retreat. |
-| Advanced Contact position | Receiver-local Z rejects sideways displacement. Align Z with the entrance and set both rows to the same receiver. |
-| Sensa four-anchor or Contact self tracker | Measures a target on your own avatar along avatar-root Z. A Tracking Frame provides a moving plane for an entrance that turns independently. |
-| Paired Pose Socket and Pose Plug | Measures insertion relative to the entrance. Engagement ends outside the aperture or tilt limits. |
-
-Sensa self tracking and paired pose require experimental spatial input. Touch, speed, combined outputs, parameter examples and saved presets are under **More presets**.
+Sensa tracking requires experimental spatial input. For a gentler response near the start of travel, select the ease-in mapping curve or adjust the input start under the main axis mapping’s range settings. More presets contains vibration, generic parameter mappings and custom presets.
 
 | Template ID | Purpose | Default destination |
 | --- | --- | --- |

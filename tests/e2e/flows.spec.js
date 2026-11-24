@@ -1,4 +1,4 @@
-import { test, expect, text, card, enable, mode, active, workspace, oscWorkspace, expand, allowSpatial, checkpoint, checkpointViewport, outputValue } from './fixtures.js';
+import { test, expect, text, card, enable, mode, active, workspace, oscWorkspace, selectMappingPreset, expand, allowSpatial, checkpoint, checkpointViewport, outputValue } from './fixtures.js';
 import { pointSamples, poseSamples, ports } from './mocks.js';
 import { assertCalibrationAlignment } from './ui-quality.js';
 import { readFile } from 'node:fs/promises';
@@ -186,8 +186,7 @@ test.describe('modern OGB SPS', () => {
   test('modern Socket preset uses NewRoot and NewTip for radial learning', { tag: ['@osc','@transport','@visual'] }, async ({ page, rig }) => {
     await enable(page, ['Mock UDP']); await mode(page, 'OSC');
     await oscWorkspace(page, '映射');
-    await page.getByLabel(await text(page, '动作效果'), { exact: true }).selectOption('follow');
-    await page.locator('#mapping-preset-variant').selectOption('ogb-depth');
+    await selectMappingPreset(page, 'ogb-depth');
     await page.getByRole('button', { name: '替换草稿', exact: true }).click();
     await expect(page.getByText('未保存', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();

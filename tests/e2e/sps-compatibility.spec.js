@@ -1,7 +1,7 @@
 import dgram from 'node:dgram';
 import { once } from 'node:events';
 import contract from '../runtime/fixtures/sps-beta-ogb-contract.json' with { type: 'json' };
-import { test, expect, text, enable, mode, active, oscWorkspace, outputValue } from './fixtures.js';
+import { test, expect, text, enable, mode, active, oscWorkspace, selectMappingPreset, outputValue } from './fixtures.js';
 import { oscPacket, ports } from './mocks.js';
 
 // SPS3's public/_nothips compatibility Senders retain the legacy OGB geometry.
@@ -37,8 +37,7 @@ async function saveMapping(page, rig, path) {
 
 async function applyDepthPreset(page, rig) {
   await oscWorkspace(page, '映射');
-  await page.getByLabel(await text(page, '动作效果'), { exact: true }).selectOption('follow');
-    await page.locator('#mapping-preset-variant').selectOption('ogb-depth');
+  await selectMappingPreset(page, 'ogb-depth');
   await page.getByRole('button', { name: await text(page, '替换草稿'), exact: true }).click();
   const row = page.locator('.mapping-row');
   await expect(row).toHaveCount(1);
