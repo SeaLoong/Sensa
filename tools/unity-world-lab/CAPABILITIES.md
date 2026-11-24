@@ -31,6 +31,18 @@
 
 与另一位玩家的 Pose Plug 配对前，再按一次 EXTRA MARKERS 关闭世界三点，避免同通道多个 Plug。06／07 保留为 Shader 传输与模型诊断。
 
+### 08 号台逐轴验收
+
+穿上 **PresetBench**，可直接使用预设里的 `MyContact`、`MyPB`、`Main/Others`、`Root` 和 `Depth`。打开 EXTRA MARKERS，把棒尖朝向胸前方框内侧，棒身中环对准框心，松手并按 CAPTURE。保持头像位置和朝向，先在 Sensa 观察输入与轴预览。每次从 CENTER 开始，同一个按钮按一次到正端，再按一次到负端，每段移动 0.6 秒。重新拿棒、放置或 HOME 后要再次 CAPTURE。
+
+| 选用预设 | 操作与预期 |
+| --- | --- |
+| `native-contact-xyz`、`native-contact-axial` | Z 前后 4 cm 对应 L0，Y、X 各 2 cm 对应 L1、L2。中环对准时尖端在接收器内约 10 cm。关闭 EXTRA MARKERS，检查 SenderType 门控。 |
+| `pose-osr2`、`pose-six-axis`、`pose-aligned-depth` | 允许实验空间输入。Z、Y、X 对应 L0、L1、L2；ROLL、YAW、PITCH 各绕框心转 15°，对应 R0、R1、R2。三轴 OSR2 只看 Z、YAW、PITCH。对准框心时转动应保持约一半深度。 |
+| `self-four-anchor-xyz`、`self-contact-xyz` | 打开头像 Preset bench → Root XYZ。中心为头像根坐标 (0, 1, 0)，按 Y±、Z±、X± 各移动 10 cm，分别检查 L0、L1、L2。方块跟随被测点，两种预制件测同一个目标。 |
+| `native-pb-stretch`、`osc-l0` | 拉住圆球并松手，检查 MyPB_Stretch 和 MyPB_IsGrabbed。Depth / L0 旋钮单独提供 0～1 的通用 OSC 输入。 |
+| `sps-limited`、`ogb-depth` | 换穿 FullFlow、启用 SPS OSC，使用同一根测试棒和同一零位，比较同深度横移时的主轴变化。 |
+
 ## 已知几何参考
 
 独立 Point fixture 使用半径 0.001 的 Sender、半径 2 的 Receiver，以及各轴偏移 ±0.35 的四面体布局。生成器和解码器共同读取 `SensaPoseProtocol`；数值以当前场景的实际接近值为准。该场景围绕独立参考对象布局，不使用 SPS 四点定位 的 AvatarRootLocal 坐标或 Sample 计数。

@@ -271,6 +271,9 @@ namespace SensaAvatarLab
         [MenuItem("Tools/Sensa Avatar Lab/Build FullFlow with SDK (no upload)")]
         public static void BuildFullFlowWithSdk() => BuildSceneWithSdk(FullFlowAvatar.Scene, "FullFlow", "sdk-full-flow-build");
 
+        [MenuItem("Tools/Sensa Avatar Lab/Build preset axis bench with SDK (no upload)")]
+        public static void BuildPresetBenchWithSdk() => BuildSceneWithSdk(PresetBench.Scene, "PresetBench", "sdk-preset-bench-build");
+
         private static async void BuildSceneWithSdk(string scenePath, string variant, string reportName)
         {
             PrepareBatchMode();
@@ -292,6 +295,7 @@ namespace SensaAvatarLab
                 File.Copy(bundle, destination, true);
                 if (variant == "QuickStart") QuickStartAvatar.InspectBundle();
                 if (variant == "FullFlow") FullFlowAvatar.InspectBundle();
+                if (variant == "PresetBench") PresetBench.InspectBundle();
                 File.WriteAllText(report + ".json", "{\"passed\":true,\"uploaded\":false,\"bundle\":\"" + destination + "\"}");
                 if (File.Exists(report + "-error.txt")) File.Delete(report + "-error.txt");
                 success = true;

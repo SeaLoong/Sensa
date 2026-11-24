@@ -30,6 +30,7 @@ Editor menu paths remain stable English IDs for automation. Generated Avatar men
 
 | Scene | Purpose |
 | --- | --- |
+| PresetBench/PresetBench.unity | **Create preset axis bench** (Avatars and Base SDK 3.10.6+). Wear it for [case 08](../unity-world-lab/CAPABILITIES.en.md#case-08-axis-checks). The shared Root XYZ menu moves both trackers, the frame receives Contact and Pose, and the ball is a grabbable PhysBone. |
 | Generated/FullFlow.unity | [Integrated interaction route](FULL-FLOW.en.md) |
 | Generated/Exclusive.unity | One selected measurement target, initially Off |
 | Generated/Dedicated.unity | Simultaneous independent measurements; select an exact source in Sensa |

@@ -139,6 +139,33 @@ namespace SensaLab
             ValidatePresetRoutes();
         }
 
+        static readonly string[] AxisActions = { "CaptureCenter", "Center", "Depth", "Surge", "Sway", "Roll", "Yaw", "Pitch" };
+        static readonly string[] AxisLabels = { "CAPTURE", "CENTER", "Z / L0", "Y / L1", "X / L2", "ROLL / R0", "YAW / R1", "PITCH / R2" };
+
+        static void ConfigureAxisControls(Transform area)
+        {
+            var placement = area.Find("PLUG controls").GetComponent<LabPlacement>();
+            var panel = area.Find("Axis controls") ?? Child(area, "Axis controls", new Vector3(-.95f, .55f, -.85f));
+            for (int i = 0; i < AxisActions.Length; i++)
+            {
+                var node = panel.Find(AxisActions[i]);
+                if (node == null)
+                {
+                    node = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+                    node.name = AxisActions[i];
+                    node.SetParent(panel, false);
+                }
+                node.localPosition = new Vector3((i % 4 - 1.5f) * .26f, 0, -(i / 4) * .24f);
+                node.localScale = new Vector3(.23f, .09f, .10f);
+                node.GetComponent<Renderer>().sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>(Root + "/Control" + i % 4 + ".mat");
+                var button = node.GetComponent<LabPlacementButton>() ?? UdonSharpUndo.AddComponent<LabPlacementButton>(node.gameObject);
+                button.placement = placement;
+                button.action = AxisActions[i];
+                UdonSharpEditorUtility.CopyProxyToUdon(button);
+                Label(panel, AxisActions[i] + " label", node.localPosition + new Vector3(0, .07f, -.05f), AxisLabels[i], Color.white, .007f);
+            }
+        }
+
         static void ConfigurePresetRoutes(Transform area)
         {
             foreach (var station in UnityEngine.Object.FindObjectsOfType<CapabilityStation>())
@@ -167,6 +194,17 @@ namespace SensaLab
                 UnityEngine.Object.DestroyImmediate(light.GetComponent<Collider>());
                 light.GetComponent<Renderer>().sharedMaterial = Material("PresetSwitch", ProbeColor(4));
             }
+            if (markers.Find("Midpoint band") == null)
+            {
+                var band = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                band.name = "Midpoint band";
+                band.transform.SetParent(markers, false);
+                band.transform.localPosition = Vector3.forward * .10f;
+                band.transform.localRotation = Quaternion.Euler(90, 0, 0);
+                band.transform.localScale = new Vector3(.035f, .003f, .035f);
+                UnityEngine.Object.DestroyImmediate(band.GetComponent<Collider>());
+                band.GetComponent<Renderer>().sharedMaterial = Material("PresetSwitch", ProbeColor(4));
+            }
             markers.gameObject.SetActive(false);
             var button = area.Find("Extra marker switch");
             if (button == null)
@@ -182,15 +220,18 @@ namespace SensaLab
             toggle.target = markers.gameObject;
             UdonSharpEditorUtility.CopyProxyToUdon(toggle);
             Label(area, "Extra marker label", button.localPosition + Vector3.up * .12f, "EXTRA MARKERS", Color.white, .009f);
+            ConfigureAxisControls(area);
             const string title = "Preset routes";
             string instructions = "ONE PLUG / THREE RECEIVER SETUPS\n"
-                + "SPS: ogb-depth. Approach on axis, then move sideways at the same depth.\n"
+                + "SPS: sps-limited / ogb-depth. Approach on axis, then move sideways at the same depth.\n"
                 + "EXTRA MARKERS adds a tip Contact and three LabPair pose markers.\n"
                 + "Contact: match SensaLabContact on your Avatar receiver (SDK 3.10.6+).\n"
                 + "Try native-contact-axial, then native-contact-separation. Compare sideways motion.\n"
                 + "Pose: select a FullFlow socket. Load pose-aligned-depth and select its actual path.\n"
                 + "Move through the opening, then out to the side. Check validity in Sensa.\n"
-                + "For your own root tracker, move the Avatar prop against this stationary tip.";
+                + "PresetBench: align the shaft midpoint to the frame, tip inward. CAPTURE, then CENTER between axes.\n"
+                + "Press the same axis twice for + / -. native-contact-xyz | pose-osr2 | pose-six-axis\n"
+                + "Avatar Root steps: self-four-anchor-xyz | self-contact-xyz. Use Home to end the plug test.";
             var board = area.Find(title);
             var text = board == null ? FunctionalLab.Board(area, title, new Vector3(0, 1f, .4f), instructions) : board.GetComponent<Text>();
             text.text = instructions;
@@ -200,9 +241,49 @@ namespace SensaLab
         [Serializable] class PresetRouteReport
         {
             public string unity, poseChannel, tipTag;
-            public int contactReceivers;
+            public int contactReceivers, axisButtons, verifiedAxisStops;
             public float tipDistanceMeters, sideOffsetMeters;
             public bool extraMarkersInitiallyOff;
+        }
+
+        // Exercise the same UdonSharp proxy methods as the buttons on an isolated Transform in EditMode.
+        static int ValidateAxisStops()
+        {
+            var target = new GameObject("EditMode plug");
+            var placement = target.AddComponent<LabPlacement>();
+            try
+            {
+                placement.target = target.transform;
+                var basis = Quaternion.Euler(13, 41, 8);
+                var origin = new Vector3(3, 1, -2);
+                target.transform.SetPositionAndRotation(origin, basis);
+                placement.CaptureCenter();
+                var pivot = origin + basis * Vector3.forward * .10f;
+                var apply = typeof(LabPlacement).GetMethod("ApplyAxis", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                var shifts = new[] { Vector3.forward * .04f, Vector3.up * .02f, Vector3.right * .02f, Vector3.zero, Vector3.zero, Vector3.zero };
+                var angles = new[] { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.forward * 15, Vector3.up * 15, Vector3.left * 15 };
+                for (int i = 0; i < shifts.Length; i++)
+                {
+                    placement.Center();
+                    apply.Invoke(placement, new object[] { 1f });
+                    if (Vector3.Distance(target.transform.position, origin) > .00001f || Quaternion.Angle(target.transform.rotation, basis) > .1f)
+                        throw new InvalidOperationException("Plug did not return to its captured center.");
+                    foreach (int sign in new[] { 1, -1 })
+                    {
+                        typeof(LabPlacement).GetMethod(AxisActions[i + 2]).Invoke(placement, null);
+                        apply.Invoke(placement, new object[] { 1f });
+                        var center = target.transform.TransformPoint(Vector3.forward * .10f);
+                        if (Vector3.Distance(center, pivot + basis * (sign * shifts[i])) > .00001f ||
+                            Quaternion.Angle(target.transform.rotation, basis * Quaternion.Euler(sign * angles[i])) > .1f)
+                            throw new InvalidOperationException("Incorrect plug displacement: " + AxisActions[i + 2]);
+                    }
+                }
+                return shifts.Length * 2;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(target);
+            }
         }
 
         public static void ValidatePresetRoutes()
@@ -227,9 +308,14 @@ namespace SensaLab
                 .SelectMany(station => station.receivers).ToArray();
             if (receivers.Length != 12 || receivers.Any(receiver => receiver.radius != SensaPoseProtocol.ReceiverRadius))
                 throw new InvalidOperationException("Check the three four-receiver capability stations.");
+            var controls = area.Find("Axis controls").GetComponentsInChildren<LabPlacementButton>();
+            if (controls.Length != AxisActions.Length || AxisActions.Any(action => !controls.Any(button =>
+                button.action == action && button.placement.target == markers.parent &&
+                typeof(LabPlacement).GetMethod(action, System.Type.EmptyTypes) != null)))
+                throw new InvalidOperationException("Check the calibrated plug controls.");
             Directory.CreateDirectory("Validation/interaction");
             File.WriteAllText("Validation/interaction/preset-routes.json", JsonUtility.ToJson(new PresetRouteReport {
-                unity = Application.unityVersion, contactReceivers = receivers.Length,
+                unity = Application.unityVersion, contactReceivers = receivers.Length, axisButtons = controls.Length, verifiedAxisStops = ValidateAxisStops(),
                 poseChannel = "LabPair", tipTag = "SensaLabContact", tipDistanceMeters = markers.Find("Tip").localPosition.z,
                 sideOffsetMeters = markers.Find("Side").localPosition.x, extraMarkersInitiallyOff = !markers.gameObject.activeSelf
             }, true));

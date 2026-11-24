@@ -6,8 +6,11 @@ namespace SensaLab
     {
         internal static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>
         {
+            { "PresetBench: align the shaft midpoint to the frame, tip inward. CAPTURE, then CENTER between axes.", "PresetBench：棒身中环对准方框，尖端朝内，按 CAPTURE 记下零位。换轴前按 CENTER。" },
+            { "Press the same axis twice for + / -. native-contact-xyz | pose-osr2 | pose-six-axis", "同一轴按两次测正负方向。native-contact-xyz | pose-osr2 | pose-six-axis" },
+            { "Avatar Root steps: self-four-anchor-xyz | self-contact-xyz. Use Home to end the plug test.", "头像 Root XYZ 菜单：self-four-anchor-xyz 或 self-contact-xyz。HOME 结束测试棒动作。" },
             { "ONE PLUG / THREE RECEIVER SETUPS", "一根测试棒，三种接收方式" },
-            { "SPS: ogb-depth. Approach on axis, then move sideways at the same depth.", "SPS：选 ogb-depth。沿轴靠近，再保持深度左右平移。" },
+            { "SPS: sps-limited / ogb-depth. Approach on axis, then move sideways at the same depth.", "SPS：选 sps-limited 或 ogb-depth。沿轴靠近，再保持深度左右平移。" },
             { "EXTRA MARKERS adds a tip Contact and three LabPair pose markers.", "额外标记开关启用尖端 Contact 和 LabPair 三个姿态点。" },
             { "Contact: match SensaLabContact on your Avatar receiver (SDK 3.10.6+).", "Contact：在头像接收器匹配 SensaLabContact 标签（SDK 3.10.6+）。" },
             { "Try native-contact-axial, then native-contact-separation. Compare sideways motion.", "先用 native-contact-axial，再用 native-contact-separation，对照横移时的读数。" },

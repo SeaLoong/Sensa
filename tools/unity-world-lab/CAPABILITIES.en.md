@@ -31,6 +31,18 @@ Replace one axis-mapping draft at a time. Match the actual Avatar instance, pref
 
 Toggle EXTRA MARKERS off before pairing with another player's Pose Plug to avoid competing markers on the same channel. Stations 06/07 cover Shader transport and model diagnostics.
 
+### Case 08 axis checks
+
+Wear **PresetBench** to use the catalog paths `MyContact`, `MyPB`, `Main/Others`, `Root` and `Depth` as supplied. Enable EXTRA MARKERS, point the tip into the frame on the front of the avatar, align the shaft's midpoint band with the center of the frame, release it and press CAPTURE. Keep the avatar still and watch the Sensa input and axis previews. Start each axis from CENTER. Press the same button once for positive, again for negative. Travel takes 0.6 seconds. Capture again after picking up, placing or resetting the plug.
+
+| Presets | Action and expected observation |
+| --- | --- |
+| `native-contact-xyz`, `native-contact-axial` | Z moves 4 cm for L0, Y and X move 2 cm for L1 and L2. At center the tip is about 10 cm inside the receiver. Disable EXTRA MARKERS to check the SenderType gate. |
+| `pose-osr2`, `pose-six-axis`, `pose-aligned-depth` | Enable experimental spatial input. Z, Y, X drive L0, L1, L2. ROLL, YAW and PITCH rotate 15° about the opening for R0, R1 and R2. OSR2 uses Z, YAW and PITCH. When centered, rotation should preserve half insertion. |
+| `self-four-anchor-xyz`, `self-contact-xyz` | On the avatar, open Preset bench → Root XYZ. Center is (0, 1, 0) in avatar root coordinates. Move Y±, Z± and X± by 10 cm for L0, L1 and L2. Watch the cube move with the target shared by both trackers. |
+| `native-pb-stretch`, `osc-l0` | Grab, stretch and release the ball to check MyPB_Stretch and MyPB_IsGrabbed. The separate Depth / L0 dial supplies a 0–1 generic OSC input. |
+| `sps-limited`, `ogb-depth` | Switch to FullFlow and enable SPS OSC. Use the same plug and center to compare lateral movement at fixed insertion. |
+
 ## Known-geometry references
 
 The independent Point fixture uses a 0.001-radius Sender, 2-radius Receivers and tetrahedral axis offsets of ±0.35. Its generator and decoder both read `SensaPoseProtocol`; inspect actual proximity readings in the current scene. The layout uses its own reference object, without the SPS four-anchor tracking AvatarRootLocal frame or Sample counter.

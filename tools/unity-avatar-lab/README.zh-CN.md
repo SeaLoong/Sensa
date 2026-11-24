@@ -30,6 +30,7 @@ python -X utf8 scripts/install-avatar-lab.py "<Avatar project>" --tests
 
 | 场景 | 用途 |
 | --- | --- |
+| PresetBench/PresetBench.unity | 通过 **Create preset axis bench** 生成（Avatars 和 Base SDK 3.10.6+）。搭配 [08 号台逐轴验收](../unity-world-lab/CAPABILITIES.md#08-号台逐轴验收)。Root XYZ 菜单同步移动两种定位预制件的目标，方框接收 Contact 和 Pose，圆球可抓取拉伸。 |
 | Generated/FullFlow.unity | [综合交互路线](FULL-FLOW.md) |
 | Generated/Exclusive.unity | 每次一个测量目标，初始关闭 |
 | Generated/Dedicated.unity | 同时独立测量；在 Sensa 固定准确来源 |
