@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, Notice } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { SignalMappingRow } from './configuration-views.jsx';
+import PresetRequirements from './PresetRequirements.jsx';
 import OscFlowStatus from './OscFlowStatus.jsx';
 import { previousMappingSource, routeDependencies, routeStepChoices } from './axis-routes.js';
 import { COMPUTED_SIGNAL_LIMIT, computedOperationOptions } from './computed-signals.js';
@@ -49,6 +50,8 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
         <Button id="append-mapping-preset" onClick={() => onApplyPreset('append')} disabled={!selectedOscPresetConfig}>{t('追加草稿')}</Button>
       </div>
     </div>
+    {selectedOscPresetConfig?.description && <p className="caption muted">{selectedOscPresetConfig.description}</p>}
+    {selectedOscPresetConfig?.isBuiltIn && <PresetRequirements profile={selectedOscPresetConfig.requirementProfile} mappings={selectedOscPresetConfig.mappings} />}
     <details className="inline-details">
       <summary>{t('管理预设')}</summary>
       <div className="actions">
@@ -59,7 +62,6 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
         <Button tone="danger" disabled={!selectedOscPresetConfig || selectedOscPresetConfig.isBuiltIn || busy} onClick={onDeletePreset}>{t('删除预设')}</Button>
       </div>
     </details>
-    {selectedOscPresetConfig?.description && <p className="caption muted">{selectedOscPresetConfig.description}</p>}
     <details className="workflow-details"><summary>{t('映射检查')}</summary>
       <OscFlowStatus mappings={savedMappings} drafts={signalDrafts} dirty={hasUnsavedMappings} runtime={runtime}
         mode={actualInputMode} listening={listening} />

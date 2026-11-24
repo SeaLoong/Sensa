@@ -389,6 +389,11 @@ progress::-moz-progress-bar { background: var(--accent); }
 
 /* OSC forms, data table and forwarding rows. */
 .osc-workspace { margin-top: 24px; }
+.preset-requirements { font-size: .875rem; }
+.preset-requirements h4 { margin: 0; }
+.preset-requirements dl { display: grid; grid-template-columns: fit-content(30%) minmax(0, 1fr); gap: 4px 12px; margin: 6px 0; }
+.preset-requirements dt { font-weight: 600; }
+.preset-requirements dd { margin: 0; overflow-wrap: anywhere; }
 .preset-strip { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
 .preset-strip > .field { flex: 1 1 280px; min-width: min(100%, 280px); }
 .inline-details > summary { width: fit-content; }

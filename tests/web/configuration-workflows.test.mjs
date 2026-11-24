@@ -30,7 +30,7 @@ test('profile lifecycle keeps one default and repairs output references without 
 
 test('all built-ins round-trip as independent drafts; custom presets preserve built-ins / 内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
   const source = initial(), builtIns = getOscMappingPresets(source);
-  assert.equal(builtIns.length, 20);
+  assert.equal(builtIns.length, 19);
   assert.equal(builtIns[0].id, 'sps-limited');
   assert.partialDeepStrictEqual(builtIns.find(preset => preset.id === 'osc-l0').mappings, [{ sourceMode: 'Direct', oscPath: 'Depth', role: 'Depth', vrchatMin: 0, vrchatMax: 1, mappedMin: 0, mappedMax: 999 }]);
   for (const preset of builtIns) {
@@ -125,8 +125,8 @@ test('shipped spatial scenarios route calibrated samples from the configured ins
   const presets = getOscMappingPresets(initial());
   for (const [id, samples, instance, example, expected] of [
     ['self-four-anchor-axial', fixedRootSamples(.1, .5), 'CIFixedRoot', 'Root', { L0: .5 }],
-    ['self-contact-stroke', contactRootSamples(.1, .5, true, { velocityZ: .3 }), 'CIContactRoot', 'Root', { L0: .5, V0: .3 }],
-    ['self-contact-stroke', contactRootSamples(.1, .5, true, { velocityZ: -.3 }), 'CIContactRoot', 'Root', { L0: .5, V0: 0 }],
+    ['contact-position', contactRootSamples(.1, .5), 'CIContactRoot', 'Root', { L0: .5 }],
+    ['contact-speed', contactRootSamples(.1, .5, true, { velocityZ: -.3 }), 'CIContactRoot', 'Root', { V0: .3 }],
     ['pose-six-axis', poseSamples(), 'Demo', 'Main', { L0: .5, L1: .5, L2: .75, R0: .5, R1: .5, R2: .5 }],
     ['pose-osr2', poseSamples(), 'Demo', 'Main', { L0: .5, R1: .5, R2: .5 }],
     ['self-four-anchor-xyz', fixedRootSamples(.06, .5), 'CIFixedRoot', 'Root', { L0: .5, L1: .8, L2: .6 }],

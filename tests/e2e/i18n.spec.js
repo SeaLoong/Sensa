@@ -154,9 +154,19 @@ test('English presets, script and compact help use localized documentation', {ta
   await selectMappingPreset(page, 'native-contact-axial');
   await expect(presets.locator('optgroup[label="Recommended presets"] option[value="native-contact-axial"]')).toHaveCount(1);
   await expect(presets.locator('optgroup[label="Standard presets"] option[value="pose-six-axis"]')).toHaveCount(1);
+  const conditions = page.getByTestId('axis-mappings-panel').getByTestId('preset-requirements');
+  await expect(conditions).toContainText('SenderLocalPosition');
+  await expect(conditions).toContainText('matching the receiver tags');
+  await selectMappingPreset(page, 'pose-osr2');
+  await expect(conditions).toContainText('receiveOthers');
+  await expect(conditions).toContainText('L0 / R1 / R2');
   await presets.selectOption({ label: 'Hold depth during sideways movement · Following plane…' });
   const plane = page.getByTestId('computed-spatial-presets');
   await expect(plane).toHaveJSProperty('open', true);
+  await plane.getByLabel(await text(page, '平面定位方式')).selectOption('Shader');
+  await expect(plane.getByTestId('preset-requirements')).toContainText('select both tiles');
+  await plane.getByLabel(await text(page, '平面定位方式')).selectOption('Markers');
+  await expect(plane.getByTestId('preset-requirements')).toContainText('Tracking Frame');
   await plane.getByLabel(await text(page, '测量对象路径'), { exact: true }).fill('Sensa/Contact/Target/**');
   await plane.getByLabel(await text(page, '平面参考对象路径'), { exact: true }).fill('Sensa/Contact/Guide_Origin/**');
   await plane.getByRole('button', { name: await text(page, '将平面深度设为 L0（替换主轴草稿）'), exact: true }).click();
@@ -168,7 +178,7 @@ test('English presets, script and compact help use localized documentation', {ta
     ['native-contact-separation', 'Contact point separation → L0', 'PointSeparation'],
     ['native-contact-axial', 'Hold depth during sideways movement · Advanced Contact', 'SenderLocalPositionZ'],
     ['native-contact-speed', 'Contact relative speed → V0 (vibration output)', 'SenderVelocityMagnitude'],
-    ['native-contact-approach', 'Native Contact · Vibration on approach', 'ProximitySpeed'],
+    ['native-contact-approach', 'Contact approach rate → V0 (vibration output)', 'ProximitySpeed'],
   ]) {
     await selectMappingPreset(page, id);
     await expect(presets.locator(`option[value="${id}"]`)).toHaveText(name);

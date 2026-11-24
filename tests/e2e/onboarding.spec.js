@@ -396,7 +396,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await unchanged(page, rig, initial);
         const setups = await variants.locator('option').allTextContents();
         expect(setups).toContain(await text(page, 'Pose 三轴 → L0/R1/R2（OSR2）'));
-        await attachState(page, info, 'scene-preset-library', { locale, groups: await variants.locator('optgroup').evaluateAll(groups => groups.map(group => group.label)), setups, selectedPreset: 'ogb-depth', draftOnly: true }, library);
+        await attachState(page, info, 'scene-preset-library', { locale, requirements: await library.getByTestId('preset-requirements').innerText(), groups: await variants.locator('optgroup').evaluateAll(groups => groups.map(group => group.label)), setups, selectedPreset: 'ogb-depth', draftOnly: true }, library);
         await library.getByRole('button', { name: await text(page, '替换草稿'), exact: true }).click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.locator('.mapping-row')).toHaveCount(1);
