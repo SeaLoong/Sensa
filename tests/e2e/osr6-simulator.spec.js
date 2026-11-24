@@ -18,13 +18,13 @@ test('OSR6 simulator shows manual, mapping and live poses without activating out
   await expect.poll(pixels).toBe(centered);
   await dialog.getByRole('spinbutton',{name:'R2 · 俯仰数值'}).fill('730');
   await dialog.getByRole('spinbutton',{name:'L2 · 左右位移数值'}).fill('640');
-  await info.attach('osr6-manual-pose', {body:await dialog.screenshot(),contentType:'image/png'});
+  await dialog.screenshot({path: `artifacts/preset-interaction/${info.project.name}-manual.png`});
   await dialog.getByRole('tab',{name:'模拟映射'}).click();
   await dialog.getByLabel('试用映射').selectOption('native-contact-axial');
   await dialog.getByRole('slider',{name:'MyContact_SenderLocalPositionX',exact:true}).press('End');
   await expect(dialog.getByTestId('osr6-L2')).toHaveText('560');
   await expect(dialog.getByTestId('osr6-L0')).toHaveText('500');
-  await info.attach('osr6-contact-sway', {body:await dialog.screenshot(),contentType:'image/png'});
+  await dialog.screenshot({path: `artifacts/preset-interaction/${info.project.name}-contact.png`});
   await dialog.getByRole('tab',{name:'实时目标'}).click();
   await expect(dialog.getByRole('status')).toContainText('输出已暂停');
   await dialog.getByRole('button',{name:'关闭',exact:true}).click();
