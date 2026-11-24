@@ -1,3 +1,4 @@
+import PresetRequirements from './PresetRequirements.jsx';
 import React, { useId, useMemo, useState } from 'react';
 import { Button, Field, Toggle } from './ui.tsx';
 import { SelectField } from './controls.jsx';
@@ -33,6 +34,7 @@ export default function ComputedSpatialPresets({ drafts, pointOptions, onAdd, on
           { value: 'Markers', label: t('Tracking Frame · Origin / Forward') },
           { value: 'Shader', label: t('Shader · 位置与 Forward 方向') },
         ]} onChange={next => { setMode(next); setOriginPath(''); }} />
+        <PresetRequirements profile={mode === 'Shader' ? 'frame-shader' : 'frame-markers'} mappings={[{ role: 'Depth' }]} />
         <Field label={t('测量对象路径')} value={pointPath} list={pointList} placeholder="Sensa/Contact/Target/**" onChange={event => setPointPath(event.target.value)} />
         <datalist id={pointList}>{pointOptions.map(point => <option key={point.value} value={point.value}>{point.label}</option>)}</datalist>
         <Field label={t('平面参考对象路径')} value={originPath} list={originList}

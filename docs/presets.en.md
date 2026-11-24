@@ -10,6 +10,8 @@ A mapping preset fills common paths and motion roles so you can build a mapping 
 
 Use **Recommended presets** for interaction scenarios and **Standard presets** for direct axis checks. Selecting an entry shows its description. Replace or append the draft, review the mapping, and save.
 
+Each built-in preset lists requirements for your avatar, your partner, the input features and the output axes. Open Setup instructions for the relevant guide. Standard SPS uses existing haptic parameters, advanced Contact position needs SenderType and SenderLocalPosition from your receiver, and paired pose requires a socket and plug on the same channel. Only V0 mappings require vibration output.
+
 ### Recommended presets
 
 - With SPS alone, limit travel to 300–700 to reduce unintended retreat. A reading that falls from 60% to 50% moves the target by about 40 counts, compared with about 100 over full travel. Intended strokes also become shorter.

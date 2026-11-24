@@ -12,7 +12,8 @@
         "mappedMin": 300,
         "mappedMax": 700
       }
-    ]
+    ],
+    "requirementProfile": "sps"
   },
   {
     "id": "native-contact-axial",
@@ -34,7 +35,8 @@
         "vrchatMin": 0,
         "vrchatMax": 1
       }
-    ]
+    ],
+    "requirementProfile": "position"
   },
   {
     "id": "pose-aligned-depth",
@@ -48,71 +50,8 @@
         "poseMetric": "Depth",
         "role": "Depth"
       }
-    ]
-  },
-  {
-    "id": "native-pb-stretch",
-    "group": "推荐预设",
-    "name": "抓住并拉伸时控制主轴",
-    "description": "自己的 Avatar 会上报 PhysBone 抓取和拉伸时可用。将两行 MyPB 换成同一根骨骼链的参数前缀。抓住后拉得越远，主轴走得越远；松手关闭整组轴映射门控。",
-    "mappings": [
-      {
-        "oscPath": "MyPB_Stretch",
-        "role": "Depth",
-        "vrchatMin": 0,
-        "vrchatMax": 1
-      },
-      {
-        "oscPath": "MyPB_IsGrabbed",
-        "role": "GateEnable"
-      }
-    ]
-  },
-  {
-    "id": "native-contact-approach",
-    "group": "推荐预设",
-    "name": "原生 Contact · 接近时振动",
-    "description": "仅 Proximity 接收器。接近值每秒增加 0～2 → V0；不变或减小时为零。两行使用同一接收器参数名，SenderType 门控作用于整组轴映射。",
-    "mappings": [
-      {
-        "oscPath": "MyContact_ProximitySpeed",
-        "sourceMode": "Direct",
-        "role": "V0",
-        "vrchatMin": 0,
-        "vrchatMax": 2
-      },
-      {
-        "oscPath": "MyContact_SenderType",
-        "sourceMode": "Direct",
-        "role": "GateEnable",
-        "vrchatMin": 0,
-        "vrchatMax": 1
-      }
-    ]
-  },
-  {
-    "id": "self-contact-stroke",
-    "group": "推荐预设",
-    "name": "自身前移带振动，停住时保持位置",
-    "description": "选用 Sensa 脚本配置的 Contact 自身定位。主轴跟随 Avatar 根坐标 Z，只有朝正 Z 移动才增强振动，停住后振动归零。两行 Root 换成同一实例，校准位置与速度，并允许实验空间输入。",
-    "mappings": [
-      {
-        "oscPath": "Sensa/Contact/Root/*",
-        "sourceMode": "SensaPoint",
-        "pointMetric": "Z",
-        "role": "Depth",
-        "vrchatMin": 0,
-        "vrchatMax": 0.2
-      },
-      {
-        "oscPath": "Sensa/Contact/Root/*",
-        "sourceMode": "SensaPoint",
-        "pointMetric": "VelocityZ",
-        "role": "V0",
-        "vrchatMin": 0,
-        "vrchatMax": 1
-      }
-    ]
+    ],
+    "requirementProfile": "pose"
   },
   {
     "id": "ogb-depth",
@@ -125,7 +64,8 @@
         "sourceMode": "OgbDepth",
         "role": "Depth"
       }
-    ]
+    ],
+    "requirementProfile": "sps"
   },
   {
     "id": "native-contact-xyz",
@@ -161,7 +101,8 @@
         "vrchatMin": 0,
         "vrchatMax": 1
       }
-    ]
+    ],
+    "requirementProfile": "position"
   },
   {
     "id": "pose-osr2",
@@ -193,7 +134,8 @@
         "vrchatMin": -65,
         "vrchatMax": 65
       }
-    ]
+    ],
+    "requirementProfile": "pose"
   },
   {
     "id": "pose-six-axis",
@@ -249,7 +191,8 @@
         "vrchatMin": -0.04,
         "vrchatMax": 0.04
       }
-    ]
+    ],
+    "requirementProfile": "pose"
   },
   {
     "id": "native-contact-separation",
@@ -271,7 +214,8 @@
         "vrchatMin": 0,
         "vrchatMax": 1
       }
-    ]
+    ],
+    "requirementProfile": "distance"
   },
   {
     "id": "self-four-anchor-axial",
@@ -287,7 +231,8 @@
         "vrchatMin": 0,
         "vrchatMax": 0.2
       }
-    ]
+    ],
+    "requirementProfile": "four-anchor"
   },
   {
     "id": "self-four-anchor-xyz",
@@ -319,7 +264,8 @@
         "vrchatMin": -0.1,
         "vrchatMax": 0.1
       }
-    ]
+    ],
+    "requirementProfile": "four-anchor"
   },
   {
     "id": "contact-position",
@@ -335,7 +281,8 @@
         "vrchatMin": 0,
         "vrchatMax": 0.2
       }
-    ]
+    ],
+    "requirementProfile": "self-contact"
   },
   {
     "id": "self-contact-xyz",
@@ -367,7 +314,8 @@
         "vrchatMin": -0.1,
         "vrchatMax": 0.1
       }
-    ]
+    ],
+    "requirementProfile": "self-contact"
   },
   {
     "id": "osc-l0",
@@ -380,7 +328,8 @@
         "sourceMode": "Direct",
         "role": "Depth"
       }
-    ]
+    ],
+    "requirementProfile": "direct"
   },
   {
     "id": "ogb-depth-touch",
@@ -398,7 +347,8 @@
         "role": "V0",
         "sourceMode": "OgbTouch"
       }
-    ]
+    ],
+    "requirementProfile": "sps-touch"
   },
   {
     "id": "ogb-touch",
@@ -411,7 +361,8 @@
         "role": "V0",
         "sourceMode": "OgbTouch"
       }
-    ]
+    ],
+    "requirementProfile": "touch"
   },
   {
     "id": "native-contact-speed",
@@ -433,7 +384,8 @@
         "vrchatMin": 0,
         "vrchatMax": 1
       }
-    ]
+    ],
+    "requirementProfile": "speed"
   },
   {
     "id": "contact-speed",
@@ -449,6 +401,49 @@
         "vrchatMin": 0,
         "vrchatMax": 1
       }
-    ]
+    ],
+    "requirementProfile": "self-contact"
+  },
+  {
+    "id": "native-pb-stretch",
+    "group": "标准预设",
+    "name": "PhysBone 拉伸 → L0（抓取时）",
+    "description": "自己的 Avatar 会上报 PhysBone 抓取和拉伸时可用。将两行 MyPB 换成同一根骨骼链的参数前缀。抓住后拉得越远，主轴走得越远；松手关闭整组轴映射门控。",
+    "mappings": [
+      {
+        "oscPath": "MyPB_Stretch",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      },
+      {
+        "oscPath": "MyPB_IsGrabbed",
+        "role": "GateEnable"
+      }
+    ],
+    "requirementProfile": "pb"
+  },
+  {
+    "id": "native-contact-approach",
+    "group": "标准预设",
+    "name": "Contact 接近变化率 → V0（需振动输出）",
+    "description": "仅 Proximity 接收器。接近值每秒增加 0～2 → V0；不变或减小时为零。两行使用同一接收器参数名，SenderType 门控作用于整组轴映射。",
+    "mappings": [
+      {
+        "oscPath": "MyContact_ProximitySpeed",
+        "sourceMode": "Direct",
+        "role": "V0",
+        "vrchatMin": 0,
+        "vrchatMax": 2
+      },
+      {
+        "oscPath": "MyContact_SenderType",
+        "sourceMode": "Direct",
+        "role": "GateEnable",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      }
+    ],
+    "requirementProfile": "approach"
   }
 ]
