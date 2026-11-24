@@ -8,6 +8,10 @@ import { controlReadiness } from '../../src/web/control-workflow.js';
 import { oscWorkflowHints } from '../../src/web/osc-workflow.js';
 import { rankPreview } from '../../src/web/osc-preview.js';
 
+import { RuntimeEngine } from '../../src/core/runtime/runtime.ts';
+import { OscParameterStore } from '../../src/core/protocols/osc.ts';
+import { contactRootSamples } from '../e2e/mocks.js';
+
 const constant = value => ({ sourceMode: 'Constant', value });
 const upstream = { id: 'Blend', name: 'Blend', operation: 'WeightedAverage', inputs: [constant(.2), { ...constant(.8), weight: 3 }], maxAgeMs: 0 };
 const downstream = { id: 'Scaled', name: 'Scaled', operation: 'Product', inputs: [{ sourceMode: 'Computed', oscPath: 'Blend' }, constant(2)], maxAgeMs: 0 };
@@ -163,12 +167,46 @@ test('following-plane templates create bounded references without changing saved
   drafts[4].inputs[0].oscPath = 'Changed'; assert.equal(drafts[3].inputs[0].oscPath, options.pointPath);
   assert.ok(drafts.every(draft => !computedDraftIncomplete(draft)));
   const shader = followingPlaneDrafts([], { ...options, mode: 'Shader', originPath: 'Sensa/Shader/7/**', includeDistance: false });
+  const markersWithSway = followingPlaneDrafts([], { ...options, includeSway: true });
+  const side = markersWithSway.filter(node => node.operation === 'PlaneDepth')[1];
+  for (const input of side.inputs.slice(6)) {
+    const difference = markersWithSway.find(node => node.id === input.oscPath);
+    assert.deepEqual(difference.inputs.map(component => component.oscPath), ['Sensa/Contact/Guide_Right/**', options.originPath]);
+  }
+  const shaderWithSway = followingPlaneDrafts([], { ...options, mode: 'Shader', originPath: 'Sensa/Shader/7/**', includeSway: true });
+  assert.deepEqual(computedVectorBinding(shaderWithSway.filter(node => node.operation === 'PlaneDepth')[1].inputs.slice(6)), { mode: 'Right', path: 'Sensa/Shader/7/**' });
   assert.deepEqual(shader.map(draft => draft.operation), ['PlaneDepth', 'PlaneOffset']);
   assert.deepEqual(computedVectorBinding(shader[0].inputs.slice(6)), { mode: 'Forward', path: 'Sensa/Shader/7/**' });
   for (const originPath of ['', 'Sensa/Contact/Guide/**', 'Sensa/Shader/7/**']) {
     assert.deepEqual(followingPlaneDrafts([], { ...options, originPath }), []);
   }
   assert.deepEqual(followingPlaneDrafts(Array.from({ length: 60 }, (_, index) => ({ id: 'Signal' + index })), options), []);
+});
+
+test('following-plane sway distinguishes opposite offsets at equal depth relative to a rotated entrance', () => {
+  let now = 1000;
+  const store = new OscParameterStore(() => now);
+  const computedSignals = followingPlaneDrafts([], { pointPath: 'Sensa/Contact/Target/**',
+    originPath: 'Sensa/Contact/Guide_Origin/**', includeSway: true });
+  const [depth, sway] = computedSignals.filter(row => row.operation === 'PlaneDepth');
+  const runtime = new RuntimeEngine({ computedSignals, osc: { allowExperimentalSpatialInput: true } },
+    { oscStore: store, now: () => now });
+  const marker = (name, x, z) => {
+    for (const [path, value] of contactRootSamples(z, .5, true, { x, y: 0 }))
+      store.set(path.replace('CIContactRoot', name), value);
+  };
+  marker('Guide_Origin', 0, 0);
+  marker('Guide_Forward', .1, 0);
+  marker('Guide_Right', 0, -.1);
+  for (const offset of [-.03, 0, .03]) {
+    now += 50;
+    marker('Target', .1, -offset);
+    const values = runtime.getComputedSignals();
+    assert.ok(Math.abs(values[depth.id].value - .1) < .0001);
+    assert.equal(values[sway.id].valid, true);
+    assert.ok(Math.abs(values[sway.id].value - offset) < .0001);
+  }
+  runtime.dispose();
 });
 
 test('spatial result labels keep degrees distinct and only show known position units', () => {

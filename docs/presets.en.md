@@ -15,9 +15,11 @@ Each built-in preset lists requirements for your avatar, your partner, the input
 ### Recommended presets
 
 - With SPS alone, limit travel to 300–700 to reduce unintended retreat. A reading that falls from 60% to 50% moves the target by about 40 counts, compared with about 100 over full travel. Intended strokes also become shorter.
-- With advanced Contact position, align receiver Z with the entrance to keep depth steady during sideways motion.
-- With a Tracking Frame or Shader tracker on your own avatar, choose the following-plane entry, select the measured point and entrance reference, then map plane depth to L0 and calibrate both endpoints.
-- With paired Pose Socket and Pose Plug components, follow insertion as the entrance turns. Tracking disengages outside the valid aperture.
+- With advanced Contact position, align receiver Z with the entrance and X with left/right. Depth drives L0 immediately. L2 slowly follows signed sideways movement on devices with a sway axis.
+- With a Tracking Frame or Shader tracker on your own avatar, choose the following-plane entry, select the measured point and entrance reference, then map plane depth to L0 and calibrate both endpoints. Enable sway for an L2 device using the matching Right marker or the shader’s reported Right direction.
+- With paired Pose Socket and Pose Plug components, follow insertion as the entrance turns. L2/L1 gently follow left/right and up/down offsets. R1/R2 follow yaw/pitch. An OSR2 can use L0, R1 and R2. Tracking disengages outside the valid aperture.
+
+Additional recommended axes use 440–560 counts, with a maximum target speed of 100 counts per second. At a fixed Contact depth of 10 cm, offsets of −4 cm, 0 and +4 cm target L2 at 440, 500 and 560. Moving from center to either end takes about 0.6 s with L0 steady near 500. Adjust each mapping under Range and advanced settings. Standard axis checks use full travel with unlimited mapping speed.
 
 ### Standard presets for checking one movement at a time
 

@@ -18,11 +18,11 @@ export class SignalChannelProcessor {
   process(raw:number):number{return this.processSample(raw).output;}
   reset():void{this.observedMin=Infinity;this.observedMax=-Infinity;}
 }
-export interface SignalMixInput {role:SignalRole;value:number;priority?:number;}
+export interface SignalMixInput {role:SignalRole;value:number;priority?:number;maxTravelPerSecond?:number;}
 export function axisForRole(role:SignalRole):MotionAxis|null {
   const axes:Partial<Record<SignalRole,MotionAxis>>={Depth:'L0',Surge:'L1',Sway:'L2',Twist:'R0',AngleX:'R1',AngleY:'R2',V0:'V0',V1:'V1',V2:'V2',Auxiliary:'A0',Auxiliary1:'A1',Auxiliary2:'A2'};return axes[role]??null;
 }
-export function fuseSignals(signals:readonly SignalMixInput[]):Partial<MotionValues> {
+function selectSignals(signals:readonly SignalMixInput[]):Map<SignalRole,SignalMixInput> {
   const selected=new Map<SignalRole,SignalMixInput>();
   for(const input of signals){if(!Number.isFinite(input.value))continue;const old=selected.get(input.role);let choose=!old;
     if(old){const priority=input.priority??input.value,previous=old.priority??old.value;
@@ -30,7 +30,52 @@ export function fuseSignals(signals:readonly SignalMixInput[]):Partial<MotionVal
       else choose=['AngleX','AngleY','Twist','Surge','Sway','Auxiliary','Auxiliary1','Auxiliary2'].includes(input.role)?Math.abs(input.value-.5)>Math.abs(old.value-.5):input.value>old.value;
     }if(choose)selected.set(input.role,input);
   }
-  const patch:Partial<MotionValues>={};for(const [role,input] of selected){const axis=axisForRole(role);if(axis)patch[axis]=clampUnit(input.value);}return patch;
+  return selected;
+}
+
+interface TravelState { value:number; target:number; at:number; rate:number; }
+
+export class MappingTravelLimiter {
+  private states = new Map<MotionAxis, TravelState>();
+  pending = false;
+
+  reset():void {
+    this.states.clear();
+    this.pending = false;
+  }
+
+  apply(signals:readonly SignalMixInput[], current:MotionValues, now:number):Partial<MotionValues> {
+    const next = new Map<MotionAxis, TravelState>();
+    this.pending = false;
+    const patch = fuseSignals(signals, (axis, input, target) => {
+      const rate = input.maxTravelPerSecond ?? 0;
+      if (rate <= 0) return target;
+      // Integrate the previous target until this sample. Time spent at rest gives no speed credit.
+      const state = this.states.get(axis);
+      let value = current[axis];
+      if (state) {
+        const remaining = state.target - state.value;
+        const step = state.rate * Math.max(0, now - state.at) / 1_000_000;
+        value = Math.abs(remaining) <= step ? state.target : state.value + Math.sign(remaining) * step;
+      }
+      this.pending ||= value !== target;
+      next.set(axis, { value, target, at: now, rate });
+      return value;
+    });
+    this.states = next;
+    return patch;
+  }
+}
+
+export function fuseSignals(signals:readonly SignalMixInput[], apply?:(axis:MotionAxis, input:SignalMixInput, target:number)=>number):Partial<MotionValues> {
+  const patch:Partial<MotionValues> = {};
+  for (const [role, input] of selectSignals(signals)) {
+    const axis = axisForRole(role);
+    if (!axis) continue;
+    const target = clampUnit(input.value);
+    patch[axis] = apply ? apply(axis, input, target) : target;
+  }
+  return patch;
 }
 export function applyMotionPatch(frame:RuntimeMotionFrame,patch:Partial<MotionValues>,deltaMs=frame.deltaMs):RuntimeMotionFrame {
   const values={...frame.values};for(const axis of motionAxes){const value=patch[axis];if(value!==undefined&&Number.isFinite(value))values[axis]=clampUnit(value);}return {...frame,values,deltaMs};

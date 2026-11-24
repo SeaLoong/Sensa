@@ -153,7 +153,7 @@ export function computedResultUnit(operation, runtime) {
   return '';
 }
 
-export function followingPlaneDrafts(signals, { pointPath, originPath, mode = 'Markers', includeDistance = false }) {
+export function followingPlaneDrafts(signals, { pointPath, originPath, mode = 'Markers', includeDistance = false, includeSway = false }) {
   const point = String(pointPath || '').trim(), origin = String(originPath || '').trim();
   if (!point || !origin || (mode === 'Shader' ? !/^Sensa\/Shader\/[^/]+\/\*\*$/.test(origin)
     : !/^Sensa\/(?:SPS|Contact)\/[^/]+_Origin\/\*\*$/.test(origin))) return [];
@@ -162,19 +162,21 @@ export function followingPlaneDrafts(signals, { pointPath, originPath, mode = 'M
     const draft = { ...newComputedDraft([...signals, ...added]), operation, name, inputs };
     added.push(draft); return draft;
   };
-  let normal;
-  if (mode === 'Shader') normal = makeComputedVector('Forward', origin);
-  else {
-    const forward = origin.replace(/_Origin\/\*\*$/, '_Forward/**');
-    normal = ['X', 'Y', 'Z'].map(pointMetric => {
-      const component = append('Difference', t('平面朝向 · {0}', [pointMetric]), [forward, origin]
+  function direction(axis) {
+    if (mode === 'Shader') return makeComputedVector(axis, origin);
+    const marker = origin.replace(/_Origin\/\*\*$/, '_' + axis + '/**');
+    return ['X', 'Y', 'Z'].map(pointMetric => {
+      const label = axis === 'Forward' ? t('平面朝向 · {0}', [pointMetric]) : t('平面右方向 · {0}', [pointMetric]);
+      const component = append('Difference', label, [marker, origin]
         .map(oscPath => makeComputedInput({ sourceMode: 'SensaPoint', oscPath, pointMetric })));
       return makeComputedInput({ sourceMode: 'Computed', oscPath: component.id });
     });
   }
+  const normal = direction('Forward');
   const positions = [...makeComputedVector('Position', point), ...makeComputedVector('Position', origin)];
   append('PlaneDepth', t('跟随平面 · 深度'), [...positions, ...normal].map(input => ({ ...input })));
   append('PlaneOffset', t('跟随平面 · 平面内偏移'), [...positions, ...normal].map(input => ({ ...input })));
+  if (includeSway) append('PlaneDepth', t('跟随平面 · 左右位置'), [...positions, ...direction('Right')].map(input => ({ ...input })));
   if (includeDistance) append('PointDistance', t('跟随平面 · 两点距离'), positions.map(input => ({ ...input })));
   return signals.length + added.length <= COMPUTED_SIGNAL_LIMIT ? added : [];
 }

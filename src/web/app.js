@@ -643,8 +643,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   function usePoseRig(pose, full = false) {
     setSelectedOscPreset('');
-    const preset = getOscMappingPreset(config, full ? 'pose-six-axis' : 'pose-aligned-depth');
-    setSignalDrafts(preset.mappings.map(mapping => makeSignalDraft({ ...mapping, oscPath: `${pose.prefix}/**` })));
+    const preset = getOscMappingPreset(config, 'pose-six-axis');
+    const mappings = full ? preset.mappings : preset.mappings.filter(row => row.role === 'Depth');
+    setSignalDrafts(mappings.map(mapping => makeSignalDraft({ ...mapping, oscPath: `${pose.prefix}/**` })));
     setWorkspace('pipeline'); selectMappingTab('mappings');
     notify(t('已替换映射草稿；实验空间输入需单独允许。'), 'info');
   }
@@ -2312,11 +2313,18 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       onOpenMappings={() => navigateWorkflow('osc-mappings')} onOpenComputations={() => navigateWorkflow('pipeline')} />;
   }
 
-  function mapComputedSignal(signal, replaceDepth = false) {
+  function mapComputedSignal(signal, replaceDepth = false, sway = null) {
     const draft = makeSignalDraft({ sourceMode: 'Computed', oscPath: signal.id });
+    const replaced = new Set(replaceDepth ? ['Depth', 'DepthOverride'] : []);
+    const additions = [draft];
+    if (sway) {
+      replaced.add('Sway');
+      additions.push(makeSignalDraft({ sourceMode: 'Computed', oscPath: sway.id, role: 'Sway',
+        vrchatMin: -.04, vrchatMax: .04, mappedMin: 440, mappedMax: 560, maxTravelPerSecond: 100 }));
+    }
     setSignalDrafts(previous => [
-      ...(replaceDepth ? previous.filter(row => !['Depth', 'DepthOverride'].includes(row.role)) : previous),
-      draft,
+      ...previous.filter(row => !replaced.has(row.role)),
+      ...additions,
     ]);
     setWorkspace('pipeline');
     selectMappingTab('mappings');
