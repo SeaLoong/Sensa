@@ -509,6 +509,7 @@ function makeSignalDraft(signal = {}) {
     vrchatMax: 1,
     mappedMin,
     mappedMax,
+    maxTravelPerSecond: 0,
     curve: 'Linear',
     role,
     isOgbSocket: false,

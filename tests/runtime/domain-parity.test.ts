@@ -53,5 +53,10 @@ for(const [index,item] of data.configs.entries())test('C# complete normalized co
   // Device scoping is a new capability absent from the frozen C# schema; its
   // default values are checked here, and ownership rules have separate tests.
   for(const output of result.outputs){assert.equal(output.intifaceDeviceName,'');assert.equal(output.intifaceDeviceIndex,null);delete output.intifaceDeviceName;delete output.intifaceDeviceIndex;}
-  assert.deepEqual(result,item.expected);
+  // The legacy schema had no per-mapping speed limit. Its direct mappings remain unlimited.
+  const signals = result.signals.map(({maxTravelPerSecond, ...legacy}) => {
+    assert.equal(maxTravelPerSecond, 0);
+    return legacy;
+  });
+  assert.deepEqual({...result, signals}, item.expected);
 });

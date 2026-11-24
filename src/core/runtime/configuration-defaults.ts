@@ -265,6 +265,7 @@ export function defaultSignalMapping(): Model.SignalMapping {
     role: "Depth",
     mappedMin: null,
     mappedMax: null,
+    maxTravelPerSecond: 0,
     isOgbSocket: false,
     isOgbPlug: false
   };

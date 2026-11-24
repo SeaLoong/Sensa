@@ -51,7 +51,7 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
       </div>
     </div>
     {selectedOscPresetConfig?.description && <p className="caption muted">{selectedOscPresetConfig.description}</p>}
-    {selectedOscPresetConfig?.isBuiltIn && <PresetRequirements profile={selectedOscPresetConfig.requirementProfile} mappings={selectedOscPresetConfig.mappings} />}
+    {selectedOscPresetConfig?.isBuiltIn && <PresetRequirements profile={selectedOscPresetConfig.requirementProfile} mappings={selectedOscPresetConfig.mappings} optionalSecondaryAxes={selectedOscPresetConfig.group === t('推荐预设')} />}
     <details className="inline-details">
       <summary>{t('管理预设')}</summary>
       <div className="actions">

@@ -10,11 +10,12 @@ export default function ComputedSpatialPresets({ drafts, pointOptions, onAdd, on
   const [mode, setMode] = useState('Markers');
   const [pointPath, setPointPath] = useState('');
   const [originPath, setOriginPath] = useState('');
+  const [includeSway, setIncludeSway] = useState(false);
   const [includeDistance, setIncludeDistance] = useState(false);
   const pointList = useId(), originList = useId();
   const origins = pointOptions.filter(point => mode === 'Shader' ? /^Sensa\/Shader\//.test(point.value) : /_Origin\/\*\*$/.test(point.value));
-  const following = useMemo(() => followingPlaneDrafts(drafts, { pointPath, originPath, mode, includeDistance }),
-    [drafts, pointPath, originPath, mode, includeDistance]);
+  const following = useMemo(() => followingPlaneDrafts(drafts, { pointPath, originPath, mode, includeDistance, includeSway }),
+    [drafts, pointPath, originPath, mode, includeDistance, includeSway]);
   return <details className="computed-spatial-presets" data-testid="computed-spatial-presets">
     <summary>{t('空间计算预设')}</summary>
     <div className="stack">
@@ -34,7 +35,7 @@ export default function ComputedSpatialPresets({ drafts, pointOptions, onAdd, on
           { value: 'Markers', label: t('Tracking Frame · Origin / Forward') },
           { value: 'Shader', label: t('Shader · 位置与 Forward 方向') },
         ]} onChange={next => { setMode(next); setOriginPath(''); }} />
-        <PresetRequirements profile={mode === 'Shader' ? 'frame-shader' : 'frame-markers'} mappings={[{ role: 'Depth' }]} />
+        <PresetRequirements optionalSecondaryAxes profile={mode === 'Shader' ? 'frame-shader' : 'frame-markers'} mappings={includeSway ? [{ role: 'Depth' }, { role: 'Sway' }] : [{ role: 'Depth' }]} />
         <Field label={t('测量对象路径')} value={pointPath} list={pointList} placeholder="Sensa/Contact/Target/**" onChange={event => setPointPath(event.target.value)} />
         <datalist id={pointList}>{pointOptions.map(point => <option key={point.value} value={point.value}>{point.label}</option>)}</datalist>
         <Field label={t('平面参考对象路径')} value={originPath} list={originList}
@@ -44,12 +45,15 @@ export default function ComputedSpatialPresets({ drafts, pointOptions, onAdd, on
           ? t('选择 Tracking Frame 的 _Origin 组。预设读取同名 _Forward 组，用两点之差确定 +Z 朝向，并创建三个可复用的方向分量。')
           : t('工作平面经过 Shader 定位点，并垂直于它报告的 Forward 方向。若要使用两条实际轴张成的平面，可选择“两条轴”运算。')}</p>
         <p className="caption muted">{t('深度正值沿平面朝向，负值在另一侧；平面内偏移表示投影点离参考点的距离。测量位置和参考位置使用同一坐标系、同一单位。')}</p>
+        <Toggle label={t('设备有横移轴（L2），同时跟随左右偏移')} checked={includeSway} onChange={setIncludeSway} />
+        {includeSway && <p className="caption muted">{t('主轴沿入口朝向测深度。勾选横移后，L2 会沿入口的右方向慢慢跟随，默认只走 440～560 格。Tracking Frame 需要同一组的 Right 标记，Shader 使用自带的 Right 方向。')}</p>}
         <Toggle label={t('同时创建两点距离')} checked={includeDistance} onChange={setIncludeDistance} />
         <div className="actions"><Button disabled={!following.length} onClick={() => onAdd(following)}>{t('添加跟随平面草稿')}</Button>
           {following.length > 0 && onMap && <Button onClick={() => {
             onAdd(following);
-            onMap(following.find(signal => signal.operation === 'PlaneDepth'), true);
-          }}>{t('将平面深度设为 L0（替换主轴草稿）')}</Button>}
+            const [depth, sway] = following.filter(signal => signal.operation === 'PlaneDepth');
+            onMap(depth, true, sway);
+          }}>{includeSway ? t('将深度和横移设为 L0、L2（替换这两轴的草稿）') : t('将平面深度设为 L0（替换主轴草稿）')}</Button>}
           {following.length > 0 && <span className="caption muted">{t('将新增 {0} 个计算', [following.length])}</span>}</div>
       </div>
     </div>

@@ -3,7 +3,7 @@
     "id": "sps-limited",
     "group": "推荐预设",
     "name": "缩小侧移引起的回退 · 普通 SPS",
-    "description": "只有普通 SPS 时，左右偏移有时会让主轴误退。这项预设只用中间 40% 行程（300～700），正常进退和误退的幅度都缩小。",
+    "description": "普通 SPS 只报告深度，左右偏移也可能让主轴回退。这里把主轴行程缩到中间 40%（300～700），正常进退和侧移造成的误退都会变小。",
     "mappings": [
       {
         "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
@@ -18,8 +18,8 @@
   {
     "id": "native-contact-axial",
     "group": "推荐预设",
-    "name": "横移时保持深度 · Contact 高级位置",
-    "description": "对方只需有接收器能识别的接触点。将接收器的 Z 轴对准入口，左右晃动时主轴就能保持原位。把两行中的 MyContact 换成同一接收器的参数名，校准行程两端。失去接触时整组停止。",
+    "name": "前后跟随，横移慢跟 · Contact 高级位置",
+    "description": "将接收器的 Z 轴对准入口。前后移动直接控制主轴；向左或向右偏时，有横移轴的设备会缓慢向同侧移动。把三行 MyContact 换成同一接收器名称。失去接触时停止。",
     "mappings": [
       {
         "oscPath": "MyContact_SenderLocalPositionZ",
@@ -27,6 +27,16 @@
         "role": "Depth",
         "vrchatMin": 0,
         "vrchatMax": 0.2
+      },
+      {
+        "oscPath": "MyContact_SenderLocalPositionX",
+        "sourceMode": "Direct",
+        "role": "Sway",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04,
+        "mappedMin": 440,
+        "mappedMax": 560,
+        "maxTravelPerSecond": 100
       },
       {
         "oscPath": "MyContact_SenderType",
@@ -42,13 +52,57 @@
     "id": "pose-aligned-depth",
     "group": "推荐预设",
     "name": "跟随转动的入口 · 双方 Pose 定位",
-    "description": "入口转向时，主轴仍跟随进入深度。双方的 Socket 和 Plug 需使用同一通道。将 Main 换成 Socket 实例名，并启用实验空间输入。偏出入口或倾斜过大时停止。",
+    "description": "主轴沿入口当前的方向跟随深度。设备有侧移轴时会轻轻跟随左右和上下偏移，有摆角轴时也会缓慢跟随偏航和俯仰。将 Main 换成 Socket 实例名。偏出入口或倾斜过大时停止。",
     "mappings": [
       {
         "oscPath": "Sensa/Pose/v1/Main/Others/**",
         "sourceMode": "SensaPose",
         "poseMetric": "Depth",
         "role": "Depth"
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Yaw",
+        "role": "AngleX",
+        "vrchatMin": -65,
+        "vrchatMax": 65,
+        "mappedMin": 440,
+        "mappedMax": 560,
+        "maxTravelPerSecond": 100
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Pitch",
+        "role": "AngleY",
+        "vrchatMin": -65,
+        "vrchatMax": 65,
+        "mappedMin": 440,
+        "mappedMax": 560,
+        "maxTravelPerSecond": 100
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "OffsetX",
+        "role": "Sway",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04,
+        "mappedMin": 440,
+        "mappedMax": 560,
+        "maxTravelPerSecond": 100
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "OffsetY",
+        "role": "Surge",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04,
+        "mappedMin": 440,
+        "mappedMax": 560,
+        "maxTravelPerSecond": 100
       }
     ],
     "requirementProfile": "pose"

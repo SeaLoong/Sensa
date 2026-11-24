@@ -304,6 +304,9 @@ export function SignalMappingRow({ draft, guided = false, latestEntry, pathOptio
               options={SIGNAL_CURVE_OPTIONS()}
               onChange={(curve) => onChange({ curve })}
             />
+            {!['GateEnable', 'DepthOverride'].includes(draft.role) && <Field type="number" min={0} max={999} step={1}
+              label={t('每秒最多移动（格，0 表示不限）')} value={draft.maxTravelPerSecond ?? 0}
+              onChange={event => onChange({ maxTravelPerSecond: Math.max(0, Math.min(999, Math.round(Number(event.target.value) || 0))) })} />}
           </div>
           <Toggle
             label={t('本地模拟')}
