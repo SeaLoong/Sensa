@@ -692,7 +692,6 @@ function normalizeOscPreset(preset, index = 0, options = {}) {
     description: (preset?.description || '').trim(),
     isBuiltIn: Boolean(options.isBuiltIn),
     ...(options.isBuiltIn && { group: t(preset.group) }),
-    ...(options.isBuiltIn && preset.setup && { setup: t(preset.setup) }),
     mappings: Array.isArray(preset?.mappings) ? preset.mappings.map(mapping => ({ ...stripSignalDraft(makeSignalDraft(mapping)) })).filter(mapping => Boolean(mapping.oscPath)) : [],
   };
 }

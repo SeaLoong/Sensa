@@ -8,16 +8,26 @@ Configuration templates live in the preset selector under **Mapping & transforms
 
 A mapping preset fills common paths and motion roles so you can build a mapping quickly. Choose the matching Avatar feature, select its live source, capture your input endpoints and save. The rows remain editable for your own paths, direction, range and conditions.
 
-On a standard OSR, the main axis (L0) follows forward and backward travel. Under **How is forward and backward movement measured?**, choose whose motion to follow and the setup you have. Replace or append the draft, review the travel and save.
+Use **Recommended presets** for interaction scenarios and **Standard presets** for direct axis checks. Selecting an entry shows its description. Replace or append the draft, review the mapping, and save.
 
-| Motion | Installed setup | What happens during sideways motion |
+### Recommended presets
+
+- With SPS alone, limit travel to 300–700 to reduce unintended retreat. A reading that falls from 60% to 50% moves the target by about 40 counts, compared with about 100 over full travel. Intended strokes also become shorter.
+- With advanced Contact position, align receiver Z with the entrance to keep depth steady during sideways motion.
+- With a Tracking Frame or Shader tracker on your own avatar, choose the following-plane entry, select the measured point and entrance reference, then map plane depth to L0 and calibrate both endpoints.
+- With paired Pose Socket and Pose Plug components, follow insertion as the entrance turns. Tracking disengages outside the valid aperture.
+
+### Standard presets for checking one movement at a time
+
+| Test | Preset | Expected target |
 | --- | --- | --- |
-| Relative motion between avatars | Both avatars use SPS and only depth is available | Sideways movement can change the spherical contact reading and make the axis retreat. |
-| Relative motion between avatars | My Contact receiver reports advanced position and the partner has a matching sender | Align receiver Z with the entrance to hold depth during sideways motion. |
-| Relative motion between avatars | I have a Pose Socket and my partner has its matching Pose Plug | Depth can remain steady inside the aperture. Leaving the aperture ends engagement. |
-| A point on my own avatar | I installed Sensa four-anchor tracking or set up Contact self tracking with Sensa | The main axis follows displacement along avatar-root Z. Use a Tracking Frame for an entrance that turns independently. |
+| SPS depth | SPS depth | L0 follows the resolved depth over 0–999; legacy pairs still require length learning |
+| Receiver-local position | Contact position | Z → L0, Y → L1, X → L2, with receiver Z aligned to the entrance |
+| Avatar-root coordinates | Four-anchor or Contact self tracking | Up/down Y → L0, forward/back Z → L1, left/right X → L2; calibrate the same tracker's endpoints on each axis |
+| OSR2 three-axis | Pose three-axis | Depth → L0, yaw → R1, pitch → R2 |
+| Six-axis | Pose six-axis | Depth → L0, aperture Y/X → L1/L2, twist/yaw/pitch → R0/R1/R2 |
 
-Sensa tracking requires experimental spatial input. For a gentler response near the start of travel, select the ease-in mapping curve or adjust the input start under the main axis mapping’s range settings. More presets contains vibration, generic parameter mappings and custom presets.
+Standard position and pose mappings use linear full travel. Contact, pose and input validity checks still apply. Select an output profile that exposes the device's supported axes. Vibration tests use presets marked V0. Check each target in the preview, then calibrate physical direction and travel on the device.
 
 | Template ID | Purpose | Default destination |
 | --- | --- | --- |

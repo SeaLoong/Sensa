@@ -643,28 +643,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   function usePoseRig(pose, full = false) {
     setSelectedOscPreset('');
-    const metrics = full
-      ? [
-          ['Depth', 'Depth', 0, 1],
-          ['Yaw', 'AngleX', -65, 65],
-          ['Pitch', 'AngleY', -65, 65],
-          ['Roll', 'Twist', -180, 180],
-          ['OffsetX', 'Sway', -0.04, 0.04],
-          ['OffsetY', 'Surge', -0.04, 0.04],
-        ]
-      : [['Depth', 'Depth', 0, 1]];
-    setSignalDrafts(
-      metrics.map(([poseMetric, role, vrchatMin, vrchatMax]) =>
-        makeSignalDraft({
-          oscPath: `${pose.prefix}/**`,
-          sourceMode: 'SensaPose',
-          poseMetric,
-          role,
-          vrchatMin,
-          vrchatMax,
-        }),
-      ),
-    );
+    const preset = getOscMappingPreset(config, full ? 'pose-six-axis' : 'pose-aligned-depth');
+    setSignalDrafts(preset.mappings.map(mapping => makeSignalDraft({ ...mapping, oscPath: `${pose.prefix}/**` })));
     setWorkspace('pipeline'); selectMappingTab('mappings');
     notify(t('已替换映射草稿；实验空间输入需单独允许。'), 'info');
   }
@@ -2332,9 +2312,12 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       onOpenMappings={() => navigateWorkflow('osc-mappings')} onOpenComputations={() => navigateWorkflow('pipeline')} />;
   }
 
-  function mapComputedSignal(signal) {
+  function mapComputedSignal(signal, replaceDepth = false) {
     const draft = makeSignalDraft({ sourceMode: 'Computed', oscPath: signal.id });
-    setSignalDrafts(previous => [...previous, draft]);
+    setSignalDrafts(previous => [
+      ...(replaceDepth ? previous.filter(row => !['Depth', 'DepthOverride'].includes(row.role)) : previous),
+      draft,
+    ]);
     setWorkspace('pipeline');
     selectMappingTab('mappings');
     setNavigationTarget('[data-mapping-draft-id="' + draft._draftId + '"] .mapping-row__target select');

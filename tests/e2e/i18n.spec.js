@@ -152,17 +152,22 @@ test('English presets, script and compact help use localized documentation', {ta
   await oscWorkspace(page,'映射');
   const presets = page.locator('#mapping-preset-variant');
   await selectMappingPreset(page, 'native-contact-axial');
-  await expect(presets).toHaveAccessibleName('How is forward and backward movement measured?');
-  await expect(presets.locator('optgroup')).toHaveCount(2);
-  await expect(presets.locator('option')).toHaveCount(5);
-  await presets.selectOption('self-four-anchor-axial');
-  await page.getByRole('button', { name: 'Set up a plane that follows the entrance' }).click();
-  await expect(page.getByTestId('computed-spatial-presets')).toHaveJSProperty('open', true);
-  await oscWorkspace(page, '映射');
+  await expect(presets.locator('optgroup[label="Recommended presets"] option[value="native-contact-axial"]')).toHaveCount(1);
+  await expect(presets.locator('optgroup[label="Standard presets"] option[value="pose-six-axis"]')).toHaveCount(1);
+  await presets.selectOption({ label: 'Hold depth during sideways movement · Following plane…' });
+  const plane = page.getByTestId('computed-spatial-presets');
+  await expect(plane).toHaveJSProperty('open', true);
+  await plane.getByLabel(await text(page, '测量对象路径'), { exact: true }).fill('Sensa/Contact/Target/**');
+  await plane.getByLabel(await text(page, '平面参考对象路径'), { exact: true }).fill('Sensa/Contact/Guide_Origin/**');
+  await plane.getByRole('button', { name: await text(page, '将平面深度设为 L0（替换主轴草稿）'), exact: true }).click();
+  await expect(page.locator('#mapping-tabs-mappings')).toHaveAttribute('aria-selected', 'true');
+  const planeRow = page.locator('.mapping-row').filter({ has: page.locator('.mapping-row__target option[value="Depth"]:checked') });
+  await expect(planeRow).toHaveCount(1);
+  await expect(planeRow.getByLabel(await text(page, '输入类型'), { exact: true })).toHaveValue('Computed');
   for (const [id, name, field] of [
-    ['native-contact-separation', 'Move the main axis as two points separate', 'PointSeparation'],
-    ['native-contact-axial', 'My Contact receiver reports advanced position', 'SenderLocalPositionZ'],
-    ['native-contact-speed', 'Vibrate more with faster movement', 'SenderVelocityMagnitude'],
+    ['native-contact-separation', 'Contact point separation → L0', 'PointSeparation'],
+    ['native-contact-axial', 'Hold depth during sideways movement · Advanced Contact', 'SenderLocalPositionZ'],
+    ['native-contact-speed', 'Contact relative speed → V0 (vibration output)', 'SenderVelocityMagnitude'],
     ['native-contact-approach', 'Native Contact · Vibration on approach', 'ProximitySpeed'],
   ]) {
     await selectMappingPreset(page, id);
@@ -173,6 +178,11 @@ test('English presets, script and compact help use localized documentation', {ta
     await expect(paths.nth(0)).toHaveValue('MyContact_' + field);
     await expect(paths.nth(1)).toHaveValue('MyContact_SenderType');
   }
+  await selectMappingPreset(page, 'pose-six-axis');
+  await page.getByRole('button', { name: await text(page, '替换草稿'), exact: true }).click();
+  const roles = await page.locator('.mapping-row__target select').evaluateAll(selects => selects.map(select => select.value));
+  expect(roles).toEqual(['Depth', 'AngleX', 'AngleY', 'Twist', 'Sway', 'Surge']);
+  await test.info().attach('standard-pose-six-axis-draft', { contentType: 'application/json', body: JSON.stringify({ roles }) });
   await selectMappingPreset(page, 'ogb-depth');
   await expect(page.getByRole('button',{name:await text(page,'替换草稿'),exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'Help',exact:true}).click();
