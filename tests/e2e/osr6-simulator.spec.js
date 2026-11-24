@@ -20,7 +20,7 @@ test('guide previews a Contact example and returns to the same step without chan
   await expect(page.getByTestId('guided-tour')).toHaveCount(0);
   await dialog.getByRole('slider',{name:'左右位置 (X)'}).press('End');
   await expect(dialog.getByTestId('osr6-L2')).toHaveText('560');
-  await info.attach('guided-sway-example',{body:await dialog.screenshot(),contentType:'image/png'});
+  await dialog.screenshot({path: `artifacts/preset-interaction/${info.project.name}-guide.png`});
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step','mapping');
   await jump('device');
@@ -46,7 +46,7 @@ test('OSR6 simulator shows manual, mapping and live poses without activating out
   await expect(dialog.getByRole('link',{name:'实物照片'})).toHaveAttribute('href',/sr6-with-a-twist$/);
   await dialog.getByRole('button',{name:'侧视图'}).click();
   await expect.poll(pixels).not.toBe(centered);
-  await info.attach('sr6-side-linkage', {body:await dialog.screenshot(),contentType:'image/png'});
+  await dialog.locator('.osr6-stage').screenshot({path: `artifacts/preset-interaction/${info.project.name}-side.png`});
   await dialog.getByRole('button',{name:'立体视图'}).click();
   await expect.poll(pixels).toBe(centered);
   await dialog.getByRole('slider',{name:'L0 · 主轴行程',exact:true}).press('End');
