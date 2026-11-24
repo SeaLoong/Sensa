@@ -59,7 +59,7 @@ jobs:
         run: python scripts/codeql-unity.py prepare --output artifacts/codeql-unity
       - name: Initialize CodeQL
         id: init
-        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066
+        uses: github/codeql-action/init@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
@@ -72,7 +72,7 @@ jobs:
       - name: Analyze
         id: analyze
         if: ${{ !cancelled() && steps.init.outcome == 'success' }}
-        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066
+        uses: github/codeql-action/analyze@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea
         with:
           category: /language:${{ matrix.language }}
           output: artifacts/codeql/results
@@ -129,7 +129,7 @@ jobs:
           PY
       - name: Upload verified CodeQL results
         if: ${{ success() && vars.SENSA_CODEQL_ADVANCED == 'true' }}
-        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066
+        uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea
         with:
           sarif_file: artifacts/codeql/results
           category: /language:${{ matrix.language }}
