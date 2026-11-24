@@ -30,8 +30,8 @@ test('profile lifecycle keeps one default and repairs output references without 
 
 test('all built-ins round-trip as independent drafts; custom presets preserve built-ins / 内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
   const source = initial(), builtIns = getOscMappingPresets(source);
-  assert.equal(builtIns.length, 14);
-  assert.equal(builtIns[0].id, 'ogb-depth');
+  assert.equal(builtIns.length, 20);
+  assert.equal(builtIns[0].id, 'sps-limited');
   assert.partialDeepStrictEqual(builtIns.find(preset => preset.id === 'osc-l0').mappings, [{ sourceMode: 'Direct', oscPath: 'Depth', role: 'Depth', vrchatMin: 0, vrchatMax: 1, mappedMin: 0, mappedMax: 999 }]);
   for (const preset of builtIns) {
     const dialog = buildPresetDialogDraft(source, preset.id);
@@ -47,22 +47,26 @@ test('all built-ins round-trip as independent drafts; custom presets preserve bu
   }
 });
 
-test('main-axis presets distinguish paired and self tracking and drive only position', () => {
-  const tracking = getOscMappingPresets(initial()).filter(preset => preset.setup);
-  const grouped = Map.groupBy(tracking, preset => preset.group);
-  assert.deepEqual([...grouped.values()].map(group => group.map(preset => preset.id)), [
-    ['ogb-depth', 'native-contact-axial', 'pose-aligned-depth'],
-    ['self-four-anchor-axial', 'contact-position'],
-  ]);
-  for (const preset of tracking) {
-    assert.equal(preset.mappings.filter(row => row.role === 'Depth').length, 1);
-    assert.ok(preset.mappings.every(row => row.role === 'Depth' || row.role === 'GateEnable'));
+test('standard multi-axis presets use linear full travel without a vibration channel', () => {
+  const presets = getOscMappingPresets(initial());
+  for (const id of ['pose-six-axis', 'pose-osr2', 'native-contact-xyz', 'self-four-anchor-xyz', 'self-contact-xyz']) {
+    const preset = presets.find(item => item.id === id);
+    assert.equal(preset.group, presets.find(item => item.id === 'ogb-depth').group);
+    for (const row of preset.mappings) {
+      assert.equal(row.curve, 'Linear');
+      assert.equal(row.mappedMin, 0);
+      assert.equal(row.mappedMax, 999);
+      assert.ok(!row.role.startsWith('V'));
+    }
   }
 });
 
 test('the shipped OGB depth and touch templates deliver stable SPS3 OSC values without legacy partners', async () => {
   const presets = getOscMappingPresets(initial());
   for (const [id, entries, expected] of [
+    ['sps-limited', [['OGB/Socket/Front/DepthOthers', 0]], { L0: .3 }],
+    ['sps-limited', [['OGB/Socket/Front/DepthOthers', 1]], { L0: .7 }],
+    ['native-contact-xyz', [['MyContact_SenderLocalPositionZ', .15], ['MyContact_SenderLocalPositionX', .04], ['MyContact_SenderLocalPositionY', -.04], ['MyContact_SenderType', 2]], { L0: .75, L1: 0, L2: .999 }],
     ['ogb-depth', [['OGB/Socket/Front/DepthOthers', .4]], { L0: .4 }],
     ['ogb-depth', [['OGB/Plug/Test/DepthOthers', .7]], { L0: .7 }],
     ['ogb-touch', [['OGB/Socket/Front/TouchOthers', .3]], { V0: .3 }],
@@ -123,6 +127,10 @@ test('shipped spatial scenarios route calibrated samples from the configured ins
     ['self-four-anchor-axial', fixedRootSamples(.1, .5), 'CIFixedRoot', 'Root', { L0: .5 }],
     ['self-contact-stroke', contactRootSamples(.1, .5, true, { velocityZ: .3 }), 'CIContactRoot', 'Root', { L0: .5, V0: .3 }],
     ['self-contact-stroke', contactRootSamples(.1, .5, true, { velocityZ: -.3 }), 'CIContactRoot', 'Root', { L0: .5, V0: 0 }],
+    ['pose-six-axis', poseSamples(), 'Demo', 'Main', { L0: .5, L1: .5, L2: .75, R0: .5, R1: .5, R2: .5 }],
+    ['pose-osr2', poseSamples(), 'Demo', 'Main', { L0: .5, R1: .5, R2: .5 }],
+    ['self-four-anchor-xyz', fixedRootSamples(.06, .5), 'CIFixedRoot', 'Root', { L0: .5, L1: .8, L2: .6 }],
+    ['self-contact-xyz', contactRootSamples(.04, .5, true, { x: -.05, y: 1.05 }), 'CIContactRoot', 'Root', { L0: .75, L1: .7, L2: .25 }],
     ['pose-aligned-depth', poseSamples(), 'Demo', 'Main', { L0: .5 }],
   ]) {
     const store = new OscParameterStore(() => 1000), frames = [];

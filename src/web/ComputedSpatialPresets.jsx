@@ -4,7 +4,7 @@ import { SelectField } from './controls.jsx';
 import { t } from './i18n.js';
 import { COMPUTED_SIGNAL_LIMIT, SPATIAL_COMPUTED_OPERATIONS, computedOperationOptions, followingPlaneDrafts, newSpatialComputedDraft } from './computed-signals.js';
 
-export default function ComputedSpatialPresets({ drafts, pointOptions, onAdd }) {
+export default function ComputedSpatialPresets({ drafts, pointOptions, onAdd, onMap }) {
   const [operation, setOperation] = useState('PointDistance');
   const [mode, setMode] = useState('Markers');
   const [pointPath, setPointPath] = useState('');
@@ -44,6 +44,10 @@ export default function ComputedSpatialPresets({ drafts, pointOptions, onAdd }) 
         <p className="caption muted">{t('深度正值沿平面朝向，负值在另一侧；平面内偏移表示投影点离参考点的距离。测量位置和参考位置使用同一坐标系、同一单位。')}</p>
         <Toggle label={t('同时创建两点距离')} checked={includeDistance} onChange={setIncludeDistance} />
         <div className="actions"><Button disabled={!following.length} onClick={() => onAdd(following)}>{t('添加跟随平面草稿')}</Button>
+          {following.length > 0 && onMap && <Button onClick={() => {
+            onAdd(following);
+            onMap(following.find(signal => signal.operation === 'PlaneDepth'), true);
+          }}>{t('将平面深度设为 L0（替换主轴草稿）')}</Button>}
           {following.length > 0 && <span className="caption muted">{t('将新增 {0} 个计算', [following.length])}</span>}</div>
       </div>
     </div>
