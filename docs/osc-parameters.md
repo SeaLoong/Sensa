@@ -145,7 +145,7 @@ Sample 的寿命按**值最后变化时间 `changedAtMs`**计算，正常运行�
 
 ### 菜单选择测量目标
 
-除每对象的五个测量 Float 外，Automatic 的 Exclusive 策略还生成 `Sensa/Select/<group>`，类型 Int，默认 0=Off，1…N 按 Targets 顺序选择对象；Dedicated 没有该组选择器。这个控制项由 MA 注册为表达参数，`localOnly=true`、`saved=false`，每次加载从默认值开始，按 VRChat OSC 配置决定可见性。[选择器实现](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)、[MA 参数规则](https://modular-avatar.nadena.dev/docs/reference/parameters)、[VRChat OSC 配置](https://docs.vrchat.com/docs/osc-avatar-parameters)
+除每对象的五个测量 Float 外，Automatic 的 Exclusive 策略还生成 `Sensa/Select/<group>`，类型 Int，默认 0=Off，1…N 按 Targets 顺序选择对象；Dedicated 没有该组选择器。这个控制项由 MA 注册为表达参数，`saved=false`；含配对 Plug 标记的组同步该 Int，其他组使用 `localOnly=true`，每次加载从默认值开始，按 VRChat OSC 配置决定可见性。[选择器实现](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)、[MA 参数规则](https://modular-avatar.nadena.dev/docs/reference/parameters)、[VRChat OSC 配置](https://docs.vrchat.com/docs/osc-avatar-parameters)
 
 ### 固定几何、距离公式与范围
 

@@ -57,7 +57,7 @@ About every 50 ms, FX copies four internal RawP values then publishes Sample. Th
 
 ## Control parameters and language
 
-Exclusive separately registers local, unsynced, unsaved Int `Sensa/Select/<group>`: default 0 is Off, 1…N selects ordered targets, out-of-range returns Off. It may appear in OSC but is a **menu control**, not a measurement. Dedicated has no automatic selector. No selector enables desktop input or connects devices.
+Exclusive separately registers unsaved Int `Sensa/Select/<group>`: default 0 is Off, 1…N selects ordered targets, out-of-range returns Off. Groups containing a Plug with paired markers enabled synchronize this selection so peers activate the same Senders. Other groups keep the selection local. It may appear in OSC but is a **menu control**, not a measurement. Dedicated has no automatic selector. No selector enables desktop input or connects devices.
 
 Sensa's language preference changes Inspector/help/error text and generated menu captions. User names, parameter names, enum values and menu slots remain unchanged. Generated Avatar menu text is fixed at authoring/build time; it does not follow each client's language.
 

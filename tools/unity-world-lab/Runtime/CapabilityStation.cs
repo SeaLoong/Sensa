@@ -109,6 +109,11 @@ namespace SensaLab
             }
             text += "Ground-truth local XYZ: "+sample.ToString("F3")+"\nWorld Udon does not export avatar OSC.\n";
             text += mode == 6 ? "SPS GPU panel: use editor capture; compare model entry/length.\nDiagnostic only: Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}\n" : "See the station manifest for Sensa paths and test steps.\n";
+            if (mode == 0) text += "\n08 tip Contact: native-contact-speed / native-contact-approach. Move, hold, retreat.";
+            if (mode == 1) text += "\nAvatar PB: native-pb-stretch. Use its Stretch and IsGrabbed, then release.";
+            if (mode == 2) text += "\nAvatar root: self-four-anchor-axial or contact-position. Move along Z, then X.";
+            if (mode == 3) text += "\nAt 08 try ogb-depth-touch or ogb-touch with an Avatar reporting touch.";
+            if (mode == 4) text += "\nContact root: contact-speed or self-contact-stroke. Move forward, hold, return.";
             status.text=text;
         }
     }

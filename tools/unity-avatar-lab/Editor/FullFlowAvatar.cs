@@ -42,7 +42,7 @@ namespace SensaAvatarLab
         {
             public bool passed, shaderDefaultsOff, selectorsDefaultOff, handlesGrabWithoutCollision, placementBindingsValid, probeGuidesAligned;
             public int contacts, cameras, parameterCost, movableTargets, unsupportedTextComponents, probeGuideCount;
-            public string[] missingAnimatorParameters, menuLabels;
+            public string[] missingAnimatorParameters, menuLabels, missingSharedControls;
             public string scope;
         }
         public static Report Inspect(GameObject avatar, string scope)
@@ -77,6 +77,9 @@ namespace SensaAvatarLab
                 missingAnimatorParameters = required.Distinct().Where(p => !names.Contains(p)).ToArray(), menuLabels = labels.ToArray(),
                 shaderDefaultsOff = parameters.Any(p => p.name == "Sensa/Select/Shader" && p.defaultValue == 0 && !p.saved),
                 selectorsDefaultOff = parameters.Any(p => p.name == "Sensa/Select/Lab" && p.defaultValue == 0 && !p.saved) };
+            var shared = new[] { "Sensa/Lab/Place/Palm", "Sensa/Lab/Place/Forearm", "Sensa/Lab/Place/PB", "Sensa/Lab/Place/Shader",
+                "Sensa/Lab/ShowMarkers", "Sensa/Select/Lab", "SPS_Lollipop/LeftHand", "SPS_Lollipop/RightHand", "SPS_Lollipop/Fixed", "SPS_Lollipop/Off" };
+            report.missingSharedControls = shared.Where(name => !parameters.Any(p => p.name == name && p.networkSynced)).ToArray();
             report.placementBindingsValid=FullFlowInteraction.InspectBindings(avatar,out report.movableTargets);
             var guides=avatar.GetComponentsInChildren<MeshRenderer>(true).Where(r=>System.Text.RegularExpressions.Regex.IsMatch(r.name,"^Probe [PC][1-8]$")).ToArray();report.probeGuideCount=guides.Length;
             report.probeGuidesAligned=guides.Length==28&&guides.All(g=>{
@@ -84,7 +87,7 @@ namespace SensaAvatarLab
                 return receivers.Any(r=>r.parameter!=null&&r.parameter.EndsWith("/A"+index)&&
                     (compact?(r.parameter.StartsWith("Sensa/Point/")||r.parameter.StartsWith("Sensa/Handle/")):r.parameter.StartsWith("Sensa/Pose/"))&&Vector3.Distance(g.transform.position,r.transform.TransformPoint(r.position))<.001f);
             });
-            report.passed = baseline.passed && report.cameras == 2 && report.shaderDefaultsOff && report.selectorsDefaultOff
+            report.passed = report.missingSharedControls.Length == 0 && baseline.passed && report.cameras == 2 && report.shaderDefaultsOff && report.selectorsDefaultOff
                 && report.placementBindingsValid && report.unsupportedTextComponents==0 && report.probeGuidesAligned
                 && labels.Any(label => AvatarLabLocalization.Original(label) == "Place in world")
                 && report.missingAnimatorParameters.Length == 0 && names.Contains(SensaQuickStartProtocol.Depth) && names.Contains(SensaQuickStartProtocol.Active)
@@ -92,7 +95,9 @@ namespace SensaAvatarLab
             return report;
         }
         [MenuItem("Tools/Sensa Avatar Lab/Validate full-flow test avatar")]
-        public static void Validate()
+        public static void Validate() => ValidateScene(true);
+        public static void ValidateWithoutCapture() => ValidateScene(false);
+        static void ValidateScene(bool capture)
         {
             AvatarLab.PrepareTests(); EditorSceneManager.OpenScene(Scene);
             var source = UnityEngine.Object.FindObjectOfType<VRCAvatarDescriptor>().gameObject;
@@ -102,7 +107,7 @@ namespace SensaAvatarLab
                 if (!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone)) throw new InvalidOperationException(AvatarLabLocalization.Text("FullFlow SDK preprocess failed."));
                 var report = Inspect(clone, "SDK preprocessing; client OSC, VR grabbing and hardware not tested");
                 Directory.CreateDirectory("Validation"); File.WriteAllText("Validation/full-flow.json", JsonUtility.ToJson(report, true));
-                AvatarLab.Capture(clone, "Validation/avatar-FullFlow.png");
+                if (capture) AvatarLab.Capture(clone, "Validation/avatar-FullFlow.png");
                 if (!report.passed) throw new InvalidOperationException(AvatarLabLocalization.Text("FullFlow contract failed. See Validation/full-flow.json"));
             }
             finally { UnityEngine.Object.DestroyImmediate(clone); source.SetActive(true); }

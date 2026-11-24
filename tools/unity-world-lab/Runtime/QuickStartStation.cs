@@ -36,7 +36,7 @@ namespace SensaLab
         public void Stop()
         {
             running = false; depthSender.SetActive(false); activeSender.SetActive(false);
-            status.text = "START HERE - AVATAR / OSC / OSR\nSTOPPED: expected Active = 0\n1. Upload avatar with Quick Start World Receiver\n2. Sensa: import Quick Start preset, save mappings\n3. Apply OSC input; first check preview without outputs\n4. Select 0 / 25 / 50 / 75 / 100%, or TOUCH\nTOUCH: bring your RIGHT wrist toward the cyan ball\nDesktop: click steps. VR: steps or hand proximity\nSTOP / leaving this area / 60 seconds closes gate\nExpected values here are NOT acknowledgements.";
+            status.text = "START HERE - AVATAR / OSC / OSR\nSTOPPED: expected Active = 0\n1. Upload avatar with Quick Start World Receiver\n2. Load osc-l0: map Sensa/QuickStart/Depth to Depth, Active to GateEnable\n3. Apply OSC input; first check preview without outputs\n4. Select 0 / 25 / 50 / 75 / 100%, or TOUCH\nTOUCH: bring your RIGHT wrist toward the cyan ball\nDesktop: click steps. VR: steps or hand proximity\nSTOP / leaving this area / 60 seconds closes gate\nExpected values here are NOT acknowledgements.";
         }
         public void ResetBall()
         {
@@ -63,7 +63,7 @@ namespace SensaLab
                 + "\nExpected Depth: " + (expected * 100).ToString("F0") + "%  / Active: 1"
                 + "\nRadius: " + radius.ToString("F3") + " m (avatar height adjusted)"
                 + "\nAuto stop in " + Mathf.CeilToInt(deadline - Time.time) + " seconds"
-                + "\nSensa preset: Quick Start / test world to my avatar"
+                + "\nosc-l0: Depth -> L0 | Sensa/QuickStart/Active -> GateEnable"
                 + "\nOSC: Sensa/QuickStart/{Depth,Active}"
                 + "\nCheck ACTUAL received values in Sensa; world cannot read OSC."
                 + "\nIf values differ: check avatar component / contacts / OSC."

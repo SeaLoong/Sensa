@@ -6,11 +6,13 @@ Open `Assets/SensaAvatarLab/Generated/FullFlow.unity`. It combines the licensed 
 
 ## Place, then measure
 
-**Sensa Test Props** groups Home/reset, Left hand, Right hand and Place in world. Move a prop with a hand, place it, then move relative to it. Pickup/placement is local and unsaved. Visibility changes helpers, not measurement or input permission.
+**Sensa Test Props** groups Home/reset, Left hand, Right hand and Place in world. Move a prop with a hand, place it, then move relative to it. Placement mode, guide visibility and Lab measurement selection sync to peers and reset on avatar reload. Place in world freezes the pose on each client when it receives the switch. Moving during placement and joining late can produce different frozen coordinates. Visibility changes helpers, not measurement or input permission.
 
 Native SPS/prop activation, **SPS OSC** (OGB_ENABLED), **Measure plug / Measure this socket**, shader selection and desktop input are independent controls. Menus use the author's generated language; English names here identify the stable fixture operation.
 
 White Socket centers and +Z show entry/inward direction. Root/Tip/Side are paired reference landmarks. Helper P1–P4 and C1–C8 belong to independent Point/Pose experiments with A0-based fields. They are **not** SPS four-anchor tracking P0–P3, TCode auxiliary axes, or a visualization of Contact radius. SPS four-anchor tracking parameters must be inspected as their own protocol.
+
+With two clients, have the wearer switch each prop through left, right, world and home while the observer watches. Toggle the guides, select a measurement target and return to Off. Have the observer also join after selecting right hand. SPS OSC, synthetic output and CRC injection serve the wearer's local diagnostics.
 
 ## Keep routes separate
 

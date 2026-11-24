@@ -145,7 +145,7 @@ Sample lifetime uses **`changedAtMs`, when its value last changed**, with a **10
 
 ### Choose the measurement target from the menu
 
-Alongside each object's five measurement Floats, Automatic's Exclusive strategy generates `Sensa/Select/<group>`, an Int defaulting to 0=Off, with 1…N selecting objects in Targets order. Dedicated has no such group selector. MA registers this Expression parameter with `localOnly=true` and `saved=false`. It starts from its default on loading, with visibility determined by VRChat OSC configuration. [Selector implementation](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs), [MA parameter rules](https://modular-avatar.nadena.dev/docs/reference/parameters), [VRChat OSC configuration](https://docs.vrchat.com/docs/osc-avatar-parameters)
+Alongside each object's five measurement Floats, Automatic's Exclusive strategy generates `Sensa/Select/<group>`, an Int defaulting to 0=Off, with 1…N selecting objects in Targets order. Dedicated has no such group selector. MA registers this Expression parameter with `saved=false`. Groups with paired Plug markers synchronize it. Other groups use `localOnly=true`. It starts from its default on loading, with visibility determined by VRChat OSC configuration. [Selector implementation](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs), [MA parameter rules](https://modular-avatar.nadena.dev/docs/reference/parameters), [VRChat OSC configuration](https://docs.vrchat.com/docs/osc-avatar-parameters)
 
 ### Fixed geometry, distance and coverage
 

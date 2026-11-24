@@ -16,6 +16,21 @@
 
 原生 SPS 站使用已知 Sender 和 SDK CalculateProximity。世界真值来自工具拥有 fixture；这项能力不能外推到任意 Avatar。
 
+## 从 Sensa 预设选测试台
+
+一次替换一组轴映射草稿。按实际 Avatar 实例、参数前缀和 Self／Others 修改路径，保存后在 Sensa 中观察参数与映射预览。
+
+| 台位与动作 | 映射预设 | 观察结果 |
+| --- | --- | --- |
+| 00 五档，然后 STOP | `osc-l0`，Depth 改为 `Sensa/QuickStart/Depth`，加 `Sensa/QuickStart/Active` → GateEnable | 五档从 0 到 1，STOP 后门控归零 |
+| 02 对照 PB 台，实际抓头像把手 | `native-pb-stretch` | 拉伸改变主轴，松手关闭抓取门控 |
+| 08 原生 SPS，沿轴进退、保持深度横移，再做触碰 | `ogb-depth`、`ogb-touch`、`ogb-depth-touch` | 对照径向深度与横移，有实际 Touch／Frot 信号时查看振动 |
+| 08 开启 EXTRA MARKERS，用普通 Proximity 接收器对准棒尖 | `native-contact-axial`、`native-contact-separation`、`native-contact-speed`、`native-contact-approach` | 横移分辨 Z 和间距。靠近、停住、退回区分速率与接近值变化率。接收器需 SDK 3.10.6+，启用相应高级报告和 SenderType，标签填 `SensaLabContact` |
+| 08 同一根棒、同一次横移，FullFlow 选 Palm 或 Forearm 的 Measure this socket | `pose-aligned-depth` | EXTRA MARKERS 提供 `LabPair` 的 Root、Tip、Side。将 Main/Others 换成实际实例与类别，沿轴进退，再横移出孔口，检查姿态有效性 |
+| 08 固定棒作参照，移动自己头像上的根点，前推、停住、横移 | `self-four-anchor-axial`；Contact 根点用 `contact-position`、`contact-speed`、`self-contact-stroke` | 使用对应的 Sensa 四点或 Contact 自身定位预制件、实际实例与空间输入许可。Z 保持时位置稳定，停住后速度衰减 |
+
+与另一位玩家的 Pose Plug 配对前，再按一次 EXTRA MARKERS 关闭世界三点，避免同通道多个 Plug。06／07 保留为 Shader 传输与模型诊断。
+
 ## 已知几何参考
 
 独立 Point fixture 使用半径 0.001 的 Sender、半径 2 的 Receiver，以及各轴偏移 ±0.35 的四面体布局。生成器和解码器共同读取 `SensaPoseProtocol`；数值以当前场景的实际接近值为准。该场景围绕独立参考对象布局，不使用 SPS 四点定位 的 AvatarRootLocal 坐标或 Sample 计数。

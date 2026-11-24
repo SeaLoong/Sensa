@@ -179,6 +179,12 @@ namespace UnityBox.Sensa.Tests
             SensaAutoBuilder.ProcessAvatar(avatar);
             Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>()); Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactSender>());
             SampleState("Select 2");
+            var selector = avatar.GetComponentsInChildren<ModularAvatarParameters>(true)
+                .SelectMany(host => host.parameters).Single(p => p.nameOrPrefix == "Sensa/Select/Auto");
+            Assert.IsFalse(selector.localOnly);
+            var machine = ((AnimatorController)SelectionAnimator().animator).layers[0].stateMachine;
+            foreach (var state in machine.states)
+                Assert.IsFalse(state.state.behaviours.OfType<VRCAvatarParameterDriver>().Single().localOnly);
             Assert.AreEqual(8,avatar.GetComponentsInChildren<VRCContactReceiver>().Length);
             Assert.AreEqual(5,avatar.GetComponentsInChildren<VRCContactSender>().Length);
             Assert.AreEqual(1,avatar.GetComponentsInChildren<VRCPhysBone>().Length);

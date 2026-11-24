@@ -6,11 +6,13 @@
 
 ## 先摆放，再测量
 
-**Sensa Test Props** 集中 Home/reset、Left hand、Right hand、Place in world。先随手移动道具，放置后相对它移动；拾取／放置是本地、不保存状态。可见性只改辅助显示，不改变测量或输入许可。
+**Sensa Test Props** 集中 Home/reset、Left hand、Right hand、Place in world。先随手移动道具，放置后相对它移动；摆放模式、标签开关和 Lab 测量选择会同步给同实例玩家，重新载入 Avatar 后恢复默认。Place in world 会在各客户端收到切换时冻结道具，移动中放置和中途加入时的坐标可能有偏差。可见性只改辅助显示，不改变测量或输入许可。
 
 原生 SPS／道具开关、**SPS OSC**（OGB_ENABLED）、**Measure plug／Measure this socket**、Shader 选择和桌面输入相互独立。菜单采用作者生成时语言，下文英文名用于标识对应 fixture 操作。
 
 Socket 白色中心和 +Z 表示入口／向内方向；Root／Tip／Side 是配对参考标记。辅助 P1–P4、C1–C8 属于使用 A0 字段的独立 Point／Pose 实验，**不是**SPS 四点定位 的 P0–P3、TCode 辅助轴或 Contact 半径示意。SPS 四点定位参数必须单独按其协议观察。
+
+用两个客户端核对：观察者看佩戴者把每个道具依次切到左手、右手、世界固定、原位，再切换标签和测量目标，最后关回 Off。另让观察者在右手模式已选中后加入。SPS OSC、合成码输出和 CRC 故障用于佩戴者本机诊断。
 
 ## 路线分开检查
 

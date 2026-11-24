@@ -29,7 +29,7 @@ SPS 四点定位的距离解算中，接收半径减小可降低同等近接误�
 
 ## 参数与生命周期
 
-SPS 四点定位保留 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`，共五个本地、不同步的 Float 表达参数，RawP 留在 FX。Contact 直接定位使用 `Sensa/Contact/<id>/` 下十个原生报告字段，加上 `Radius` 和 `Sample`，共十二个公开字段；`Proximity_SenderType` 为 Int，其余十一个为 Float。SDK 所需的 `Proximity_CollisionTag_<tag>` Bool 在 FX 中声明，停用时复位，位于公开表达参数契约之外；客户端 OSC 可见性另行检查。Exclusive 另有不同步、不保存的 Int 菜单选择器。[完整含义](AUTOMATION.md)。
+SPS 四点定位保留 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`，共五个本地、不同步的 Float 表达参数，RawP 留在 FX。Contact 直接定位使用 `Sensa/Contact/<id>/` 下十个原生报告字段，加上 `Radius` 和 `Sample`，共十二个公开字段；`Proximity_SenderType` 为 Int，其余十一个为 Float。SDK 所需的 `Proximity_CollisionTag_<tag>` Bool 在 FX 中声明，停用时复位，位于公开表达参数契约之外；客户端 OSC 可见性另行检查。Exclusive 的 Int 菜单选择器不保存；含配对 Plug 标记的组会同步选择器，其他组在本地选择。[完整含义](AUTOMATION.md)。
 
 两种方案均要求同来源实例字段完整、Sample 合法且持续变化。SPS 四点定位另检查未饱和值与拟合一致性，Sample 默认寿命为 1000 ms、上限 1250 ms；Contact 要求 Proximity 为正、SenderType=1、数值有限且 Radius／位置边界受支持，Sample 寿命最多 1000 ms。较短的正数输入超时可进一步收紧两者时效。缺失、无效或过期观测会停止相关动作，Contact 的零坐标和零速度仍可有效。Sample 表示生产端活动，专用标签与 Self 过滤用于选择期望的自身根点；原生 Contact 报告未提供时间戳、序号或稳定 Sender ID。
 

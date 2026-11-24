@@ -28,7 +28,28 @@ namespace SensaLab
             }
             UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync(new UdonSharp.Compiler.UdonSharpCompileOptions{IsEditorBuild=true});
             var existing=scene.GetRootGameObjects().FirstOrDefault(g=>g.name=="Sensa point geometry cases");
-            if(existing!=null){EnsurePresentation(existing);LabPlayability.Apply();LabEditorLocalization.SaveScene(scene);AssetDatabase.SaveAssets();return;}
+            if(existing!=null){
+                foreach (var station in existing.GetComponentsInChildren<PointCaseStation>(true))
+                {
+                    AlignReceivers(station.receivers);
+                    switch (station.caseName.Substring(0, 2))
+                    {
+                        case "04": station.sender.transform.localPosition = Vector3.forward * (SensaPoseProtocol.ReceiverRadius * 1.5f); break;
+                        case "05": station.sender.transform.localPosition = -Vector3.one * SensaPoseProtocol.AnchorHalfSpan; break;
+                        case "07":
+                            station.reference.localScale = Vector3.one * 1.25f;
+                            station.status.text = station.status.text.Replace("07 Scale x2", "07 Scale x1.25");
+                            station.caseName = "07 Scale x1.25";
+                            station.transform.parent.name = station.caseName;
+                            UdonSharpEditorUtility.CopyProxyToUdon(station);
+                            break;
+                        case "10": station.sender.transform.localPosition = Vector3.forward * (SensaPoseProtocol.PositionRadius + .02f); break;
+                    }
+                }
+                foreach (var station in UnityEngine.Object.FindObjectsOfType<LocalProbeStation>()) AlignReceivers(station.receivers);
+                foreach (var station in UnityEngine.Object.FindObjectsOfType<LabController>()) AlignReceivers(station.receivers);
+                EnsurePresentation(existing);LabPlayability.Apply();LabEditorLocalization.SaveScene(scene);AssetDatabase.SaveAssets();return;
+            }
             var parent=new GameObject("Sensa point geometry cases");
             string[] names={"01 Front","02 Behind","03 Lateral","04 No contact","05 Saturated","06 Wrong radius","07 Scale x1.25","08 Rotated frame","09 Missing P4","10 Beyond fit volume","11 Origin"};
             var positions=new[]{new Vector3(.02f,-.03f,.1f),new Vector3(.02f,.01f,-.1f),new Vector3(.13f,-.05f,.08f),Vector3.forward*(SensaPoseProtocol.ReceiverRadius*1.5f),Vector3.one*-SensaPoseProtocol.AnchorHalfSpan,Vector3.forward*.1f,Vector3.forward*.1f,new Vector3(.02f,.03f,.1f),Vector3.forward*.1f,Vector3.forward*(SensaPoseProtocol.PositionRadius+.02f),Vector3.zero};
@@ -55,6 +76,16 @@ namespace SensaLab
             }
             EnsurePresentation(parent);LabPlayability.Apply();LabEditorLocalization.SaveScene(scene);AssetDatabase.SaveAssets();
         }
+        internal static void AlignReceivers(VRCContactReceiver[] receivers)
+        {
+            for (int i = 0; i < receivers.Length; i++)
+            {
+                int anchor = receivers.Length == 4 ? SensaPoseProtocol.PointAnchorIndex(i) : i;
+                receivers[i].transform.localPosition = new Vector3(SensaPoseProtocol.AnchorX(anchor), SensaPoseProtocol.AnchorY(anchor), SensaPoseProtocol.AnchorZ(anchor));
+                receivers[i].radius = SensaPoseProtocol.ReceiverRadius;
+            }
+        }
+
         private static void EnsurePresentation(GameObject parent)
         {
             if(parent.transform.Find("Case area floor")==null){var floor=GameObject.CreatePrimitive(PrimitiveType.Cube);floor.name="Case area floor";floor.transform.SetParent(parent.transform,false);floor.transform.localPosition=new Vector3(0,-.1f,6);floor.transform.localScale=new Vector3(13,.1f,9);}
@@ -108,7 +139,9 @@ namespace SensaLab
             var text=canvas.gameObject.AddComponent<Text>();text.font=font;text.fontSize=30;text.alignment=TextAnchor.MiddleCenter;text.text=title;text.raycastTarget=false;
         }
         [MenuItem("Tools/Sensa Lab/Validate point geometry cases")]
-        public static void Run()
+        public static void Run() => ValidateCases(true);
+        public static void ValidateWithoutCapture() => ValidateCases(false);
+        static void ValidateCases(bool capture)
         {
             AddCases();var stations=UnityEngine.Object.FindObjectsOfType<PointCaseStation>().OrderBy(s=>s.caseName).ToArray();
             if(stations.Length!=11)throw new InvalidOperationException(LabEditorLocalization.Text("Expected eleven point case stations."));
@@ -120,7 +153,7 @@ namespace SensaLab
                 var buttons=UnityEngine.Object.FindObjectsOfType<PointCaseButton>();
                 bool configured=stations.All(s=>s.pickup!=null && s.targetBody!=null && s.sender.GetComponent<SphereCollider>()!=null && s.sampleBars.Length==4 && s.positionLine!=null) && buttons.Length==22 && buttons.All(b=>b.station!=null);
                 bool passed=cases.All(c=>c.expectedValid==c.actualValid) && configured;Directory.CreateDirectory("Validation");File.WriteAllText("Validation/point-cases.json",JsonUtility.ToJson(new Report{unity=Application.unityVersion,passed=passed,cases=cases,interactiveConfigured=configured,buttonCount=buttons.Length},true));
-                CaptureCases();
+                if (capture) CaptureCases();
                 Debug.Log("SENSA_POINT_CASES "+passed);if(Application.isBatchMode)EditorApplication.Exit(passed?0:1);
             }finally{UnityEngine.Object.DestroyImmediate(go);}
         }

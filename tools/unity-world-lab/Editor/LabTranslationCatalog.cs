@@ -6,6 +6,23 @@ namespace SensaLab
     {
         internal static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>
         {
+            { "ONE PLUG / THREE RECEIVER SETUPS", "一根测试棒，三种接收方式" },
+            { "SPS: ogb-depth. Approach on axis, then move sideways at the same depth.", "SPS：选 ogb-depth。沿轴靠近，再保持深度左右平移。" },
+            { "EXTRA MARKERS adds a tip Contact and three LabPair pose markers.", "额外标记开关启用尖端 Contact 和 LabPair 三个姿态点。" },
+            { "Contact: match SensaLabContact on your Avatar receiver (SDK 3.10.6+).", "Contact：在头像接收器匹配 SensaLabContact 标签（SDK 3.10.6+）。" },
+            { "Try native-contact-axial, then native-contact-separation. Compare sideways motion.", "先用 native-contact-axial，再用 native-contact-separation，对照横移时的读数。" },
+            { "Pose: select a FullFlow socket. Load pose-aligned-depth and select its actual path.", "Pose：选中 FullFlow 的一个 Socket，载入 pose-aligned-depth，改为实际路径。" },
+            { "Move through the opening, then out to the side. Check validity in Sensa.", "沿入口进退，再横移出孔口，在 Sensa 检查有效状态。" },
+            { "For your own root tracker, move the Avatar prop against this stationary tip.", "测自身根点时，将测试棒固定，再相对棒尖移动头像道具。" },
+            { "EXTRA MARKERS", "额外标记" },
+            { "Load osc-l0. Set Depth to Sensa/QuickStart/Depth and add Active as GateEnable.", "载入 osc-l0。将 Sensa/QuickStart/Depth 映射到 Depth，Active 映射到 GateEnable。" },
+            { "2. Load osc-l0: map Sensa/QuickStart/Depth to Depth, Active to GateEnable", "2. 载入 osc-l0，将 Sensa/QuickStart/Depth 映射到 Depth，Active 映射到 GateEnable" },
+            { "osc-l0: Depth -> L0 | Sensa/QuickStart/Active -> GateEnable", "osc-l0：Depth → L0，Sensa/QuickStart/Active → GateEnable" },
+            { "08 tip Contact: native-contact-speed / native-contact-approach. Move, hold, retreat.", "08 棒尖 Contact：选 native-contact-speed 或 native-contact-approach，移动、停住、退回。" },
+            { "Avatar PB: native-pb-stretch. Use its Stretch and IsGrabbed, then release.", "头像 PB：用 native-pb-stretch，填入把手的 Stretch 和 IsGrabbed，抓取后松手。" },
+            { "Avatar root: self-four-anchor-axial or contact-position. Move along Z, then X.", "头像根点：选 self-four-anchor-axial 或 contact-position，先沿 Z 再沿 X 移动。" },
+            { "At 08 try ogb-depth-touch or ogb-touch with an Avatar reporting touch.", "在 08 号台，使用可上报触碰的头像试 ogb-depth-touch 或 ogb-touch。" },
+            { "Contact root: contact-speed or self-contact-stroke. Move forward, hold, return.", "Contact 自身根点：选 contact-speed 或 self-contact-stroke，前移、停住、返回。" },
             { "SENSA LAB", "SENSA 实验室" },
             { "LEFT / RIGHT: hand | PLACE: world | HOME: reset", "LEFT / RIGHT：手部 | PLACE：世界 | HOME：归位" },
             { "Probe P1-P4 / C1-C8", "探针 P1-P4 / C1-C8" },

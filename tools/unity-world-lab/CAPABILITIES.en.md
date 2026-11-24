@@ -16,6 +16,21 @@
 
 The native SPS station uses a known Sender and SDK CalculateProximity. World truth is available because the harness owns the fixtures; that ability does not transfer to arbitrary Avatars.
 
+## Choose a station by Sensa preset
+
+Replace one axis-mapping draft at a time. Match the actual Avatar instance, prefix and Self/Others category, save, then watch OSC parameters and the mapping preview in Sensa.
+
+| Station and action | Mapping presets | What to check |
+| --- | --- | --- |
+| 00, five steps then STOP | `osc-l0`, change Depth to `Sensa/QuickStart/Depth` and add `Sensa/QuickStart/Active` → GateEnable | Five values from 0 to 1, gate closes on STOP |
+| 02 as PB reference, grab the Avatar handle | `native-pb-stretch` | Stretch changes the main axis, release closes the grab gate |
+| 08 native SPS, move along the axis, sideways at fixed depth, then touch | `ogb-depth`, `ogb-touch`, `ogb-depth-touch` | Compare radial depth during lateral motion. Check vibration with an Avatar reporting Touch/Frot |
+| 08, enable EXTRA MARKERS and aim a generic Proximity receiver at the tip | `native-contact-axial`, `native-contact-separation`, `native-contact-speed`, `native-contact-approach` | Move sideways to compare Z and separation. Approach, hold and retreat to distinguish speed from increasing proximity. Use SDK 3.10.6+, enable the corresponding advanced reports and SenderType, and match the `SensaLabContact` tag |
+| 08, same plug and lateral motion, select Measure this socket on FullFlow Palm or Forearm | `pose-aligned-depth` | EXTRA MARKERS supplies `LabPair` Root, Tip and Side. Replace Main/Others with the actual instance and category. Move along the axis, then outside the aperture and check validity |
+| 08, leave the plug stationary as a reference, move your own Avatar root target forward, hold, move sideways | `self-four-anchor-axial`; for a Contact root use `contact-position`, `contact-speed`, `self-contact-stroke` | Equip the matching Sensa four-anchor or direct Contact root prefab, select the actual instance and enable spatial input. Z should hold at fixed depth, speed should decay at rest |
+
+Toggle EXTRA MARKERS off before pairing with another player's Pose Plug to avoid competing markers on the same channel. Stations 06/07 cover Shader transport and model diagnostics.
+
 ## Known-geometry references
 
 The independent Point fixture uses a 0.001-radius Sender, 2-radius Receivers and tetrahedral axis offsets of ±0.35. Its generator and decoder both read `SensaPoseProtocol`; inspect actual proximity readings in the current scene. The layout uses its own reference object, without the SPS four-anchor tracking AvatarRootLocal frame or Sample counter.

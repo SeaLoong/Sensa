@@ -15,7 +15,7 @@ namespace UnityBox.Sensa
 {
     public static class SensaSelectionAnimator
     {
-        public static void Build(GameObject avatar, GameObject host, string group, GameObject[] rigs, string[] names, int[] rigSlots = null)
+        public static void Build(GameObject avatar, GameObject host, string group, GameObject[] rigs, string[] names, int[] rigSlots = null, bool networkSynced = false)
         {
             rigSlots = rigSlots ?? Enumerable.Range(1, rigs.Length).ToArray();
             if (rigSlots.Length != rigs.Length || rigSlots.Any(slot => slot < 1 || slot > names.Length))
@@ -25,7 +25,7 @@ namespace UnityBox.Sensa
             controller.AddParameter(selector, AnimatorControllerParameterType.Int); controller.AddParameter(current, AnimatorControllerParameterType.Int);
             var machine = new AnimatorStateMachine { name = "Sensa selection" };
             controller.AddLayer(new AnimatorControllerLayer { name = "Sensa " + group, stateMachine = machine, defaultWeight = 1 });
-            SensaSensorUtility.Parameter(host, selector, ParameterSyncType.Int);
+            SensaSensorUtility.Parameter(host, selector, ParameterSyncType.Int, networkSynced);
             var resetParameters = new Dictionary<string, AnimatorControllerParameterType>();
             foreach (var rig in rigs)
             {
@@ -51,7 +51,7 @@ namespace UnityBox.Sensa
                     clip.SetCurve(AnimationUtility.CalculateTransformPath(rigs[i].transform, avatar.transform), typeof(GameObject), "m_IsActive",
                         AnimationCurve.Constant(0, .25f, slot == rigSlots[i] ? 1 : 0));
                 state.motion = clip;
-                var driver = state.AddStateMachineBehaviour<VRCAvatarParameterDriver>(); driver.localOnly = true;
+                var driver = state.AddStateMachineBehaviour<VRCAvatarParameterDriver>(); driver.localOnly = !networkSynced;
                 driver.parameters = new List<VRC_AvatarParameterDriver.Parameter> { new VRC_AvatarParameterDriver.Parameter { name = current, value = slot } };
                 foreach (var parameter in resetParameters) driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = parameter.Key, value = 0 });
                 states.Add(state);

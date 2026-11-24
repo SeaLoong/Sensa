@@ -41,7 +41,7 @@ namespace SensaLab
             var body = ball.AddComponent<Rigidbody>(); body.useGravity = false; body.drag = 8; body.angularDrag = 8;
             ball.AddComponent<VRCPickup>(); station.pickup = ball.transform;
             station.status = FunctionalLab.Board(root.transform, "First run instructions", new Vector3(0, 1.8f, .4f),
-                "START HERE: YOUR AVATAR -> OSC -> SENSA\nAdd Quick Start World Receiver to your avatar root, upload privately.\nIn Sensa import Quick Start preset; apply OSC input.\nPreview first, then connect OSR with a small L0 range.\nSelect a step below, or TOUCH and move your right wrist to the ball.\nNo Python, camera or second avatar is needed.\nExpected values are shown in Play Mode. Actual OSC is in Sensa.");
+                "START HERE: YOUR AVATAR -> OSC -> SENSA\nAdd Quick Start World Receiver to your avatar root, upload privately.\nLoad osc-l0. Set Depth to Sensa/QuickStart/Depth and add Active as GateEnable.\nPreview first, then connect OSR with a small L0 range.\nSelect a step below, or TOUCH and move your right wrist to the ball.\nNo Python, camera or second avatar is needed.\nExpected values are shown in Play Mode. Actual OSC is in Sensa.");
             string[] actions = { "Zero", "Quarter", "Half", "ThreeQuarters", "Full", "Touch", "Stop", "ResetBall" };
             string[] labels = { "0%", "25%", "50%", "75%", "100%", "TOUCH", "STOP", "RESET" };
             for (int i = 0; i < actions.Length; i++)

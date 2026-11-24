@@ -11,6 +11,7 @@ using UdonSharpEditor;
 using VRC.SDK3.Components;
 using VRC.SDK3.Dynamics.Contact.Components;
 using com.vrcfury.udon;
+using UnityBox.Sensa;
 
 namespace SensaLab
 {
@@ -67,6 +68,7 @@ namespace SensaLab
                     "Move the whole measurement fixture. Probe centers and target share this reference.");
             }
             if(GameObject.Find("08 MY AVATAR SPS")==null)BuildSpsArea();
+            ConfigurePresetRoutes(GameObject.Find("08 MY AVATAR SPS").transform);
             var spsBoard=GameObject.Find("08 MY AVATAR SPS").transform.Find("Your avatar SPS instructions").GetComponent<Text>();spsBoard.text=spsBoard.text.Replace("Probe P1..P8","Probe P1-P4 / C1-C8");
             foreach(var placement in GameObject.Find("08 MY AVATAR SPS").GetComponentsInChildren<LabPlacement>())
             {var collider=placement.target.GetComponent<SphereCollider>();if(collider!=null)collider.isTrigger=true;}
@@ -125,6 +127,115 @@ namespace SensaLab
             var body=target.gameObject.AddComponent<Rigidbody>();body.useGravity=false;body.drag=8;body.angularDrag=8;
             target.gameObject.AddComponent<VRCPickup>();
         }
+        [MenuItem("Tools/Sensa Lab/Update preset test routes")]
+        public static void UpdatePresetRoutes()
+        {
+            UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync();
+            if (UdonSharpProgramAsset.AnyUdonSharpScriptHasError()) throw new InvalidOperationException("UdonSharp compilation failed.");
+            var scene = LabEditorLocalization.OpenScene(FunctionalLab.Scene);
+            ConfigurePresetRoutes(GameObject.Find("08 MY AVATAR SPS").transform);
+            LabEditorLocalization.SaveScene(scene);
+            AssetDatabase.SaveAssets();
+            ValidatePresetRoutes();
+        }
+
+        static void ConfigurePresetRoutes(Transform area)
+        {
+            foreach (var station in UnityEngine.Object.FindObjectsOfType<CapabilityStation>())
+                LabPointCases.AlignReceivers(station.receivers);
+            var quick = UnityEngine.Object.FindObjectOfType<QuickStartStation>();
+            if (quick != null) quick.status.text = quick.status.text.Replace("In Sensa import Quick Start preset; apply OSC input.", "Load osc-l0. Set Depth to Sensa/QuickStart/Depth and add Active as GateEnable.");
+            var plug = area.Find("World SPS Plug");
+            var markers = plug.Find("Preset markers") ?? Child(plug, "Preset markers", Vector3.zero);
+            var offsets = new[] { Vector3.zero, Vector3.forward * .20f, Vector3.right * .03f };
+            for (int i = 0; i < SensaPoseProtocol.Markers.Length; i++)
+            {
+                string marker = SensaPoseProtocol.Markers[i];
+                var node = markers.Find(marker) ?? Child(markers, marker, offsets[i]);
+                node.localPosition = offsets[i];
+                var sender = node.GetComponent<VRCContactSender>() ?? node.gameObject.AddComponent<VRCContactSender>();
+                sender.radius = SensaPoseProtocol.MarkerRadius;
+                sender.collisionTags = new List<string> { SensaPoseProtocol.Tag("LabPair", marker) };
+                if (marker == "Tip") sender.collisionTags.Add("SensaLabContact");
+            }
+            if (markers.Find("Tip/Marker light") == null)
+            {
+                var light = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                light.name = "Marker light";
+                light.transform.SetParent(markers.Find("Tip"), false);
+                light.transform.localScale = Vector3.one * .018f;
+                UnityEngine.Object.DestroyImmediate(light.GetComponent<Collider>());
+                light.GetComponent<Renderer>().sharedMaterial = Material("PresetSwitch", ProbeColor(4));
+            }
+            markers.gameObject.SetActive(false);
+            var button = area.Find("Extra marker switch");
+            if (button == null)
+            {
+                button = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+                button.name = "Extra marker switch";
+                button.SetParent(area, false);
+                button.localPosition = new Vector3(0, .8f, -.55f);
+                button.localScale = new Vector3(.32f, .12f, .1f);
+                button.GetComponent<Renderer>().sharedMaterial = Material("PresetSwitch", ProbeColor(4));
+            }
+            var toggle = button.GetComponent<LabToggle>() ?? UdonSharpUndo.AddComponent<LabToggle>(button.gameObject);
+            toggle.target = markers.gameObject;
+            UdonSharpEditorUtility.CopyProxyToUdon(toggle);
+            Label(area, "Extra marker label", button.localPosition + Vector3.up * .12f, "EXTRA MARKERS", Color.white, .009f);
+            const string title = "Preset routes";
+            string instructions = "ONE PLUG / THREE RECEIVER SETUPS\n"
+                + "SPS: ogb-depth. Approach on axis, then move sideways at the same depth.\n"
+                + "EXTRA MARKERS adds a tip Contact and three LabPair pose markers.\n"
+                + "Contact: match SensaLabContact on your Avatar receiver (SDK 3.10.6+).\n"
+                + "Try native-contact-axial, then native-contact-separation. Compare sideways motion.\n"
+                + "Pose: select a FullFlow socket. Load pose-aligned-depth and select its actual path.\n"
+                + "Move through the opening, then out to the side. Check validity in Sensa.\n"
+                + "For your own root tracker, move the Avatar prop against this stationary tip.";
+            var board = area.Find(title);
+            var text = board == null ? FunctionalLab.Board(area, title, new Vector3(0, 1f, .4f), instructions) : board.GetComponent<Text>();
+            text.text = instructions;
+            text.fontSize = 30;
+        }
+
+        [Serializable] class PresetRouteReport
+        {
+            public string unity, poseChannel, tipTag;
+            public int contactReceivers;
+            public float tipDistanceMeters, sideOffsetMeters;
+            public bool extraMarkersInitiallyOff;
+        }
+
+        public static void ValidatePresetRoutes()
+        {
+            var scene = LabEditorLocalization.OpenScene(FunctionalLab.Scene);
+            var area = scene.GetRootGameObjects().Single(root => root.name == "08 MY AVATAR SPS").transform;
+            var markers = area.Find("World SPS Plug/Preset markers");
+            var toggle = area.Find("Extra marker switch").GetComponent<LabToggle>();
+            if (markers.gameObject.activeSelf || toggle.target != markers.gameObject ||
+                markers.GetComponentsInChildren<VRCContactSender>(true).Length != 3)
+                throw new InvalidOperationException("Check the shared plug marker switch and sender count.");
+            foreach (string marker in SensaPoseProtocol.Markers)
+            {
+                var sender = markers.Find(marker).GetComponent<VRCContactSender>();
+                var offset = marker == "Tip" ? Vector3.forward * .20f : marker == "Side" ? Vector3.right * .03f : Vector3.zero;
+                if (!sender.collisionTags.Contains(SensaPoseProtocol.Tag("LabPair", marker)) ||
+                    sender.collisionTags.Contains("SensaLabContact") != (marker == "Tip") ||
+                    sender.radius != SensaPoseProtocol.MarkerRadius || Vector3.Distance(sender.transform.localPosition, offset) > .00001f)
+                    throw new InvalidOperationException("Check shared plug geometry and tags: " + marker);
+            }
+            var receivers = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<CapabilityStation>())
+                .SelectMany(station => station.receivers).ToArray();
+            if (receivers.Length != 12 || receivers.Any(receiver => receiver.radius != SensaPoseProtocol.ReceiverRadius))
+                throw new InvalidOperationException("Check the three four-receiver capability stations.");
+            Directory.CreateDirectory("Validation/interaction");
+            File.WriteAllText("Validation/interaction/preset-routes.json", JsonUtility.ToJson(new PresetRouteReport {
+                unity = Application.unityVersion, contactReceivers = receivers.Length,
+                poseChannel = "LabPair", tipTag = "SensaLabContact", tipDistanceMeters = markers.Find("Tip").localPosition.z,
+                sideOffsetMeters = markers.Find("Side").localPosition.x, extraMarkersInitiallyOff = !markers.gameObject.activeSelf
+            }, true));
+            Debug.Log("SENSA_PRESET_ROUTES_VALIDATED");
+        }
+
         static void BuildSpsArea()
         {
             var root=new GameObject("08 MY AVATAR SPS").transform;root.position=new Vector3(-5.6f,0,-.8f);

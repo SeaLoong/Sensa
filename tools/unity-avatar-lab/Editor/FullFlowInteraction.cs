@@ -66,7 +66,7 @@ namespace SensaAvatarLab
             {
                 MovePropMenu(avatar,rootMenu);
             }
-            SensaSensorUtility.Parameter(host,Hints,ParameterSyncType.Bool);
+            SensaSensorUtility.Parameter(host,Hints,ParameterSyncType.Bool,networkSynced:true);
             var configs=host.GetComponent<ModularAvatarParameters>().parameters;int hintIndex=configs.FindIndex(p=>p.nameOrPrefix==Hints);var hintConfig=configs[hintIndex];hintConfig.defaultValue=1;configs[hintIndex]=hintConfig;
             controller.AddParameter(Hints,AnimatorControllerParameterType.Bool);var parameter=controller.parameters;parameter.Single(p=>p.name==Hints).defaultBool=true;controller.parameters=parameter;
             var machine=new AnimatorStateMachine{name="Marker visibility"};AssetDatabase.AddObjectToAsset(machine,controller);controller.layers=controller.layers.Concat(new[]{new AnimatorControllerLayer{name="Marker visibility",stateMachine=machine,defaultWeight=1}}).ToArray();
@@ -82,10 +82,57 @@ namespace SensaAvatarLab
             var merge=host.AddComponent<ModularAvatarMergeAnimator>();merge.animator=controller;merge.layerType=VRCAvatarDescriptor.AnimLayerType.FX;merge.pathMode=MergeAnimatorPathMode.Absolute;merge.matchAvatarWriteDefaults=false;
             RepairMenus(avatar);EnsurePlugGuides(avatar);EnsureGuideLayouts(avatar);BakeLabels(avatar);AvatarLabLocalization.SaveAssets();EditorSceneManager.SaveScene(scene);
         }
+        // Update serialized declarations in existing scenes without recreating props or changing blueprint IDs.
+        [MenuItem("Tools/Sensa Avatar Lab/Update shared prop controls")]
+        public static void UpdateSharedControls()
+        {
+            AvatarLab.PrepareTests();
+            var paths = new[] { FullFlowAvatar.Scene }.Concat(AvatarCapabilities.Cases.Select(
+                name => "Assets/SensaAvatarLab/Capabilities/" + name + ".unity"));
+            foreach (string path in paths.Where(File.Exists))
+            {
+                var scene = EditorSceneManager.OpenScene(path);
+                bool modified = path == FullFlowAvatar.Scene && AlignExistingGuides(
+                    scene.GetRootGameObjects().Single(root => root.GetComponent<VRCAvatarDescriptor>() != null));
+                foreach (var host in scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<ModularAvatarParameters>(true)))
+                {
+                    for (int i = 0; i < host.parameters.Count; i++)
+                    {
+                        var parameter = host.parameters[i];
+                        if (!parameter.localOnly || !(parameter.nameOrPrefix == Hints || parameter.nameOrPrefix == "Sensa/Lab/Fixture"
+                            || (parameter.nameOrPrefix ?? "").StartsWith("Sensa/Lab/Place/", StringComparison.Ordinal))) continue;
+                        parameter.localOnly = false;
+                        host.parameters[i] = parameter;
+                        if (PrefabUtility.IsPartOfPrefabInstance(host)) PrefabUtility.RecordPrefabInstancePropertyModifications(host);
+                        EditorUtility.SetDirty(host);
+                        modified = true;
+                    }
+                }
+                if (modified) EditorSceneManager.SaveScene(scene);
+            }
+            EditorSceneManager.OpenScene(FullFlowAvatar.Scene);
+        }
         static bool IsGuide(Transform node) {for(var p=node.parent;p!=null;p=p.parent)if(p.name=="Sensa visible guides")return true;return false;}
+        static bool AlignExistingGuides(GameObject avatar)
+        {
+            bool changed = false;
+            foreach (var marker in avatar.GetComponentsInChildren<Transform>(true).Where(node => IsGuide(node) && System.Text.RegularExpressions.Regex.IsMatch(node.name, "^Probe (P[1-4]|C[1-8])$")))
+            {
+                string id = marker.name.Substring(6);
+                int index = int.Parse(id.Substring(1)) - 1;
+                int anchor = id[0] == 'P' ? SensaPoseProtocol.PointAnchorIndex(index) : index;
+                var position = new Vector3(SensaPoseProtocol.AnchorX(anchor), SensaPoseProtocol.AnchorY(anchor), SensaPoseProtocol.AnchorZ(anchor));
+                if (marker.localPosition == position) continue;
+                var label = marker.parent.Find("Label " + id);
+                if (label != null) label.localPosition += position - marker.localPosition;
+                marker.localPosition = position;
+                changed = true;
+            }
+            return changed;
+        }
         static void EnsureGuideLayouts(GameObject avatar)
         {
-            var controller=AssetDatabase.LoadAssetAtPath<AnimatorController>(Root+"/Placement.controller");if(controller.layers.Any(l=>l.name=="Probe layout"))return;
+            var controller=AssetDatabase.LoadAssetAtPath<AnimatorController>(Root+"/Placement.controller");if(controller.layers.Any(l=>l.name=="Probe layout")){AlignExistingGuides(avatar);return;}
             var setup=avatar.GetComponent<SensaAutoSetup>();var measured=SensaAutoBuilder.Targets(setup,avatar).Where(c=>SensaAutoBuilder.HasMeasurement(setup,c)).ToArray();
             int plugSlot=Array.FindIndex(measured,c=>c.GetType().FullName==SensaSpsAdapter.PlugType)+1;
             var cubes=new List<Transform>();var points=new List<Transform>();
@@ -278,7 +325,7 @@ namespace SensaAvatarLab
             {var hand=animator.GetBoneTransform(bone);var anchor=Child(hand,"Sensa "+id+" "+side,Vector3.zero);anchor.position=hand.position+avatar.transform.forward*.12f;anchor.rotation=avatar.transform.rotation;return anchor;}
             var left=Anchor(HumanBodyBones.LeftHand,"left");var right=Anchor(HumanBodyBones.RightHand,"right");
             var constraint=target.gameObject.AddComponent<VRCParentConstraint>();constraint.Sources.Add(new VRCConstraintSource(home,1,Vector3.zero,Vector3.zero));constraint.Sources.Add(new VRCConstraintSource(left,0,Vector3.zero,Vector3.zero));constraint.Sources.Add(new VRCConstraintSource(right,0,Vector3.zero,Vector3.zero));constraint.IsActive=true;constraint.Locked=true;
-            string parameter="Sensa/Lab/Place/"+id;SensaSensorUtility.Parameter(host,parameter,ParameterSyncType.Int);controller.AddParameter(parameter,AnimatorControllerParameterType.Int);
+            string parameter="Sensa/Lab/Place/"+id;SensaSensorUtility.Parameter(host,parameter,ParameterSyncType.Int,networkSynced:true);controller.AddParameter(parameter,AnimatorControllerParameterType.Int);
             var machine=new AnimatorStateMachine{name=label};AssetDatabase.AddObjectToAsset(machine,controller);controller.layers=controller.layers.Concat(new[]{new AnimatorControllerLayer{name=label,stateMachine=machine,defaultWeight=1}}).ToArray();
             var menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.name=label;AssetDatabase.CreateAsset(menu,Root+"/"+id+"Menu.asset");
             rootMenu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text(label),type=VRCExpressionsMenu.Control.ControlType.SubMenu,subMenu=menu});

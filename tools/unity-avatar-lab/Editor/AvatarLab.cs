@@ -65,7 +65,7 @@ namespace SensaAvatarLab
         [Serializable] public class BuildReport
         {
             public string avatar, utc, unity, error, contactAdvancedParametersField;
-            public bool passed, humanoid, localSelector, spsResolver, handlesGrabWithoutCollision, contactDirectSupported;
+            public bool passed, humanoid, selectorValid, spsResolver, handlesGrabWithoutCollision, contactDirectSupported;
             public int missingScripts, contacts, sensaReceivers, physBones, parameterCost;
             public string[] sensaParameters, shaders;
         }
@@ -203,7 +203,7 @@ namespace SensaAvatarLab
                 try
                 {
                     if (!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone)) throw new InvalidOperationException(AvatarLabLocalization.Text("SDK preprocessing rejected the avatar."));
-                    var report = Inspect(clone);
+                    var report = Inspect(clone, variant != "Dedicated");
                     WriteReport(report, variant);
                     passed &= report.passed;
                 }
@@ -220,7 +220,7 @@ namespace SensaAvatarLab
             Debug.Log("SENSA_AVATAR_PREPROCESS_PASSED");
         }
 
-        public static BuildReport Inspect(GameObject avatar)
+        public static BuildReport Inspect(GameObject avatar, bool exclusive = true)
         {
             var descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
             var parameters = descriptor.expressionParameters.parameters;
@@ -239,12 +239,13 @@ namespace SensaAvatarLab
                 physBones = avatar.GetComponentsInChildren<VRCPhysBone>(true).Length,
                 handlesGrabWithoutCollision = avatar.GetComponentsInChildren<VRCPhysBone>(true).Where(b=>b.parameter!=null&&b.parameter.StartsWith("Sensa/")).All(b=>b.allowGrabbing==VRC.Dynamics.VRCPhysBoneBase.AdvancedBool.True && b.allowCollision==VRC.Dynamics.VRCPhysBoneBase.AdvancedBool.False && b.colliders.Count==0 && b.radius>0 && b.GetComponentsInChildren<Collider>().Length==0),
                 parameterCost = descriptor.expressionParameters.CalcTotalCost(),
-                localSelector = parameters.Any(p => p.name == "Sensa/Select/Lab" && !p.networkSynced && p.defaultValue == 0),
+                selectorValid = exclusive ? parameters.Any(p => p.name == "Sensa/Select/Lab" && p.networkSynced && p.defaultValue == 0)
+                    : parameters.All(p => p.name != "Sensa/Select/Lab"),
                 sensaParameters = parameters.Where(p => p.name.StartsWith("Sensa/")).Select(p => p.name).ToArray(),
                 shaders = shaders, spsResolver = shaders.Any(s => s.Contains("SpsResolver"))
             };
             report.passed = report.humanoid && report.handlesGrabWithoutCollision && report.missingScripts == 0 && report.contacts <= 256 && report.sensaReceivers > 0
-                && report.physBones > 0 && report.localSelector && report.parameterCost <= 256 && report.spsResolver
+                && report.physBones > 0 && report.selectorValid && report.parameterCost <= 256 && report.spsResolver
                 && avatar.GetComponentsInChildren<SensaAutoSetup>(true).Length == 0
                 && avatar.GetComponentsInChildren<SensaPointProbe>(true).Length == 0
                 && !shaders.Any(s => s == "MISSING" || s.Contains("InternalErrorShader"));

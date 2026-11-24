@@ -10,7 +10,7 @@ namespace SensaLab
 {
     public static class InteractiveValidation
     {
-        [Serializable] class Report {public bool passed,nativePlugBaked,nativeSocketBaked,leftHandFollow,worldPlacementHolds,homeRestores,probeMarkersMatch;public int placements;public string scope="ClientSim Udon placement and native SPS bake; actual avatar OSC / VR hand interaction unverified";}
+        [Serializable] class Report {public bool passed,markerSwitchWorks,nativePlugBaked,nativeSocketBaked,leftHandFollow,worldPlacementHolds,homeRestores,probeMarkersMatch;public int placements;public string scope="ClientSim Udon placement and native SPS bake; actual avatar OSC / VR hand interaction unverified";}
         static Report report;
         static LabPlacement[] props;
         static Vector3[] homes,placed;
@@ -23,6 +23,14 @@ namespace SensaLab
                 report=new Report();var root=GameObject.Find("08 MY AVATAR SPS");if(root==null)throw new InvalidOperationException(LabEditorLocalization.Text("Missing avatar SPS test area."));
                 props=root.GetComponentsInChildren<LabPlacement>();report.placements=UnityEngine.Object.FindObjectsOfType<LabPlacement>().Length;
                 var plug=root.transform.Find("World SPS Plug");var socket=root.transform.Find("World SPS Socket");
+                var toggle = root.transform.Find("Extra marker switch").GetComponent<LabToggle>();
+                var program = UdonSharpEditorUtility.GetBackingUdonBehaviour(toggle);
+                var markers = plug.Find("Preset markers").gameObject;
+                report.markerSwitchWorks = !markers.activeSelf;
+                program.Interact();
+                report.markerSwitchWorks &= markers.activeSelf && markers.GetComponentsInChildren<VRCContactSender>().Length == 3;
+                program.Interact();
+                report.markerSwitchWorks &= !markers.activeSelf;
                 var senders=plug.GetComponentsInChildren<VRCContactSender>(true);
                 report.nativePlugBaked=senders.Any(s=>s.collisionTags.Contains("TPS_Pen_Root"))&&senders.Any(s=>s.collisionTags.Contains("TPS_Pen_Penetrating"));
                 report.nativeSocketBaked=socket.GetComponentsInChildren<Light>(true).Length>0;
@@ -46,7 +54,7 @@ namespace SensaLab
                 foreach(var p in props)UdonSharpEditorUtility.GetBackingUdonBehaviour(p).SendCustomEvent("Home");
                 report.homeRestores=props.Select((p,i)=>Vector3.Distance(p.target.position,homes[i])<.001f).All(x=>x);
                 Networking.LocalPlayer.TeleportTo(playerHome,Networking.LocalPlayer.GetRotation());
-                report.passed=report.nativePlugBaked&&report.nativeSocketBaked&&report.leftHandFollow&&report.worldPlacementHolds&&report.homeRestores&&report.probeMarkersMatch&&report.placements>=9;
+                report.passed=report.markerSwitchWorks&&report.nativePlugBaked&&report.nativeSocketBaked&&report.leftHandFollow&&report.worldPlacementHolds&&report.homeRestores&&report.probeMarkersMatch&&report.placements>=9;
                 Directory.CreateDirectory("Validation/interaction");File.WriteAllText("Validation/interaction/world.json",JsonUtility.ToJson(report,true));
             }
         }

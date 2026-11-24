@@ -37,14 +37,14 @@ namespace UnityBox.Sensa
                     throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa requires positive uniform scale: ")+t.name);
             }
         }
-        public static void Parameter(GameObject host,string name,ParameterSyncType type=ParameterSyncType.Float)
+        public static void Parameter(GameObject host,string name,ParameterSyncType type=ParameterSyncType.Float, bool networkSynced=false)
         {
             var avatar=host.GetComponentInParent<VRCAvatarDescriptor>();var root=avatar!=null?avatar.gameObject:host.transform.root.gameObject;
             if(root.GetComponentsInChildren<ModularAvatarParameters>(true).Any(c=>c.parameters!=null&&c.parameters.Any(p=>p.nameOrPrefix==name)))throw new InvalidOperationException(SensaEditorLocalization.Text("Generated Sensa parameter conflicts with an existing declaration: ")+name);
             var config=host.GetComponent<ModularAvatarParameters>()??host.AddComponent<ModularAvatarParameters>();
             if(config.parameters==null) config.parameters=new List<ParameterConfig>();
             if(config.parameters.Any(p=>p.nameOrPrefix==name)) throw new InvalidOperationException(SensaEditorLocalization.Text("Duplicate generated parameter: ")+name);
-            config.parameters.Add(new ParameterConfig {nameOrPrefix=name, remapTo="",syncType=type,localOnly=true,saved=false,hasExplicitDefaultValue=true,defaultValue=0});
+            config.parameters.Add(new ParameterConfig {nameOrPrefix=name, remapTo="",syncType=type,localOnly=!networkSynced,saved=false,hasExplicitDefaultValue=true,defaultValue=0});
         }
         internal static void ValidateParameters(GameObject host, IEnumerable<string> names)
         {

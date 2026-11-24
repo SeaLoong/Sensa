@@ -114,7 +114,7 @@ namespace UnityBox.Sensa
                     }
                 }
             }
-            if(setup.arrayPolicy==SensaArrayPolicy.Exclusive && names.Count>0)SensaSelectionAnimator.Build(avatar,host,setup.groupName,rigs.ToArray(),names.ToArray(),rigSlots:rigSlots.ToArray());
+            if(setup.arrayPolicy==SensaArrayPolicy.Exclusive && names.Count>0)SensaSelectionAnimator.Build(avatar,host,setup.groupName,rigs.ToArray(),names.ToArray(),rigSlots:rigSlots.ToArray(),networkSynced:setup.pairedPlugMarkers && targets.Any(t=>t.GetType().FullName==SensaSpsAdapter.PlugType));
             UnityEngine.Object.DestroyImmediate(profile);
         }
     }

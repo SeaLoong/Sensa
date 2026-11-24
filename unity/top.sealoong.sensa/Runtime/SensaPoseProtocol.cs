@@ -22,7 +22,9 @@ namespace UnityBox.Sensa
         public const float MaximumFitResidual = 0.002f;
         public const int MaximumSampleAgeMs = 1000;
         public const int AnchorsPerMarker = 8;
+#if !COMPILER_UDONSHARP
         public static readonly string[] Markers = { "Root", "Tip", "Side" };
+#endif
         public static float AnchorX(int index) => (index & 1) == 0 ? -AnchorHalfSpan : AnchorHalfSpan;
         public static float AnchorY(int index) => (index & 2) == 0 ? -AnchorHalfSpan : AnchorHalfSpan;
         public static float AnchorZ(int index) => (index & 4) == 0 ? -AnchorHalfSpan : AnchorHalfSpan;

@@ -103,7 +103,7 @@ namespace SensaAvatarLab
         static void FixtureMenu(GameObject avatar,GameObject host,Transform target,bool sps,string name)
         {
             var controller=AnimatorController.CreateAnimatorControllerAtPath(Root+"/"+name+"Fixture.controller");const string parameter="Sensa/Lab/Fixture";controller.AddParameter(parameter,AnimatorControllerParameterType.Int);
-            SensaSensorUtility.Parameter(host,parameter,ParameterSyncType.Int);
+            SensaSensorUtility.Parameter(host,parameter,ParameterSyncType.Int,networkSynced:true);
             var menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.name="Lab fixture";AssetDatabase.CreateAsset(menu,Root+"/"+name+"Menu.asset");
             var values=sps?new[]{new Vector3(0,0,.24f),new Vector3(0,0,.12f),new Vector3(.06f,0,.12f),new Vector3(0,0,.4f)}:new[]{new Vector3(0,0,.1f),new Vector3(0,0,.05f),new Vector3(.06f,0,.1f),new Vector3(0,0,.6f)};
             string[] labels={sps?"Outside / learn length":"Baseline","Near","Offset","Far outside"};
@@ -188,6 +188,7 @@ namespace SensaAvatarLab
                     var row=new Row{name=name,contacts=receivers.Length+senders.Length,sensaReceivers=receivers.Count(r=>r.parameter!=null&&r.parameter.StartsWith("Sensa/")),pbHandles=handles.Length,parameters=parameters,contactParameters=receivers.Select(r=>r.parameter).Where(p=>!string.IsNullOrEmpty(p)).Distinct().ToArray()};
                     row.passed=row.contacts<=256 && handles.All(b=>b.allowGrabbing==VRCPhysBoneBase.AdvancedBool.True&&b.allowCollision==VRCPhysBoneBase.AdvancedBool.False&&b.colliders.Count==0&&b.radius>0&&b.GetComponentsInChildren<Collider>().Length==0);
                     if(name.StartsWith("SPS")) {row.selfSpsTagsMatch=receivers.Any(r=>r.parameter!=null&&r.parameter.EndsWith("/PenSelfNewRoot")&&r.allowSelf&&senders.Any(s=>s.collisionTags.Intersect(r.collisionTags).Any()));row.passed&=row.selfSpsTagsMatch;}
+                    if(name=="Contact" || name.StartsWith("SPS")) row.passed &= clone.GetComponent<VRCAvatarDescriptor>().expressionParameters.parameters.Any(p=>p.name=="Sensa/Lab/Fixture" && p.networkSynced);
                     if(name=="Contact")row.passed&=row.sensaReceivers==4&&handles.Length==0;
                     if(name=="PB")row.passed&=row.sensaReceivers==0&&handles.Length==1;
                     if(name=="PBContact")row.passed&=row.sensaReceivers==4&&handles.Length==1;
