@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getOscMappingPresets } from '../../src/web/configuration.js';
 import { centeredCounts, simulationInputs, createMappingSimulation, targetCounts } from '../../src/web/osr6-simulation.js';
-import { platformPoint } from '../../src/web/osr6-scene.js';
+import { platformPoint, receiverPose } from '../../src/web/osr6-scene.js';
 
 test('all six targets change the 3D pose independently around a centered platform', () => {
   const neutral = platformPoint([0,0,0], centeredCounts);
@@ -10,11 +10,35 @@ test('all six targets change the 3D pose independently around a centered platfor
   assert.ok(at('L0',[0,0,0])[1] > neutral[1]);
   assert.ok(at('L1',[0,0,0])[2] < neutral[2]);
   assert.ok(at('L2',[0,0,0])[0] < neutral[0]);
-  for (const axis of ['R0','R1','R2']) assert.deepEqual(at(axis,[0,0,0]), neutral);
-  assert.ok(at('R0',[1,0,0])[2] > 0);
+  for (const axis of ['R0','R1','R2']) assert.ok(at(axis,[0,0,0]).every((value,i) => Math.abs(value-neutral[i]) < 1e-10));
+  assert.ok(at('R0',[1,0,0])[2] > neutral[2]);
   assert.ok(at('R1',[1,0,0])[1] > neutral[1]);
   assert.ok(at('R2',[0,0,1])[1] < neutral[1]);
   assert.deepEqual(targetCounts({l0: 1, L2: 0}), {...centeredCounts, L0:999, L2:0});
+});
+
+test('the six servo cranks and links retain length; twist only drives the receiver insert', () => {
+  const neutral = receiverPose(centeredCounts);
+  const distance = (a,b) => Math.hypot(...a.map((v,i)=>v-b[i]));
+  const cases = Object.keys(centeredCounts).flatMap(axis => [0,999].map(value => ({...centeredCounts,[axis]:value})));
+  for (const counts of cases) assert.equal(receiverPose(counts).limited,false);
+  for (let mask=0;mask<64;mask++) cases.push(Object.fromEntries(Object.keys(centeredCounts).map((axis,i)=>[axis, mask & (1<<i) ? 999 : 0])));
+  let reachedLimit = false;
+  for (const counts of cases) {
+    const pose = receiverPose(counts);
+    reachedLimit ||= pose.limited;
+    assert.equal(pose.links.length,6);
+    for (let i=0;i<6;i++) {
+      const {pivot,elbow,socket}=pose.links[i], rest=neutral.links[i];
+      assert.deepEqual(pivot,rest.pivot);
+      assert.ok(Math.abs(distance(pivot,elbow)-distance(rest.pivot,rest.elbow)) < 1e-8);
+      assert.ok(Math.abs(distance(elbow,socket)-distance(rest.elbow,rest.socket)) < 1e-8);
+    }
+  }
+  assert.ok(reachedLimit);
+  const twisted = {...centeredCounts,R0:999};
+  assert.deepEqual(receiverPose(twisted).links,neutral.links);
+  assert.notDeepEqual(platformPoint([.5,0,0],twisted),platformPoint([.5,0,0],centeredCounts));
 });
 
 test('isolated preview uses the Contact preset gate, real rate limit and independent depth', async () => {

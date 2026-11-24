@@ -3033,9 +3033,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
         </div>
       </main>
       {onboarding.status === 'active' && <GuidedTour targetSelector={guideTarget} step={onboarding.step} goal={onboarding.goal} workspace={workspace}
-        suspended={Boolean(editingGuideMappings || dialog || profileDialog || presetDialog || helpOpen || parameterDetail || confirmClearMappings)}
+        suspended={Boolean(simulatorMode || editingGuideMappings || dialog || profileDialog || presetDialog || helpOpen || parameterDetail || confirmClearMappings)}
         onDismiss={() => changeGuide({ type: 'dismiss' })} emergencyAction={emergencyAction}>
-        <Onboarding state={onboarding} platform={platform} outputCount={outputs.length} availableOutputs={availableOutputCount}
+        <Onboarding onSimulate={mode => setSimulatorMode(mode === 'mapping' ? 'guide-sway' : 'manual')} state={onboarding} platform={platform} outputCount={outputs.length} availableOutputs={availableOutputCount}
           draftMappingCount={signalDrafts.length} savedMappingCount={config?.signals?.length || 0} inputPrepared={guidePrepared}
           onAppendL0={() => applyOscPreset('append', 'osc-l0')}
           onEditMappings={() => {
@@ -3053,7 +3053,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           }} onCreateProfile={openNewProfileDialog}
           onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />
       </GuidedTour>}
-      {simulatorMode && <Osr6Simulator initialMode={simulatorMode} drafts={signalDrafts} presets={oscMappingPresets}
+      {simulatorMode && <Osr6Simulator initialMode={simulatorMode === 'guide-sway' ? 'mapping' : simulatorMode} guideExample={simulatorMode === 'guide-sway'} drafts={signalDrafts} presets={oscMappingPresets}
         runtime={runtimeOverview} online={online} emergencyAction={emergencyAction} onClose={() => setSimulatorMode(null)} />}
       <Modal
         emergencyAction={emergencyAction}
@@ -3381,7 +3381,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           <Button tone="primary" disabled={!online || recordingBusy} onClick={() => { setRecordingRestartOpen(false); void recordingAction('start'); }}>{t('重新录制')}</Button></>}>
         <p>{t('将清空当前录制的 {0} 帧。可先取消并导出。', [overview?.recording?.frameCount || 0])}</p>
       </Modal>
-      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} onNavigate={navigateWorkflow}
+      <HelpDialog onSimulate={() => setSimulatorMode('manual')} open={helpOpen} onClose={() => setHelpOpen(false)} onNavigate={navigateWorkflow}
         onStartGuide={startGuide}
         supportsListeners={platform.supportsListeners !== false} emergencyAction={emergencyAction} error={modalError} />
       {snackbar.open && (

@@ -14,6 +14,8 @@ Current Desktop/CLI builds are also available in [development previews](https://
 
 Open **Guided tour** in the Input header. The desktop guide starts with OSC and an L0 example. You can choose another supported input. WebSensa defaults to manual.
 
+In the tour, open **Axis mappings → Try the sway example**. Change sideways position from 0 to 0.04 m: L2 slowly moves from 500 to 560 while L0 stays at 500. **Connect devices → Open 3D simulator** lets you try each axis individually. Closing the simulator returns to the same guide step with your draft and device state preserved.
+
 **Save and exit** records your place. **Resume setup** returns to that step. To browse controls directly, use the input tabs.
 
 ![Manual controls in Sensa](screenshots/desktop/english-manual.png)

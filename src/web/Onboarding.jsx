@@ -4,7 +4,7 @@ import { ONBOARDING_STEPS, onboardingScenes, onboardingInstructions } from './on
 import { t } from './i18n.js';
 
 export default function Onboarding({ state, platform = {}, outputCount = 0, availableOutputs = 0, inputPrepared = false,
-  onViewParameters, onAppendL0, onEditMappings, savedMappingCount = 0, draftMappingCount = savedMappingCount, actualMode, inputActive = false, disabled = false, onChange, onNavigate, onApplyInput, onCreateProfile }) {
+  onSimulate, onViewParameters, onAppendL0, onEditMappings, savedMappingCount = 0, draftMappingCount = savedMappingCount, actualMode, inputActive = false, disabled = false, onChange, onNavigate, onApplyInput, onCreateProfile }) {
   const scenes = onboardingScenes(platform);
   const scene = scenes.find(item => item.id === state.goal);
   const activeStep = scene ? state.step : 'goal';
@@ -38,12 +38,14 @@ export default function Onboarding({ state, platform = {}, outputCount = 0, avai
         <Button tone={firstOscMapping ? undefined : 'primary'} data-testid="onboarding-edit-mappings" onClick={onEditMappings}>{t('编辑轴映射')}</Button>
         {state.goal === 'osc' && !firstOscMapping && <Button data-testid="onboarding-append-l0" onClick={onAppendL0}>{t('追加 L0 示例')}</Button>}
       </div>}
+      {activeStep === 'mapping' && onSimulate && <Button data-testid="onboarding-simulate-sway" onClick={() => onSimulate('mapping')}>{t('先试横移示例')}</Button>}
       {activeStep === 'axes' && <div className="stack">
         <Button data-testid="onboarding-create-profile" disabled={disabled} onClick={onCreateProfile}>{t('新增轴配置')}</Button>
       </div>}
       {activeStep === 'device' && <div className="stack">
         <Badge tone={availableOutputs > 0 ? 'success' : 'default'}>{t('可用输出 {0}/{1}', [availableOutputs, outputCount])}</Badge>
         <div className="actions"><Button tone="primary" data-testid="onboarding-connect-device" onClick={() => onNavigate('outputs')}>{t('连接或配置设备')}</Button>
+          {onSimulate && <Button data-testid="onboarding-simulate-device" onClick={() => onSimulate('manual')}>{t('打开 3D 模拟器')}</Button>}
           <Button onClick={() => go('axes')}>{t('轴配置')}</Button></div>
       </div>}
       {activeStep === 'input' && scene && <div className="stack">
