@@ -120,7 +120,7 @@ export default function ComputedSignalsPanel({ drafts = [], runtimeSignals = [],
             expandedIds: (current.expandedIds || []).filter(id => id !== draft.id) }));
         }} onMap={() => onMap(draft)} onReturnToMapping={draft.id === editingStepId ? onReturnToMapping : undefined} />)}
       <div className="actions"><Button disabled={drafts.length >= COMPUTED_SIGNAL_LIMIT} onClick={() => { const draft = newComputedDraft(drafts); select(draft.id); onChange([...drafts, draft]); }}>{t('新增计算信号')}</Button></div>
-      <ComputedSpatialPresets drafts={drafts} pointOptions={pointOptions} onAdd={added => {
+      <ComputedSpatialPresets onMap={onMap} drafts={drafts} pointOptions={pointOptions} onAdd={added => {
         if (!added.length) return;
         select((added.find(draft => computedVectorGroups(draft.operation).length) || added[0]).id);
         onChange([...drafts, ...added]);

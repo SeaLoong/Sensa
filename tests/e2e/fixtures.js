@@ -126,7 +126,6 @@ export async function selectMappingPreset(page, id) {
   const selector = page.locator('#mapping-preset-variant');
   await expect(selector).toBeVisible();
   await expect(selector.locator('option').first()).toBeAttached();
-  if (!await selector.locator(`option[value="${id}"]`).count()) await page.locator('#switch-preset-list').click();
   await selector.selectOption(id);
 }
 
