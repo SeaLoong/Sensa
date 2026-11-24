@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AXIS_PROFILE_DEFS } from './configuration.js';
+import { AXIS_PROFILE_DEFS, SIGNAL_ROLE_OPTIONS } from './configuration.js';
 import { SelectField, ValueSliderField } from './controls.jsx';
-import { Button, Modal, Tabs } from './ui.tsx';
+import { Button, Modal, Tabs, Toggle } from './ui.tsx';
 import { t } from './i18n.js';
 import { centeredCounts, createMappingSimulation, platformAxes, simulationInputs, targetCounts } from './osr6-simulation.js';
 import { drawPlatform } from './osr6-scene.js';
@@ -42,6 +42,7 @@ function PlatformView({ counts }) {
           elevation: Math.max(.02,Math.min(1.35,start.view.elevation + (event.clientY-start.y)*.009)) });
       }}
       onLostPointerCapture={() => { drag.current = null; }} />
+    <p className="osr6-caption">{t('平台姿态示意 · 拖动模型旋转视角')}</p>
     <div className="osr6-cameras" aria-label={t('观察视角')} role="group">
       <Button onClick={() => setView(initialView)}>{t('立体视图')}</Button>
       <Button onClick={() => setView({ yaw: 0, elevation: .04 })}>{t('正视图')}</Button>
@@ -71,14 +72,27 @@ function MappingControls({ rows, onFrame }) {
       <p className="caption muted">{t('这组映射没有控制 OSR6 的运动轴。可选择含 L0～R2 的预设观察平台动作。')}</p>}
     {plan.inputs.length === 0 && <p className="muted">{t('当前草稿没有映射，请选择一个预设。')}</p>}
     {plan.inputs.map(input => {
-      const label = input.metric || input.source.split(';')[0];
+      const setValue = value => {
+        setReadings(previous => ({ ...previous, [input.path]: value }));
+        simulation.current?.set(input.path, value);
+      };
+      const reading = readings[input.path] ?? input.initial;
+      const native = input.sourceMode === 'Direct';
+      const contact = native && /_SenderType$/.test(input.source);
+      const grab = native && /_IsGrabbed$/.test(input.source);
+      if ((contact || grab) && input.roles.length === 1 && input.roles[0] === 'GateEnable' && input.min === 0 && input.max === 1)
+        return <Toggle key={input.path} label={contact ? t('检测到接触') : t('已抓取')} checked={reading > 0}
+          onChange={checked => setValue(checked ? 1 : 0)} />;
+      const roleLabel = SIGNAL_ROLE_OPTIONS().filter(option => input.roles.includes(option.value)).map(option => option.label).join(' / ');
+      const contactAxis = native && input.source.match(/_SenderLocalPosition([XYZ])$/)?.[1];
+      const contactLabels = { X: t('左右位置'), Y: t('上下位置'), Z: t('前后位置') };
+      const label = contactAxis ? contactLabels[contactAxis] + ' (' + contactAxis + ')' : roleLabel;
       const step = Math.max(.00001, Number(((input.max-input.min)/200).toPrecision(2)));
-      return <ValueSliderField key={input.path} label={label} title={input.source}
-        min={input.min} max={Math.max(input.min + step, input.max)} step={step} value={readings[input.path] ?? input.initial}
-        onChange={value => {
-          setReadings(previous => ({ ...previous, [input.path]: value }));
-          simulation.current?.set(input.path, value);
-        }} />;
+      return <div className="osr6-input" key={input.path}>
+        <ValueSliderField label={label} title={input.source} min={input.min} max={Math.max(input.min + step, input.max)}
+          step={step} unit={contactAxis ? 'm' : ''} value={reading} onChange={setValue} />
+        <small className="caption muted" title={input.source}>{input.metric || input.source.split(';')[0]}</small>
+      </div>;
     })}
   </div>;
 }

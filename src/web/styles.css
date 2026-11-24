@@ -494,6 +494,7 @@ tbody tr:hover { background: #f3f3f3; }
 .osr6-stage { position: relative; overflow: hidden; border: 1px solid #cbd9e4; border-radius: 12px; background: radial-gradient(ellipse at 45% 25%, #fff, #e8f0f5); }
 .osr6-stage canvas { display: block; width: 100%; height: clamp(260px, 44vh, 420px); cursor: grab; touch-action: none; }
 .osr6-stage canvas:active { cursor: grabbing; }
+.osr6-caption { text-align: center; font-size: 12px; color: var(--muted); margin: 0 0 5px; }
 .osr6-cameras { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; padding: 0 8px 10px; }
 .osr6-cameras button { min-height: 32px; background: #fff; font-size: 12px; }
 .osr6-readings { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 10px 0 0; padding: 10px 0; border-block: 1px solid var(--border); }
@@ -501,11 +502,15 @@ tbody tr:hover { background: #f3f3f3; }
 .osr6-readings dt { color: var(--muted); font: 12px monospace; }
 .osr6-readings dd { margin: 2px 0 0; font: 600 17px monospace; }
 .osr6-fields { display: grid; gap: 10px; }
+.osr6-input > small { display: block; overflow-wrap: anywhere; }
 .osr6-fields .field__label { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 680px) {
-  .osr6-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .osr6-stage canvas { height: 210px; }
+  .osr6-layout { display: block; }
+  .osr6-preview { position: sticky; top: -1px; z-index: 2; background: white; padding-bottom: 6px; }
+  .osr6-controls { margin-top: 12px; }
+  .osr6-stage canvas { height: clamp(130px, 24vh, 210px); }
 }
+@media (max-height: 460px) { .osr6-preview { position: static; } }
 .modal--wide { width: min(960px, calc(100% - 32px)); }
 .modal--profile { width: min(1040px, calc(100% - 32px)); height: min(780px, calc(100dvh - 32px)); }
 .modal--profile .modal__body { flex: 1 1 auto; }
