@@ -21,10 +21,12 @@ test('OSR6 simulator shows manual, mapping and live poses without activating out
   await dialog.screenshot({path: `artifacts/preset-interaction/${info.project.name}-manual.png`});
   await dialog.getByRole('tab',{name:'模拟映射'}).click();
   await dialog.getByLabel('试用映射').selectOption('native-contact-axial');
-  await dialog.getByRole('slider',{name:'MyContact_SenderLocalPositionX',exact:true}).press('End');
+  await dialog.getByRole('slider',{name:'左右位置 (X)',exact:true}).press('End');
   await expect(dialog.getByTestId('osr6-L2')).toHaveText('560');
   await expect(dialog.getByTestId('osr6-L0')).toHaveText('500');
   await dialog.screenshot({path: `artifacts/preset-interaction/${info.project.name}-contact.png`});
+  await dialog.getByLabel('检测到接触').uncheck();
+  await expect(dialog.getByRole('status')).toContainText('门控已关闭');
   await dialog.getByRole('tab',{name:'实时目标'}).click();
   await expect(dialog.getByRole('status')).toContainText('输出已暂停');
   await dialog.getByRole('button',{name:'关闭',exact:true}).click();

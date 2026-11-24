@@ -25,7 +25,8 @@ export function simulationInputs(rows) {
       : row.role === 'GateEnable' ? (row.invertDirection ? row.vrchatMin : row.vrchatMax) : (low + high) / 2;
     let input = inputs.get(key);
     if (!input) {
-      input = { path: 'Preview/' + inputs.size, source: row.oscPath, metric, initial, min: low, max: high, roles: [] };
+      input = { path: 'Preview/' + inputs.size, source: row.oscPath, sourceMode: row.sourceMode, metric, initial,
+        min: low, max: high, roles: [] };
       inputs.set(key, input);
     }
     input.min = Math.min(input.min, low, initial);
