@@ -70,7 +70,7 @@
     "node": ">=24.22.2"
   },
   "optionalDependencies": {
-    "@julusian/midi": "3.8.1",
+    "@julusian/midi": "3.9.0",
     "serialport": "13.0.0"
   },
   "overrides": {
