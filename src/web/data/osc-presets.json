@@ -1,9 +1,9 @@
 [
   {
     "id": "ogb-depth",
-    "group": "我和对方用 SPS，自己只收到深度或触碰",
+    "group": "跟随双方的相对动作",
     "name": "仅前后跟随",
-    "description": "左右偏移也会影响 SPS 的深度读数。校准时，请对准入口，沿前后方向往返一次。",
+    "description": "主轴随 SPS 深度前后移动。左右晃动也会改变球形接触区的读数，主轴可能随之回退。校准时请对准入口，沿前后方向往返一次。",
     "mappings": [
       {
         "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
@@ -11,29 +11,13 @@
         "role": "Depth"
       }
     ],
-    "setup": "普通 SPS"
-  },
-  {
-    "id": "sps-soft-entry",
-    "group": "我和对方用 SPS，自己只收到深度或触碰",
-    "name": "浅碰时让主轴少动",
-    "description": "左右偏移也会影响 SPS 的深度读数。校准时，请对准入口，沿前后方向往返一次。",
-    "mappings": [
-      {
-        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
-        "sourceMode": "OgbDepth",
-        "role": "Depth",
-        "vrchatMin": 0.2,
-        "curve": "EaseIn"
-      }
-    ],
-    "setup": "普通 SPS"
+    "setup": "我和对方都用 SPS，只读取深度"
   },
   {
     "id": "native-contact-axial",
-    "group": "我的 Contact 已启用高级报告",
+    "group": "跟随双方的相对动作",
     "name": "左右晃动时保持主轴位置",
-    "description": "将接收器的 Z 轴对准入口。主轴只跟随这个方向，左右移动时保持原位。把两行中的 MyContact 换成接收器参数名，再校准行程两端。失去接触时整组停止。",
+    "description": "对方只需有接收器能识别的接触点。将接收器的 Z 轴对准入口，左右晃动时主轴就能保持原位。把两行中的 MyContact 换成同一接收器的参数名，校准行程两端。失去接触时整组停止。",
     "mappings": [
       {
         "oscPath": "MyContact_SenderLocalPositionZ",
@@ -50,7 +34,7 @@
         "vrchatMax": 1
       }
     ],
-    "setup": "已启用 Contact 高级位置"
+    "setup": "我的 Contact 接收器已开启高级位置"
   },
   {
     "id": "native-contact-separation",
@@ -76,7 +60,7 @@
   },
   {
     "id": "self-four-anchor-axial",
-    "group": "我装了 Sensa 自身定位组件",
+    "group": "跟随自己身上的定位点",
     "name": "SPS 四点定位 · 只跟随自身前后移动",
     "description": "主轴跟随定位点相对自己 Avatar 的前后移动。将 Root 换成定位点名称，校准行程两端，并启用实验空间输入。",
     "mappings": [
@@ -89,11 +73,11 @@
         "vrchatMax": 0.2
       }
     ],
-    "setup": "已安装 Sensa 四点定位"
+    "setup": "我装了 Sensa 的 SPS 四点定位组件"
   },
   {
     "id": "contact-position",
-    "group": "我装了 Sensa 自身定位组件",
+    "group": "跟随自己身上的定位点",
     "name": "用自己的前后位置控制主轴",
     "description": "主轴跟随定位点相对自己 Avatar 的前后移动。将 Root 换成 Sensa Contact 实例名，校准行程两端，并启用实验空间输入。",
     "mappings": [
@@ -106,11 +90,11 @@
         "vrchatMax": 0.2
       }
     ],
-    "setup": "已安装 Sensa Contact 自身定位"
+    "setup": "我用 Sensa 脚本配置了 Contact 自身定位"
   },
   {
     "id": "pose-aligned-depth",
-    "group": "双方都装了 Sensa 三点姿态组件",
+    "group": "跟随双方的相对动作",
     "name": "入口转向时仍沿入口测深",
     "description": "入口转向时，主轴仍跟随进入深度。双方的 Socket 和 Plug 需使用同一通道。将 Main 换成 Socket 实例名，并启用实验空间输入。偏出入口或倾斜过大时停止。",
     "mappings": [
@@ -121,7 +105,7 @@
         "role": "Depth"
       }
     ],
-    "setup": "双方已安装 Sensa 姿态组件"
+    "setup": "我装了 Pose Socket，对方装了配对的 Pose Plug"
   },
   {
     "id": "osc-l0",

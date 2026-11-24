@@ -122,6 +122,14 @@ export async function expectMappingTab(page, tab) {
   await expect(page.getByTestId(mappings ? 'computed-signals-editor' : 'axis-mappings-panel')).toHaveCount(0);
   await expect(page.getByTestId('signal-draft-toolbar')).toHaveAttribute('data-workspace', mappings ? 'osc' : 'pipeline');
 }
+export async function selectMappingPreset(page, id) {
+  const selector = page.locator('#mapping-preset-variant');
+  await expect(selector).toBeVisible();
+  await expect(selector.locator('option').first()).toBeAttached();
+  if (!await selector.locator(`option[value="${id}"]`).count()) await page.locator('#switch-preset-list').click();
+  await selector.selectOption(id);
+}
+
 export async function oscWorkspace(page, name) {
   if (name === '映射') {
     await workspace(page, '映射与变换');

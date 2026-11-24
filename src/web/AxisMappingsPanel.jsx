@@ -33,25 +33,20 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
   onSelectPreset, onApplyPreset, onOpenPreset, onDeletePreset, onOpenFollowingPlane,
   savedMappings = [], runtime = {}, actualInputMode = '', listening = false, hasUnsavedMappings = false,
   signalOverlapWarnings = [], latestForDraft, pathOptions = [], onUpdateMapping, onRemoveMapping, onAddMapping, onClearMappings }) {
-  const experience = selectedOscPresetConfig?.experience || 'other';
-  const variants = oscMappingPresets.filter(preset => (preset.experience || 'other') === experience);
-  function selectExperience(next) {
-    const choices = oscMappingPresets.filter(preset => (preset.experience || 'other') === next);
-    const match = choices.find(preset => preset.setup === selectedOscPresetConfig?.setup);
-    if (choices.length) onSelectPreset((match || choices[0]).id);
-  }
+  const mainAxis = Boolean(selectedOscPresetConfig?.setup);
+  const variants = oscMappingPresets.filter(preset => Boolean(preset.setup) === mainAxis);
+  const otherList = oscMappingPresets.find(preset => Boolean(preset.setup) !== mainAxis);
   return <div className="axis-mappings-panel stack" data-testid="axis-mappings-panel">
     <div className="workspace-header"><h3>{t('轴映射')}</h3>
       <Button id="add-axis-mapping" tone="primary" onClick={() => onAddMapping()}>{t('新增映射')}</Button>
     </div>
     <div className="preset-strip">
-      <SelectField label={t('动作效果')} id="mapping-experience" value={experience} onChange={selectExperience}
-        options={[{ value: 'follow', label: t('前后跟随') },
-          { value: 'gentle', label: t('轻柔起步') }, { value: 'other', label: t('其他预设') }]} />
-      <SelectField label={experience === 'other' ? t('预设方案') : t('Avatar 配置')} id="mapping-preset-variant" value={selectedOscPreset}
+      <SelectField label={mainAxis ? t('如何测量前后动作？') : t('预设方案')} id="mapping-preset-variant" value={selectedOscPreset}
         options={variants.map(preset => ({ value: preset.id, label: preset.setup || preset.name,
-          group: experience === 'other' ? preset.group || t('自定义预设') : undefined }))} onChange={onSelectPreset} />
+          group: preset.group || t('自定义预设') }))} onChange={onSelectPreset} />
       <div className="actions">
+        {otherList && <Button variant="text" id="switch-preset-list" onClick={() => onSelectPreset(otherList.id)}>
+          {mainAxis ? t('其他预设') : t('返回主轴跟随')}</Button>}
         <Button onClick={() => onApplyPreset('replace')} disabled={!selectedOscPresetConfig}>{t('替换草稿')}</Button>
         <Button id="append-mapping-preset" onClick={() => onApplyPreset('append')} disabled={!selectedOscPresetConfig}>{t('追加草稿')}</Button>
       </div>
@@ -66,7 +61,6 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
         <Button tone="danger" disabled={!selectedOscPresetConfig || selectedOscPresetConfig.isBuiltIn || busy} onClick={onDeletePreset}>{t('删除预设')}</Button>
       </div>
     </details>
-    {experience === 'gentle' && <p className="caption muted">{t('按默认设置，前 20% 的输入让主轴保持原位。再往前，主轴从小幅移动逐渐走到满行程。')}</p>}
     {selectedOscPresetConfig?.description && <p className="caption muted">{selectedOscPresetConfig.description}</p>}
     {selectedOscPresetConfig?.isBuiltIn && selectedOscPresetConfig.mappings?.some(row => row.sourceMode === 'SensaPoint') &&
       <Button onClick={onOpenFollowingPlane}>{t('设置随入口转动的参考平面')}</Button>}

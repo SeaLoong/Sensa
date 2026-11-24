@@ -30,7 +30,7 @@ test('profile lifecycle keeps one default and repairs output references without 
 
 test('all built-ins round-trip as independent drafts; custom presets preserve built-ins / 内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
   const source = initial(), builtIns = getOscMappingPresets(source);
-  assert.equal(builtIns.length, 19);
+  assert.equal(builtIns.length, 14);
   assert.equal(builtIns[0].id, 'ogb-depth');
   assert.partialDeepStrictEqual(builtIns.find(preset => preset.id === 'osc-l0').mappings, [{ sourceMode: 'Direct', oscPath: 'Depth', role: 'Depth', vrchatMin: 0, vrchatMax: 1, mappedMin: 0, mappedMax: 999 }]);
   for (const preset of builtIns) {
@@ -47,27 +47,22 @@ test('all built-ins round-trip as independent drafts; custom presets preserve bu
   }
 });
 
-test('each depth setup offers both responses with the same calibrated travel', () => {
-  const presets = getOscMappingPresets(initial());
-  const standard = presets.filter(preset => preset.experience === 'follow');
-  const gentle = presets.filter(preset => preset.experience === 'gentle');
-  assert.equal(standard.length, 5);
-  assert.deepEqual(gentle.map(preset => preset.setup).sort(), standard.map(preset => preset.setup).sort());
-  for (const base of standard) {
-    const variant = gentle.find(preset => preset.setup === base.setup);
-    assert.ok(base.mappings.every(mapping => ['Depth', 'GateEnable'].includes(mapping.role)));
-    const [depth, ...conditions] = base.mappings;
-    assert.deepEqual(variant.mappings.slice(1), conditions);
-    assert.deepEqual(variant.mappings[0], { ...depth, curve: 'EaseIn',
-      vrchatMin: depth.vrchatMin + .2 * (depth.vrchatMax - depth.vrchatMin) });
+test('main-axis presets distinguish paired and self tracking and drive only position', () => {
+  const tracking = getOscMappingPresets(initial()).filter(preset => preset.setup);
+  const grouped = Map.groupBy(tracking, preset => preset.group);
+  assert.deepEqual([...grouped.values()].map(group => group.map(preset => preset.id)), [
+    ['ogb-depth', 'native-contact-axial', 'pose-aligned-depth'],
+    ['self-four-anchor-axial', 'contact-position'],
+  ]);
+  for (const preset of tracking) {
+    assert.equal(preset.mappings.filter(row => row.role === 'Depth').length, 1);
+    assert.ok(preset.mappings.every(row => row.role === 'Depth' || row.role === 'GateEnable'));
   }
 });
 
 test('the shipped OGB depth and touch templates deliver stable SPS3 OSC values without legacy partners', async () => {
   const presets = getOscMappingPresets(initial());
   for (const [id, entries, expected] of [
-    ['sps-soft-entry', [['OGB/Socket/Front/DepthOthers', .19]], { L0: 0 }],
-    ['sps-soft-entry', [['OGB/Socket/Front/DepthOthers', .6]], { L0: .25 }],
     ['ogb-depth', [['OGB/Socket/Front/DepthOthers', .4]], { L0: .4 }],
     ['ogb-depth', [['OGB/Plug/Test/DepthOthers', .7]], { L0: .7 }],
     ['ogb-touch', [['OGB/Socket/Front/TouchOthers', .3]], { V0: .3 }],
