@@ -20,6 +20,7 @@ jobs:
       - run: npm ci
       - run: npm run build:node -- --bundle-only
       - run: xvfb-run -a -s "-screen 0 1440x1100x24" npx playwright test capture-presets.spec.js --project=desktop --headed --reporter=line
+      - run: npx playwright test i18n.spec.js --grep "English presets, script and compact help" --reporter=line
       - name: Capture mapping page comparison candidates
         env:
           E2E_UPDATE_SNAPSHOTS: 'true'

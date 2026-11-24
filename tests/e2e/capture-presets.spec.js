@@ -17,7 +17,15 @@ test('capture recommended scenarios and standard axis checks', async ({page}) =>
   const conditions = page.getByTestId('axis-mappings-panel').getByTestId('preset-requirements');
   await select.selectOption('native-contact-axial');
   await expect(conditions).toContainText('SenderLocalPosition');
-  await conditions.screenshot({path:dir+'/contact-requirements.png'});
+  await expect(conditions).toContainText('设备支持的附加轴：L2');
+  const strip = await page.locator('.preset-strip').boundingBox();
+  const info = await conditions.boundingBox();
+  await page.screenshot({path:dir+'/contact-sway.png',clip:{ x:strip.x, y:strip.y, width:strip.width, height:info.y+info.height-strip.y }});
+  await page.getByRole('button',{name:'替换草稿',exact:true}).click();
+  const sway = page.locator('.mapping-row').filter({has: page.locator('.mapping-row__target option[value="Sway"]:checked')});
+  await sway.getByText('范围与高级设置',{exact:true}).click();
+  await expect(sway.getByLabel('每秒最多移动（格，0 表示不限）')).toHaveValue('100');
+  await sway.screenshot({path:dir+'/sway-mapping.png'});
   await expect(select.locator('option[value="self-contact-stroke"]')).toHaveCount(0);
   await select.selectOption('pose-six-axis');
   await expect(conditions).toContainText('receiveOthers');
