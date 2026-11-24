@@ -102,6 +102,7 @@ import {
 } from './osc-preview.js';
 import PosePanel from './PosePanel.jsx';
 import SpsRootPanel from './SpsRootPanel.jsx';
+import Osr6Simulator from './Osr6Simulator.jsx';
 import OutputPositionPanel from './OutputPositionPanel.jsx';
 import HelpDialog from './HelpDialog.jsx';
 import OscParameterTable from './OscParameterTable.jsx';
@@ -219,6 +220,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const [stepOrigin, setStepOrigin] = useState(null);
   const [oscWorkspaceTab, setOscWorkspaceTab] = useState('parameters');
   const [newOutputType, setNewOutputType] = useState(platform.outputTypes?.[0] || 'TCodeSerial');
+  const [simulatorMode, setSimulatorMode] = useState(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [previewSourceTab, setPreviewSourceTab] = useState('all');
   const [presetDialog, setPresetDialog] = useState(null);
@@ -2204,6 +2206,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             <Button data-testid="add-output" onClick={() => addOutputCard(outputChoices.value)} disabled={!online || Boolean(busyKey) || !outputChoices.canAdd}>
               {t('添加输出')}
             </Button>
+            <Button onClick={() => setSimulatorMode('manual')}>{t('3D 模拟输出')}</Button>
           </>
         }
       >
@@ -2358,7 +2361,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   }
 
   function renderMappings() {
-    return <AxisMappingsPanel guidedMappingId={editingGuideMappings && onboarding.goal === 'osc' ? guidedMappingId : null} onEditStep={editRouteStep} onAppendSteps={appendSteps}
+    return <AxisMappingsPanel onSimulate={() => setSimulatorMode('mapping')} guidedMappingId={editingGuideMappings && onboarding.goal === 'osc' ? guidedMappingId : null} onEditStep={editRouteStep} onAppendSteps={appendSteps}
       signalDrafts={signalDrafts} computedDrafts={computedDrafts}
       oscMappingPresets={oscMappingPresets} selectedOscPreset={selectedOscPreset}
       selectedOscPresetConfig={selectedOscPresetConfig} busy={Boolean(busyKey)} onSelectPreset={setSelectedOscPreset}
@@ -3050,6 +3053,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           }} onCreateProfile={openNewProfileDialog}
           onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />
       </GuidedTour>}
+      {simulatorMode && <Osr6Simulator initialMode={simulatorMode} drafts={signalDrafts} presets={oscMappingPresets}
+        runtime={runtimeOverview} online={online} emergencyAction={emergencyAction} onClose={() => setSimulatorMode(null)} />}
       <Modal
         emergencyAction={emergencyAction}
         open={Boolean(dialog)}

@@ -1,0 +1,36 @@
+import { test, expect, workspace, oscWorkspace } from './fixtures.js';
+
+test('OSR6 simulator shows manual, mapping and live poses without activating outputs', { tag: ['@input','@visual'] }, async ({ page, rig }, info) => {
+  await workspace(page, '输出');
+  const before = await rig.overview();
+  const writes = [];
+  page.on('request', request => { if (request.url().includes('/api/') && !['GET','HEAD','OPTIONS'].includes(request.method())) writes.push(request.url()); });
+  await page.getByRole('button',{name:'3D 模拟输出',exact:true}).click();
+  const dialog = page.getByRole('dialog',{name:'OSR6 六轴模拟器'});
+  const pixels = () => dialog.locator('canvas').evaluate(canvas => canvas.toDataURL());
+  await expect(dialog.getByTestId('osr6-L0')).toHaveText('500');
+  await expect.poll(() => dialog.locator('canvas').evaluate(canvas => canvas.width)).not.toBe(300);
+  const centered = await pixels();
+  await dialog.getByRole('slider',{name:'L0 · 主轴行程',exact:true}).press('End');
+  await expect(dialog.getByTestId('osr6-L0')).toHaveText('999');
+  await expect.poll(pixels).not.toBe(centered);
+  await dialog.getByRole('button',{name:'全部回中'}).click();
+  await expect.poll(pixels).toBe(centered);
+  await dialog.getByRole('spinbutton',{name:'R2 · 俯仰数值'}).fill('730');
+  await dialog.getByRole('spinbutton',{name:'L2 · 左右位移数值'}).fill('640');
+  await info.attach('osr6-manual-pose', {body:await dialog.screenshot(),contentType:'image/png'});
+  await dialog.getByRole('tab',{name:'模拟映射'}).click();
+  await dialog.getByLabel('试用映射').selectOption('native-contact-axial');
+  await dialog.getByRole('slider',{name:'MyContact_SenderLocalPositionX',exact:true}).press('End');
+  await expect(dialog.getByTestId('osr6-L2')).toHaveText('560');
+  await expect(dialog.getByTestId('osr6-L0')).toHaveText('500');
+  await info.attach('osr6-contact-sway', {body:await dialog.screenshot(),contentType:'image/png'});
+  await dialog.getByRole('tab',{name:'实时目标'}).click();
+  await expect(dialog.getByRole('status')).toContainText('输出已暂停');
+  await dialog.getByRole('button',{name:'关闭',exact:true}).click();
+  await oscWorkspace(page,'映射');
+  await page.getByRole('button',{name:'用 3D 模拟草稿'}).click();
+  await expect(dialog.getByLabel('试用映射')).toHaveValue('');
+  expect((await rig.overview()).runtime.inputActive).toBe(before.runtime.inputActive);
+  expect(writes).toEqual([]);
+});

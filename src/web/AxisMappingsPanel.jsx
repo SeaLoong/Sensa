@@ -29,7 +29,7 @@ function MappingSteps({ draft, signals, onEdit, onAppend, onChange }) {
   </details>;
 }
 
-export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppendSteps, signalDrafts = [], computedDrafts = [],
+export default function AxisMappingsPanel({ onSimulate, guidedMappingId, onEditStep, onAppendSteps, signalDrafts = [], computedDrafts = [],
   oscMappingPresets = [], selectedOscPreset = '', selectedOscPresetConfig, busy = false,
   onSelectPreset, onApplyPreset, onOpenPreset, onDeletePreset, onOpenFollowingPlane,
   savedMappings = [], runtime = {}, actualInputMode = '', listening = false, hasUnsavedMappings = false,
@@ -76,6 +76,7 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
       </div>)}
     </div>}
     <div className="actions mapping-actions">
+      <Button onClick={onSimulate}>{t('用 3D 模拟草稿')}</Button>
       <Button tone="danger" disabled={!signalDrafts.length} onClick={onClearMappings}>{t('清空映射')}</Button>
     </div>
   </div>;

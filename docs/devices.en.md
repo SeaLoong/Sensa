@@ -6,6 +6,10 @@ Sensa sends movement, vibration or other controls to a device. Choose the connec
 
 **OSR/SR6 are devices. TCode is their control protocol. Intiface Central discovers and connects compatible devices through Buttplug. VRChat/SPS supplies input values.** You can combine an input and an output to make a flow such as **VRChat/SPS → Sensa → TCode → OSR**.
 
+## Preview six-axis motion
+
+Open **Outputs → 3D output simulator** to try an OSR6 platform without connecting hardware. Move individual axes, drag the model to orbit, or use the front and side views. **Try mappings** accepts simulated readings for the current draft or a preset, including depth, signed sway and contact gates. For pose or computed inputs, supply the resolved metric or calculation result. **Live targets** follows Sensa’s command before device-specific limits. The model shows the intended platform pose with illustrative link dimensions and travel.
+
 ## OSR and TCode
 
 Use a **TCode** output for an OSR, SR6 or another controller that accepts TCode. Choose serial, UDP, TCP or WebSocket to match its firmware and your host. WebSensa supports browser serial and TCode WebSocket; use Desktop/CLI for native UDP or TCP.
