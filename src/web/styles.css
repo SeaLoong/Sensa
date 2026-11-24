@@ -389,6 +389,11 @@ progress::-moz-progress-bar { background: var(--accent); }
 
 /* OSC forms, data table and forwarding rows. */
 .osc-workspace { margin-top: 24px; }
+.preset-requirements { font-size: .875rem; }
+.preset-requirements h4 { margin: 0; }
+.preset-requirements dl { display: grid; grid-template-columns: fit-content(30%) minmax(0, 1fr); gap: 4px 12px; margin: 6px 0; }
+.preset-requirements dt { font-weight: 600; }
+.preset-requirements dd { margin: 0; overflow-wrap: anywhere; }
 .preset-strip { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
 .preset-strip > .field { flex: 1 1 280px; min-width: min(100%, 280px); }
 .inline-details > summary { width: fit-content; }
@@ -481,6 +486,31 @@ tbody tr:hover { background: #f3f3f3; }
 .modal { width: min(620px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--border); border-radius: var(--td-radius-large); color: var(--text); background: var(--surface); box-shadow: 0 24px 80px #152b4b2b; overflow: hidden; }
 .modal[open] { display: flex; flex-direction: column; }
 .modal::backdrop { background: #0009; }
+.osr6-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(220px, 1fr); gap: 24px; padding-top: 16px; align-items: start; }
+.osr6-preview, .osr6-controls { min-width: 0; }
+.osr6-controls { display: grid; gap: 12px; }
+.osr6-controls > button { justify-self: start; }
+.osr6-controls p { margin: 0; }
+.osr6-stage { position: relative; overflow: hidden; border: 1px solid #cbd9e4; border-radius: 12px; background: radial-gradient(ellipse at 45% 25%, #fff, #e8f0f5); }
+.osr6-stage canvas { display: block; width: 100%; height: clamp(260px, 44vh, 420px); cursor: grab; touch-action: none; }
+.osr6-stage canvas:active { cursor: grabbing; }
+.osr6-caption { text-align: center; font-size: 12px; color: var(--muted); margin: 0 0 5px; }
+.osr6-cameras { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; padding: 0 8px 10px; }
+.osr6-cameras button { min-height: 32px; background: #fff; font-size: 12px; }
+.osr6-readings { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 10px 0 0; padding: 10px 0; border-block: 1px solid var(--border); }
+.osr6-readings > div { text-align: center; }
+.osr6-readings dt { color: var(--muted); font: 12px monospace; }
+.osr6-readings dd { margin: 2px 0 0; font: 600 17px monospace; }
+.osr6-fields { display: grid; gap: 10px; }
+.osr6-input > small { display: block; overflow-wrap: anywhere; }
+.osr6-fields .field__label { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 680px) {
+  .osr6-layout { display: block; }
+  .osr6-preview { position: sticky; top: -1px; z-index: 2; background: white; padding-bottom: 6px; }
+  .osr6-controls { margin-top: 12px; }
+  .osr6-stage canvas { height: clamp(130px, 24vh, 210px); }
+}
+@media (max-height: 460px) { .osr6-preview { position: static; } }
 .modal--wide { width: min(960px, calc(100% - 32px)); }
 .modal--profile { width: min(1040px, calc(100% - 32px)); height: min(780px, calc(100dvh - 32px)); }
 .modal--profile .modal__body { flex: 1 1 auto; }

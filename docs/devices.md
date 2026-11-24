@@ -6,6 +6,10 @@ Sensa 向设备发送动作、振动或其他控制。先选择设备实际支�
 
 **OSR／SR6 是设备，TCode 是它们使用的控制协议；Intiface Central 通过 Buttplug 发现并连接兼容设备；VRChat／SPS 提供输入数值。** 你可以将输入和输出连接成 **VRChat／SPS → Sensa → TCode → OSR** 这样的流程。
 
+## 在三维模拟器里试动作
+
+打开**输出 → 3D 模拟输出**，无需连接设备即可试用 OSR6。拖动六轴滑块，或直接输入 0～999。拖动模型能旋转视角，也可以切换正视图和侧视图。**模拟映射**可试用当前草稿或任一预设：调整深度、横移或接触条件，观察平台怎样跟随。Pose 和计算信号直接填写解算后的读数。**实时目标**显示 Sensa 发往输出前的六轴目标。模型参考带 Twist 接收器的 SR6 实机。后部左右舵机通过摇臂和定长连杆带动前方接收环，R0 单独转动内环。尺寸按照片近似；多个轴同时打到极限时，模型会标出自身的可达边界。[实机正面和侧面照片](https://yourhobbiescustomized.com/products/sr6-with-a-twist) · [机构与 Twist 说明](https://yourhobbiescustomized.com/pages/about-the-sr-series)
+
 ## OSR 与 TCode
 
 OSR、SR6 或其他接受 TCode 的控制器使用 **TCode** 输出。根据固件与运行方式选择串口、UDP、TCP 或 WebSocket。WebSensa 支持浏览器串口与 TCode WebSocket，原生 UDP／TCP 使用 Desktop／CLI。

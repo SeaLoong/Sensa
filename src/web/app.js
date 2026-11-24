@@ -102,6 +102,7 @@ import {
 } from './osc-preview.js';
 import PosePanel from './PosePanel.jsx';
 import SpsRootPanel from './SpsRootPanel.jsx';
+import Osr6Simulator from './Osr6Simulator.jsx';
 import OutputPositionPanel from './OutputPositionPanel.jsx';
 import HelpDialog from './HelpDialog.jsx';
 import OscParameterTable from './OscParameterTable.jsx';
@@ -219,6 +220,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const [stepOrigin, setStepOrigin] = useState(null);
   const [oscWorkspaceTab, setOscWorkspaceTab] = useState('parameters');
   const [newOutputType, setNewOutputType] = useState(platform.outputTypes?.[0] || 'TCodeSerial');
+  const [simulatorMode, setSimulatorMode] = useState(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [previewSourceTab, setPreviewSourceTab] = useState('all');
   const [presetDialog, setPresetDialog] = useState(null);
@@ -643,28 +645,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   function usePoseRig(pose, full = false) {
     setSelectedOscPreset('');
-    const metrics = full
-      ? [
-          ['Depth', 'Depth', 0, 1],
-          ['Yaw', 'AngleX', -65, 65],
-          ['Pitch', 'AngleY', -65, 65],
-          ['Roll', 'Twist', -180, 180],
-          ['OffsetX', 'Sway', -0.04, 0.04],
-          ['OffsetY', 'Surge', -0.04, 0.04],
-        ]
-      : [['Depth', 'Depth', 0, 1]];
-    setSignalDrafts(
-      metrics.map(([poseMetric, role, vrchatMin, vrchatMax]) =>
-        makeSignalDraft({
-          oscPath: `${pose.prefix}/**`,
-          sourceMode: 'SensaPose',
-          poseMetric,
-          role,
-          vrchatMin,
-          vrchatMax,
-        }),
-      ),
-    );
+    const preset = getOscMappingPreset(config, 'pose-six-axis');
+    const mappings = full ? preset.mappings : preset.mappings.filter(row => row.role === 'Depth');
+    setSignalDrafts(mappings.map(mapping => makeSignalDraft({ ...mapping, oscPath: `${pose.prefix}/**` })));
     setWorkspace('pipeline'); selectMappingTab('mappings');
     notify(t('已替换映射草稿；实验空间输入需单独允许。'), 'info');
   }
@@ -2223,6 +2206,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             <Button data-testid="add-output" onClick={() => addOutputCard(outputChoices.value)} disabled={!online || Boolean(busyKey) || !outputChoices.canAdd}>
               {t('添加输出')}
             </Button>
+            <Button onClick={() => setSimulatorMode('manual')}>{t('3D 模拟输出')}</Button>
           </>
         }
       >
@@ -2332,9 +2316,19 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       onOpenMappings={() => navigateWorkflow('osc-mappings')} onOpenComputations={() => navigateWorkflow('pipeline')} />;
   }
 
-  function mapComputedSignal(signal) {
+  function mapComputedSignal(signal, replaceDepth = false, sway = null) {
     const draft = makeSignalDraft({ sourceMode: 'Computed', oscPath: signal.id });
-    setSignalDrafts(previous => [...previous, draft]);
+    const replaced = new Set(replaceDepth ? ['Depth', 'DepthOverride'] : []);
+    const additions = [draft];
+    if (sway) {
+      replaced.add('Sway');
+      additions.push(makeSignalDraft({ sourceMode: 'Computed', oscPath: sway.id, role: 'Sway',
+        vrchatMin: -.04, vrchatMax: .04, mappedMin: 440, mappedMax: 560, maxTravelPerSecond: 100 }));
+    }
+    setSignalDrafts(previous => [
+      ...previous.filter(row => !replaced.has(row.role)),
+      ...additions,
+    ]);
     setWorkspace('pipeline');
     selectMappingTab('mappings');
     setNavigationTarget('[data-mapping-draft-id="' + draft._draftId + '"] .mapping-row__target select');
@@ -2367,10 +2361,11 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   }
 
   function renderMappings() {
-    return <AxisMappingsPanel guidedMappingId={editingGuideMappings && onboarding.goal === 'osc' ? guidedMappingId : null} onEditStep={editRouteStep} onAppendSteps={appendSteps}
+    return <AxisMappingsPanel onSimulate={() => setSimulatorMode('mapping')} guidedMappingId={editingGuideMappings && onboarding.goal === 'osc' ? guidedMappingId : null} onEditStep={editRouteStep} onAppendSteps={appendSteps}
       signalDrafts={signalDrafts} computedDrafts={computedDrafts}
       oscMappingPresets={oscMappingPresets} selectedOscPreset={selectedOscPreset}
       selectedOscPresetConfig={selectedOscPresetConfig} busy={Boolean(busyKey)} onSelectPreset={setSelectedOscPreset}
+      onOpenFollowingPlane={() => { selectMappingTab('computations'); setNavigationTarget('#following-plane-setup'); }}
       onApplyPreset={applyOscPreset} onOpenPreset={openPresetDialog} onDeletePreset={deleteSelectedPreset}
       savedMappings={config?.signals || []}
       runtime={runtimeOverview || {}} actualInputMode={actualInputMode} listening={Boolean(overview?.osc?.listening)}
@@ -3038,9 +3033,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
         </div>
       </main>
       {onboarding.status === 'active' && <GuidedTour targetSelector={guideTarget} step={onboarding.step} goal={onboarding.goal} workspace={workspace}
-        suspended={Boolean(editingGuideMappings || dialog || profileDialog || presetDialog || helpOpen || parameterDetail || confirmClearMappings)}
+        suspended={Boolean(simulatorMode || editingGuideMappings || dialog || profileDialog || presetDialog || helpOpen || parameterDetail || confirmClearMappings)}
         onDismiss={() => changeGuide({ type: 'dismiss' })} emergencyAction={emergencyAction}>
-        <Onboarding state={onboarding} platform={platform} outputCount={outputs.length} availableOutputs={availableOutputCount}
+        <Onboarding onSimulate={mode => setSimulatorMode(mode === 'mapping' ? 'guide-sway' : 'manual')} state={onboarding} platform={platform} outputCount={outputs.length} availableOutputs={availableOutputCount}
           draftMappingCount={signalDrafts.length} savedMappingCount={config?.signals?.length || 0} inputPrepared={guidePrepared}
           onAppendL0={() => applyOscPreset('append', 'osc-l0')}
           onEditMappings={() => {
@@ -3058,6 +3053,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           }} onCreateProfile={openNewProfileDialog}
           onApplyInput={mode => { selectInputTab(mode); void applyInputMode(mode); }} />
       </GuidedTour>}
+      {simulatorMode && <Osr6Simulator initialMode={simulatorMode === 'guide-sway' ? 'mapping' : simulatorMode} guideExample={simulatorMode === 'guide-sway'} drafts={signalDrafts} presets={oscMappingPresets}
+        runtime={runtimeOverview} online={online} emergencyAction={emergencyAction} onClose={() => setSimulatorMode(null)} />}
       <Modal
         emergencyAction={emergencyAction}
         open={Boolean(dialog)}
@@ -3384,7 +3381,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           <Button tone="primary" disabled={!online || recordingBusy} onClick={() => { setRecordingRestartOpen(false); void recordingAction('start'); }}>{t('重新录制')}</Button></>}>
         <p>{t('将清空当前录制的 {0} 帧。可先取消并导出。', [overview?.recording?.frameCount || 0])}</p>
       </Modal>
-      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} onNavigate={navigateWorkflow}
+      <HelpDialog onSimulate={() => setSimulatorMode('manual')} open={helpOpen} onClose={() => setHelpOpen(false)} onNavigate={navigateWorkflow}
         onStartGuide={startGuide}
         supportsListeners={platform.supportsListeners !== false} emergencyAction={emergencyAction} error={modalError} />
       {snackbar.open && (

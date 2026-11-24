@@ -7,6 +7,7 @@ import { Linter } from 'eslint';
 import { transformSync } from 'esbuild';
 import { localized, t, getLocale, setLocale, resolveLocale, normalizeLocale, detectLocale, clearLocaleQuery, subscribeLocale, diagnostic, docUrl } from '../../src/web/i18n.js';
 import en from '../../src/web/i18n.en.json' with { type: 'json' };
+import requirements from '../../src/web/data/osc-preset-requirements.json' with { type: 'json' };
 import presets from '../../src/web/data/osc-presets.json' with { type: 'json' };
 import { calibratedPointDraft } from '../../src/web/osc-preview.js';
 
@@ -213,7 +214,14 @@ test('every source module and built-in preset has matching nonempty translations
     assert.deepEqual(messages, [], file);
     for (const key of keys) assert.ok(en[key], file + ': ' + key);
   }
-  for (const preset of presets) for (const field of ['name', 'description']) assert.ok(en[preset[field]], preset.id);
+  for (const preset of presets) {
+    for (const field of ['name', 'description']) assert.ok(en[preset[field]], preset.id);
+    assert.ok(requirements[preset.requirementProfile], preset.id);
+  }
+  for (const profile of Object.values(requirements)) {
+    for (const field of ['own', 'partner', 'enable']) assert.ok(en[profile[field]], profile[field]);
+    assert.ok(readFileSync(profile.doc).length, profile.doc);
+  }
   const placeholders = text => [...text.matchAll(/\{\d+\}/g)].map(match => match[0]).sort();
   for (const [key, value] of Object.entries(en)) {
     assert.ok(value.trim(), key); assert.doesNotMatch(value, /[\u3400-\u9fff]/u, key);

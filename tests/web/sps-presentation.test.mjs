@@ -23,9 +23,7 @@ for (const locale of ['zh-CN', 'en-US']) {
   test('SPS3 compatible mapping labels preserve existing source modes and saved preset paths in ' + locale, () => {
     setLocale(locale);
     const preset = getOscMappingPresets({}).find(value => value.id === 'ogb-depth');
-    assert.match(preset.description, locale === 'zh-CN' ? /正式 SPS3/ : /stable SPS3/);
-    assert.match(preset.description, /DepthOthers/);
-    assert.match(preset.description, /NewRoot/);
+    assert.match(preset.description, locale === 'zh-CN' ? /侧移/ : /Sideways motion/);
     assert.equal(preset.mappings.length, 1);
     const [mapping] = preset.mappings;
     assert.equal(mapping.sourceMode, 'OgbDepth');

@@ -1,0 +1,86 @@
+{
+  "sps": {
+    "own": "使用已配置 SPS 触觉的 Avatar。用 VRCFury 构建时开启 Enable SPS Haptics。",
+    "partner": "使用匹配的 SPS Socket 或 Plug；双方使用公共通道或相同的自定义通道。",
+    "enable": "允许检测他人（Others）。接收器需由 OGB 激活时，在 Sensa 开启 OGB 参数控制。",
+    "doc": "docs/sps3.md"
+  },
+  "sps-touch": {
+    "own": "自己的 Avatar 需要 SPS 深度和触碰两种信号。用 VRCFury 构建时开启 Enable SPS Haptics，并配置 Touch/Frot 或独立 Touch Zone。",
+    "partner": "对方使用匹配的 SPS Socket 或 Plug，触碰部位的标签也要与触碰区域匹配。",
+    "enable": "双方使用同一 SPS 通道，深度和触碰区域都允许 Others。若接收器需要 OGB 激活，在 Sensa 开启 OGB 参数控制。",
+    "doc": "docs/sps3.md"
+  },
+  "touch": {
+    "own": "使用已配置 SPS Touch/Frot 的 Avatar，或已配置独立 Touch Zone 的 Avatar。",
+    "partner": "触碰部位需要有该区域能识别的接触标签。",
+    "enable": "启用对应触碰区域并允许 Others；使用 SPS 时启用 SPS 触觉。",
+    "doc": "docs/ogb-compatibility.md"
+  },
+  "position": {
+    "own": "自己的 Avatar 上需要 VRChat Contact Receiver，使用支持高级参数的 SDK（如 3.10.6 正式版）。",
+    "partner": "互动部位需要与接收器标签匹配的 Sender。可用兼容的 SPS 接触点，无需安装 Sensa 组件。",
+    "enable": "在接收器的高级报告中启用 SenderType 和 SenderLocalPosition；与他人互动时允许 Others。",
+    "doc": "docs/contact-sdk.md"
+  },
+  "distance": {
+    "own": "自己的 Avatar 上需要 VRChat Contact Receiver，使用支持高级参数的 SDK（如 3.10.6 正式版）。",
+    "partner": "互动部位需要与接收器标签匹配的 Sender。可用兼容的 SPS 接触点，无需安装 Sensa 组件。",
+    "enable": "在接收器的高级报告中启用 SenderType 和 PointSeparation；与他人互动时允许 Others。",
+    "doc": "docs/contact-sdk.md"
+  },
+  "speed": {
+    "own": "自己的 Avatar 上需要 VRChat Contact Receiver，使用支持高级参数的 SDK（如 3.10.6 正式版）。",
+    "partner": "互动部位需要与接收器标签匹配的 Sender。可用兼容的 SPS 接触点，无需安装 Sensa 组件。",
+    "enable": "在接收器的高级报告中启用 SenderType 和 SenderVelocity；与他人互动时允许 Others。",
+    "doc": "docs/contact-sdk.md"
+  },
+  "approach": {
+    "own": "自己的 Avatar 上需要 VRChat Contact Receiver，使用支持高级参数的 SDK（如 3.10.6 正式版）。",
+    "partner": "互动部位需要与接收器标签匹配的 Sender。可用兼容的 SPS 接触点，无需安装 Sensa 组件。",
+    "enable": "将 Receiver 类型设为 Proximity，启用 SenderType 和 ProximitySpeed，并允许 Others。",
+    "doc": "docs/contact-sdk.md"
+  },
+  "pose": {
+    "own": "在自己的 Avatar 工程安装 Sensa Unity 包，添加 Pose Socket，构建并上传。",
+    "partner": "对方也需安装 Sensa Unity 包，配置 Pose Plug 的 Root、Tip、Side 三个标记并上传 Avatar。",
+    "enable": "双方 Pose Pair Profile 的通道必须相同。自己的 Socket 开启 receiveOthers，Sensa 开启“允许实验空间输入”。",
+    "doc": "docs/positioning.md"
+  },
+  "four-anchor": {
+    "own": "安装 Sensa Unity 包，给自己的目标添加 SPS 四点定位组件，构建并上传 Avatar。",
+    "partner": "只测自己的 Avatar，对方无需安装组件。",
+    "enable": "在 Sensa 的 OSC 设置中打开“允许实验空间输入”。",
+    "doc": "docs/positioning.md"
+  },
+  "self-contact": {
+    "own": "在自己的 Avatar 工程安装 Sensa Unity 包和支持高级 Contact 的 SDK。用 Automatic SPS Setup 选择“Contact 直接定位”，或添加 SensaContactRootProbe，构建并上传。",
+    "partner": "只测自己的 Avatar，对方无需安装组件。",
+    "enable": "在 Sensa 的 OSC 设置中打开“允许实验空间输入”。",
+    "doc": "docs/contact-sdk.md"
+  },
+  "pb": {
+    "own": "自己的 Avatar 上需要可抓取、可拉伸的 PhysBone，并设置参数前缀。",
+    "partner": "自己也可以抓取；若由对方抓取，在 PhysBone 上允许他人交互。",
+    "enable": "Avatar 需通过 OSC 输出同一前缀的 _Stretch 和 _IsGrabbed。",
+    "doc": "docs/osc-parameters.md"
+  },
+  "direct": {
+    "own": "准备能发送数值 OSC 参数的 Avatar 或应用，将 Depth 替换为实际参数名。",
+    "partner": "单人测试即可。",
+    "enable": "启用发送端的 OSC 输出，并在 Sensa 选择 OSC 输入。",
+    "doc": "docs/presets.md"
+  },
+  "frame-markers": {
+    "own": "安装 Sensa Unity 包。在自己的 Avatar 上配置测量点和入口的 Tracking Frame；两者使用同一种定位方式（SPS 四点或 Contact 直接定位），构建并上传。",
+    "partner": "只测自己的 Avatar，对方无需安装组件。",
+    "enable": "在 Sensa 的 OSC 设置中打开“允许实验空间输入”。",
+    "doc": "docs/positioning.md"
+  },
+  "frame-shader": {
+    "own": "安装 Sensa Unity 包，在自己的 Avatar 上配置目标和入口的 Shader 定位，并构建上传。",
+    "partner": "只测自己的 Avatar，对方无需安装组件。",
+    "enable": "运行 Sensa 读屏工具，在同一进程中选择两个图块并发送 OSC；在 Sensa 开启“允许实验空间输入”。",
+    "doc": "docs/positioning.md"
+  }
+}

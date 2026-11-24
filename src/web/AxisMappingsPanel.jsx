@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, Notice } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { SignalMappingRow } from './configuration-views.jsx';
+import PresetRequirements from './PresetRequirements.jsx';
 import OscFlowStatus from './OscFlowStatus.jsx';
 import { previousMappingSource, routeDependencies, routeStepChoices } from './axis-routes.js';
 import { COMPUTED_SIGNAL_LIMIT, computedOperationOptions } from './computed-signals.js';
@@ -28,23 +29,29 @@ function MappingSteps({ draft, signals, onEdit, onAppend, onChange }) {
   </details>;
 }
 
-export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppendSteps, signalDrafts = [], computedDrafts = [],
+export default function AxisMappingsPanel({ onSimulate, guidedMappingId, onEditStep, onAppendSteps, signalDrafts = [], computedDrafts = [],
   oscMappingPresets = [], selectedOscPreset = '', selectedOscPresetConfig, busy = false,
-  onSelectPreset, onApplyPreset, onOpenPreset, onDeletePreset,
+  onSelectPreset, onApplyPreset, onOpenPreset, onDeletePreset, onOpenFollowingPlane,
   savedMappings = [], runtime = {}, actualInputMode = '', listening = false, hasUnsavedMappings = false,
   signalOverlapWarnings = [], latestForDraft, pathOptions = [], onUpdateMapping, onRemoveMapping, onAddMapping, onClearMappings }) {
+  const options = oscMappingPresets.map(preset => ({
+    value: preset.id, label: preset.name, group: preset.group || t('自定义预设'),
+  }));
+  if (onOpenFollowingPlane) options.push({ value: '', label: t('横移时保持深度 · 跟随平面…'), group: t('推荐预设') });
   return <div className="axis-mappings-panel stack" data-testid="axis-mappings-panel">
     <div className="workspace-header"><h3>{t('轴映射')}</h3>
       <Button id="add-axis-mapping" tone="primary" onClick={() => onAddMapping()}>{t('新增映射')}</Button>
     </div>
     <div className="preset-strip">
-      <SelectField label={t('预设方案')} value={selectedOscPreset}
-        options={oscMappingPresets.map(preset => ({ value: preset.id, label: preset.name }))} onChange={onSelectPreset} />
+      <SelectField label={t('预设方案')} id="mapping-preset-variant" value={selectedOscPreset || options[0]?.value}
+        options={options} onChange={id => id ? onSelectPreset(id) : onOpenFollowingPlane()} />
       <div className="actions">
         <Button onClick={() => onApplyPreset('replace')} disabled={!selectedOscPresetConfig}>{t('替换草稿')}</Button>
         <Button id="append-mapping-preset" onClick={() => onApplyPreset('append')} disabled={!selectedOscPresetConfig}>{t('追加草稿')}</Button>
       </div>
     </div>
+    {selectedOscPresetConfig?.description && <p className="caption muted">{selectedOscPresetConfig.description}</p>}
+    {selectedOscPresetConfig?.isBuiltIn && <PresetRequirements profile={selectedOscPresetConfig.requirementProfile} mappings={selectedOscPresetConfig.mappings} optionalSecondaryAxes={selectedOscPresetConfig.group === t('推荐预设')} />}
     <details className="inline-details">
       <summary>{t('管理预设')}</summary>
       <div className="actions">
@@ -55,7 +62,6 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
         <Button tone="danger" disabled={!selectedOscPresetConfig || selectedOscPresetConfig.isBuiltIn || busy} onClick={onDeletePreset}>{t('删除预设')}</Button>
       </div>
     </details>
-    {selectedOscPresetConfig?.description && <p className="caption muted">{selectedOscPresetConfig.description}</p>}
     <details className="workflow-details"><summary>{t('映射检查')}</summary>
       <OscFlowStatus mappings={savedMappings} drafts={signalDrafts} dirty={hasUnsavedMappings} runtime={runtime}
         mode={actualInputMode} listening={listening} />
@@ -70,6 +76,7 @@ export default function AxisMappingsPanel({ guidedMappingId, onEditStep, onAppen
       </div>)}
     </div>}
     <div className="actions mapping-actions">
+      <Button onClick={onSimulate}>{t('用 3D 模拟草稿')}</Button>
       <Button tone="danger" disabled={!signalDrafts.length} onClick={onClearMappings}>{t('清空映射')}</Button>
     </div>
   </div>;

@@ -8,7 +8,7 @@ import { ExternalControlStore } from '../protocols/external-control.ts';
 import type { ExternalControlBatch } from '../protocols/input-types.ts';
 import { RuntimeScriptPlayer,type ScriptOptions } from './script.ts';
 import { RuntimeMotionRecorder } from './recording.ts';
-import { SignalChannelProcessor,fuseSignals,neutralFrame,applyMotionPatch,framesEqual,frameForApi,SpsDepthEstimator,ContinuousAngle,type SignalMixInput } from './motion.ts';
+import { SignalChannelProcessor,MappingTravelLimiter,neutralFrame,applyMotionPatch,framesEqual,frameForApi,SpsDepthEstimator,ContinuousAngle,type SignalMixInput } from './motion.ts';
 import { observeTracking,observePoses,getMetric,getPoseMetric,trackingMatches,poseMatches,type TrackingObservation,type PoseObservation,poseProtocol } from './tracking.ts';
 type Awaitable<T> = T | PromiseLike<T>;
 export interface RuntimeEngineOptions {
@@ -27,6 +27,7 @@ export class RuntimeEngine {
   private generation=0;private workSequence=0;private queue=new Map<string,Work>();private worker:Promise<void>|null=null;private forceFrame=true;private gateStopSent=false;
   private current=neutralFrame();private manual=neutralFrame();private manualEnabled=false;private scriptStopped=true;private lastEventAt:number;private activatedAt:number;private lastWatchdogAt:number;
   private scriptAxis:MotionAxis='L0';
+  private travelLimiter = new MappingTravelLimiter();
   private processors:SignalChannelProcessor[]=[];private evaluator:ComputedSignalEvaluator;private previewEvaluator:ComputedSignalEvaluator;private computed:Record<string,ComputedSignalSample>={};private computedAt=-1;private previewAt=-1;
   private gateClosed=false;private poseBlocked=false;private computedBlocked=false;private computedReason='';private spatialReason='';private activePoseKey:string|null=null;
   private rollKey:string|null=null;private continuousRoll=new ContinuousAngle();private estimators=new Map<string,SpsDepthEstimator>();private observedSourceKey:string|null=null;
@@ -82,7 +83,7 @@ export class RuntimeEngine {
   clearManual():void{this.setManual(null);}
   private queueManual():void{const axes=this.manual.activeAxes;const patch=axes?Object.fromEntries(axes.map(axis=>[axis,this.manual.values[axis]])):this.manual.values;this.queueFrame(patch,'manual',this.manual.requestedCommandMode,this.manual.requestedMotionValue,axes?[...axes]:undefined);}
   setOscSource(source:string|null):void {if(source===this.oscStore.preferredSourceKey)return;this.setInputActive(false);this.oscStore.preferredSourceKey=source;this.synchronizeOscSource();this.changed();}
-  resetSignalProcessing():void {this.evaluator.reset();this.previewEvaluator.reset();this.computed={};this.computedAt=this.previewAt=-1;this.resolverAt=-1;this.computedReason='';}
+  resetSignalProcessing():void {this.travelLimiter.reset();this.evaluator.reset();this.previewEvaluator.reset();this.computed={};this.computedAt=this.previewAt=-1;this.resolverAt=-1;this.computedReason='';}
   getComputedSignals():Record<string,ComputedSignalSample>{this.synchronizeOscSource();const now=this.now();if(this.active&&this.computedAt===now)return this.computed;if(this.active){this.computed=this.evaluator.evaluate(now,input=>this.resolveLeaf(input,now));this.computedAt=now;return this.computed;}
     if(this.previewAt!==now){this.computed=this.previewEvaluator.evaluate(now,input=>this.resolveLeaf(input,now));this.previewAt=now;}return this.computed;}
   resolveSignalInput(input:ComputedSignalInputConfig,now=this.now()):ComputedSignalSample {this.synchronizeOscSource();if(input.sourceMode==='Computed'){if(this.computedAt!==now){this.computed=this.evaluator.evaluate(now,item=>this.resolveLeaf(item,now));this.computedAt=now;}return this.computed[input.oscPath]??invalidSample('Choose an existing computation.');}return this.resolveLeaf(input,now);}
@@ -122,7 +123,7 @@ export class RuntimeEngine {
   }
   tick(now=this.now()):void {
     if(this.disposed)return;this.synchronizeOscSource();this.script.tick();this.externalControls.expire();
-    if(this.active&&this.inputMode==='Osc'&&(this.oscDirty&&now>=this.geometryDueAt||this.config.computedSignals.some(item=>isTemporal(item.operation))||this.config.signals.some(item=>item.sourceMode==='Computed')))this.refreshOsc();
+    if(this.active&&this.inputMode==='Osc'&&(this.oscDirty&&now>=this.geometryDueAt||this.travelLimiter.pending&&!this.geometryPending||this.config.computedSignals.some(item=>isTemporal(item.operation))||this.config.signals.some(item=>item.sourceMode==='Computed')))this.refreshOsc();
     if(now-this.lastWatchdogAt>=500){this.lastWatchdogAt=now;this.checkTimeout(now);}
   }
   private canRoute():boolean{return !this.disposed&&!this.emergency&&this.active&&this.activationBlocks===0;}
@@ -163,12 +164,12 @@ export class RuntimeEngine {
       else if(mapping.sourceMode==='Computed'){const result=computed[mapping.oscPath];if(result?.valid&&result.value!==null)values=[result.value];}
       else values=this.scalarValues(mapping,entries,source,now);
       let thisGate=false;for(const value of values){if(!Number.isFinite(value))continue;const result=processor.processSample(value);
-        if(mapping.role==='GateEnable')thisGate||=result.output>.5;else if(mapping.role==='DepthOverride')override=Math.max(override??0,result.output);else signals.push({role:mapping.role,value:result.output,priority:result.normalized});}
+        if(mapping.role==='GateEnable')thisGate||=result.output>.5;else if(mapping.role==='DepthOverride')override=Math.max(override??0,result.output);else signals.push({role:mapping.role,value:result.output,priority:result.normalized,maxTravelPerSecond:mapping.maxTravelPerSecond});}
       if(mapping.role==='GateEnable')gate&&=thisGate;
     }
     this.gateClosed=!gate;if(override!==null){for(let i=signals.length-1;i>=0;i--)if(signals[i]?.role==='Depth')signals.splice(i,1);signals.push({role:'Depth',value:override,priority:1});}
-    if(!this.canSend()){this.forceFrame=true;if(!this.gateStopSent){this.queueStop(true);this.gateStopSent=true;}this.changed();return;}
-    this.gateStopSent=false;const patch=fuseSignals(signals);if(Object.keys(patch).length)this.queueFrame(patch,'osc');this.changed();
+    if(!this.canSend()){this.travelLimiter.reset();this.forceFrame=true;if(!this.gateStopSent){this.queueStop(true);this.gateStopSent=true;}this.changed();return;}
+    this.gateStopSent=false;const patch=this.travelLimiter.apply(signals,this.current.values,now);if(Object.keys(patch).length)this.queueFrame(patch,'osc');this.changed();
   }
   private scalarValues(mapping:SignalMapping,entries:readonly OscSnapshotEntry[],source:string|null,now:number):number[] {
     const filtered=entries.filter(item=>!source||item.entry.source.key===source);const fresh=(at:number):boolean=>at<=now&&(this.config.osc.inputTimeoutMs<=0||now-at<=this.config.osc.inputTimeoutMs);

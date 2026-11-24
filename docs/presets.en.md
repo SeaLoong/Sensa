@@ -8,6 +8,31 @@ Configuration templates live in the preset selector under **Mapping & transforms
 
 A mapping preset fills common paths and motion roles so you can build a mapping quickly. Choose the matching Avatar feature, select its live source, capture your input endpoints and save. The rows remain editable for your own paths, direction, range and conditions.
 
+Use **Recommended presets** for interaction scenarios and **Standard presets** for direct axis checks. Selecting an entry shows its description. Replace or append the draft, review the mapping, and save.
+
+Each built-in preset lists requirements for your avatar, your partner, the input features and the output axes. Open Setup instructions for the relevant guide. Standard SPS uses existing haptic parameters, advanced Contact position needs SenderType and SenderLocalPosition from your receiver, and paired pose requires a socket and plug on the same channel. Only V0 mappings require vibration output.
+
+### Recommended presets
+
+- With SPS alone, limit travel to 300–700 to reduce unintended retreat. A reading that falls from 60% to 50% moves the target by about 40 counts, compared with about 100 over full travel. Intended strokes also become shorter.
+- With advanced Contact position, align receiver Z with the entrance and X with left/right. Depth drives L0 immediately. L2 slowly follows signed sideways movement on devices with a sway axis.
+- With a Tracking Frame or Shader tracker on your own avatar, choose the following-plane entry, select the measured point and entrance reference, then map plane depth to L0 and calibrate both endpoints. Enable sway for an L2 device using the matching Right marker or the shader’s reported Right direction.
+- With paired Pose Socket and Pose Plug components, follow insertion as the entrance turns. L2/L1 gently follow left/right and up/down offsets. R1/R2 follow yaw/pitch. An OSR2 can use L0, R1 and R2. Tracking disengages outside the valid aperture.
+
+Additional recommended axes use 440–560 counts, with a maximum target speed of 100 counts per second. At a fixed Contact depth of 10 cm, offsets of −4 cm, 0 and +4 cm target L2 at 440, 500 and 560. Moving from center to either end takes about 0.6 s with L0 steady near 500. Adjust each mapping under Range and advanced settings. Standard axis checks use full travel with unlimited mapping speed.
+
+### Standard presets for checking one movement at a time
+
+| Test | Preset | Expected target |
+| --- | --- | --- |
+| SPS depth | SPS depth | L0 follows the resolved depth over 0–999; legacy pairs still require length learning |
+| Receiver-local position | Contact position | Z → L0, Y → L1, X → L2, with receiver Z aligned to the entrance |
+| Avatar-root coordinates | Four-anchor or Contact self tracking | Up/down Y → L0, forward/back Z → L1, left/right X → L2; calibrate the same tracker's endpoints on each axis |
+| OSR2 three-axis | Pose three-axis | Depth → L0, yaw → R1, pitch → R2 |
+| Six-axis | Pose six-axis | Depth → L0, aperture Y/X → L1/L2, twist/yaw/pitch → R0/R1/R2 |
+
+Standard position and pose mappings use linear full travel. Contact, pose and input validity checks still apply. Select an output profile that exposes the device's supported axes. Vibration tests use presets marked V0. Check each target in the preview, then calibrate physical direction and travel on the device.
+
 | Template ID | Purpose | Default destination |
 | --- | --- | --- |
 | `osc-l0` | Replace Depth with a received OSC parameter, optionally add a dead zone and smoothing | 0–1 → L0 0–999 |

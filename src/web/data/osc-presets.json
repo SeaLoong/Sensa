@@ -1,60 +1,257 @@
 [
   {
-    "id": "osc-l0",
-    "name": "OSC 参数 → L0 主轴",
-    "description": "Depth 只是示例路径。换成实际收到的参数后，输入 0～1 对应主轴的预估位置 0～999。",
+    "id": "sps-limited",
+    "group": "推荐预设",
+    "name": "缩小侧移引起的回退 · 普通 SPS",
+    "description": "普通 SPS 只报告深度，左右偏移也可能让主轴回退。这里把主轴行程缩到中间 40%（300～700），正常进退和侧移造成的误退都会变小。",
     "mappings": [
       {
-        "oscPath": "Depth",
+        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
+        "sourceMode": "OgbDepth",
+        "role": "Depth",
+        "mappedMin": 300,
+        "mappedMax": 700
+      }
+    ],
+    "requirementProfile": "sps"
+  },
+  {
+    "id": "native-contact-axial",
+    "group": "推荐预设",
+    "name": "前后跟随，横移慢跟 · Contact 高级位置",
+    "description": "将接收器的 Z 轴对准入口。前后移动直接控制主轴；向左或向右偏时，有横移轴的设备会缓慢向同侧移动。把三行 MyContact 换成同一接收器名称。失去接触时停止。",
+    "mappings": [
+      {
+        "oscPath": "MyContact_SenderLocalPositionZ",
         "sourceMode": "Direct",
-        "role": "Depth"
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      },
+      {
+        "oscPath": "MyContact_SenderLocalPositionX",
+        "sourceMode": "Direct",
+        "role": "Sway",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04,
+        "mappedMin": 440,
+        "mappedMax": 560,
+        "maxTravelPerSecond": 100
+      },
+      {
+        "oscPath": "MyContact_SenderType",
+        "sourceMode": "Direct",
+        "role": "GateEnable",
+        "vrchatMin": 0,
+        "vrchatMax": 1
       }
-    ]
+    ],
+    "requirementProfile": "position"
   },
   {
-    "id": "ogb-depth",
-    "name": "OGB / SPS · 深度",
-    "description": "正式 SPS3 读取 Socket／Plug 的 DepthOthers；旧版仍识别 PenOthers 和 NewRoot／NewTip。观察读数并校准 L0 两端。",
+    "id": "pose-aligned-depth",
+    "group": "推荐预设",
+    "name": "跟随转动的入口 · 双方 Pose 定位",
+    "description": "主轴沿入口当前的方向跟随深度。设备有侧移轴时会轻轻跟随左右和上下偏移，有摆角轴时也会缓慢跟随偏航和俯仰。将 Main 换成 Socket 实例名。偏出入口或倾斜过大时停止。",
     "mappings": [
       {
-        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
-        "sourceMode": "OgbDepth",
-        "role": "Depth"
-      }
-    ]
-  },
-  {
-    "id": "ogb-touch",
-    "name": "OGB / SPS · 振动",
-    "description": "正式 SPS3 的 TouchOthers／FrotOthers 直接控制 V0；只有旧版需要时才配对同一对象的 Close。",
-    "mappings": [
-      {
-        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others;OGB/Socket/**/TouchOthers;OGB/Plug/**/TouchOthers;OGB/Plug/**/FrotOthers;OGB/Touch/**/Others",
-        "role": "V0",
-        "sourceMode": "OgbTouch"
-      }
-    ]
-  },
-  {
-    "id": "ogb-depth-touch",
-    "name": "OGB / SPS · 深度与振动",
-    "description": "深度控制 L0，Touch / Frot 控制 V0。按设备能力保留需要的轴，并分别校准。",
-    "mappings": [
-      {
-        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
-        "sourceMode": "OgbDepth",
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Depth",
         "role": "Depth"
       },
       {
-        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others;OGB/Socket/**/TouchOthers;OGB/Plug/**/TouchOthers;OGB/Plug/**/FrotOthers;OGB/Touch/**/Others",
-        "role": "V0",
-        "sourceMode": "OgbTouch"
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Yaw",
+        "role": "AngleX",
+        "vrchatMin": -65,
+        "vrchatMax": 65,
+        "mappedMin": 440,
+        "mappedMax": 560,
+        "maxTravelPerSecond": 100
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Pitch",
+        "role": "AngleY",
+        "vrchatMin": -65,
+        "vrchatMax": 65,
+        "mappedMin": 440,
+        "mappedMax": 560,
+        "maxTravelPerSecond": 100
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "OffsetX",
+        "role": "Sway",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04,
+        "mappedMin": 440,
+        "mappedMax": 560,
+        "maxTravelPerSecond": 100
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "OffsetY",
+        "role": "Surge",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04,
+        "mappedMin": 440,
+        "mappedMax": 560,
+        "maxTravelPerSecond": 100
       }
-    ]
+    ],
+    "requirementProfile": "pose"
+  },
+  {
+    "id": "ogb-depth",
+    "group": "标准预设",
+    "name": "SPS 深度 → L0",
+    "description": "沿入口前后移动，L0 应随深度读数增加或减小。普通 SPS 也会受侧移影响，可用这一项对照原始深度反应。",
+    "mappings": [
+      {
+        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
+        "sourceMode": "OgbDepth",
+        "role": "Depth"
+      }
+    ],
+    "requirementProfile": "sps"
+  },
+  {
+    "id": "native-contact-xyz",
+    "group": "标准预设",
+    "name": "Contact 位置 Z/Y/X → L0/L1/L2",
+    "description": "将接收器 Z 对准入口，四行 MyContact 填同一参数名。沿接收器 Z、Y、X 依次移动接触点，分别检查主轴、纵向和横向。侧轴零位对应中位；失去接触时整组停止。",
+    "mappings": [
+      {
+        "oscPath": "MyContact_SenderLocalPositionZ",
+        "sourceMode": "Direct",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      },
+      {
+        "oscPath": "MyContact_SenderLocalPositionY",
+        "sourceMode": "Direct",
+        "role": "Surge",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04
+      },
+      {
+        "oscPath": "MyContact_SenderLocalPositionX",
+        "sourceMode": "Direct",
+        "role": "Sway",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04
+      },
+      {
+        "oscPath": "MyContact_SenderType",
+        "sourceMode": "Direct",
+        "role": "GateEnable",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      }
+    ],
+    "requirementProfile": "position"
+  },
+  {
+    "id": "pose-osr2",
+    "group": "标准预设",
+    "name": "Pose 三轴 → L0/R1/R2（OSR2）",
+    "description": "配对 Pose 后，将 Main 换成 Socket 实例名，并允许实验空间输入。保持接触，分别前后移动、左右摆角和上下摆角，依次检查 L0、R1、R2。零角度对应旋转轴中位。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Depth",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Yaw",
+        "role": "AngleX",
+        "vrchatMin": -65,
+        "vrchatMax": 65
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Pitch",
+        "role": "AngleY",
+        "vrchatMin": -65,
+        "vrchatMax": 65
+      }
+    ],
+    "requirementProfile": "pose"
+  },
+  {
+    "id": "pose-six-axis",
+    "group": "标准预设",
+    "name": "Pose 六轴 → L0/L1/L2/R0/R1/R2",
+    "description": "双方配对 Pose 后，将 Main 换成 Socket 实例名，并允许实验空间输入。一次只做一种动作：进入深度 → L0，孔口 Y/X 偏移 → L1/L2，扭转/偏航/俯仰 → R0/R1/R2。保持有效接触，检查方向和中位。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Depth",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Yaw",
+        "role": "AngleX",
+        "vrchatMin": -65,
+        "vrchatMax": 65
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Pitch",
+        "role": "AngleY",
+        "vrchatMin": -65,
+        "vrchatMax": 65
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Roll",
+        "role": "Twist",
+        "vrchatMin": -180,
+        "vrchatMax": 180
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "OffsetX",
+        "role": "Sway",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/Main/Others/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "OffsetY",
+        "role": "Surge",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04
+      }
+    ],
+    "requirementProfile": "pose"
   },
   {
     "id": "native-contact-separation",
-    "name": "原生 Contact · 距离",
+    "group": "标准预设",
+    "name": "Contact 两点距离 → L0",
     "description": "距离 0～0.20 m → L0；参考点越远，目标位置越大。两行的 MyContact 都换成接收器参数名。SenderType 门控作用于整组轴映射。",
     "mappings": [
       {
@@ -71,11 +268,160 @@
         "vrchatMin": 0,
         "vrchatMax": 1
       }
-    ]
+    ],
+    "requirementProfile": "distance"
+  },
+  {
+    "id": "self-four-anchor-axial",
+    "group": "标准预设",
+    "name": "SPS 四点定位 Z → L0",
+    "description": "主轴跟随定位点相对自己 Avatar 的前后移动。将 Root 换成定位点名称，校准行程两端，并启用实验空间输入。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/SPS/Root/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Z",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      }
+    ],
+    "requirementProfile": "four-anchor"
+  },
+  {
+    "id": "self-four-anchor-xyz",
+    "group": "标准预设",
+    "name": "SPS 四点定位 Y/Z/X → L0/L1/L2",
+    "description": "按 Avatar 根坐标验轴：上下（Y）→ L0，前后（Z）→ L1，左右（X）→ L2。三行 Root 换成同一定位点，允许实验空间输入。先采集每个方向的两端，再一次只动一个方向。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/SPS/Root/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Y",
+        "role": "Depth",
+        "vrchatMin": 0.9,
+        "vrchatMax": 1.1
+      },
+      {
+        "oscPath": "Sensa/SPS/Root/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Z",
+        "role": "Surge",
+        "vrchatMin": -0.1,
+        "vrchatMax": 0.1
+      },
+      {
+        "oscPath": "Sensa/SPS/Root/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "X",
+        "role": "Sway",
+        "vrchatMin": -0.1,
+        "vrchatMax": 0.1
+      }
+    ],
+    "requirementProfile": "four-anchor"
+  },
+  {
+    "id": "contact-position",
+    "group": "标准预设",
+    "name": "Contact 自身定位 Z → L0",
+    "description": "主轴跟随定位点相对自己 Avatar 的前后移动。将 Root 换成 Sensa Contact 实例名，校准行程两端，并启用实验空间输入。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Contact/Root/*",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Z",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      }
+    ],
+    "requirementProfile": "self-contact"
+  },
+  {
+    "id": "self-contact-xyz",
+    "group": "标准预设",
+    "name": "Contact 自身定位 Y/Z/X → L0/L1/L2",
+    "description": "按 Avatar 根坐标验轴：上下（Y）→ L0，前后（Z）→ L1，左右（X）→ L2。三行 Root 换成同一定位点，允许实验空间输入。先采集每个方向的两端，再一次只动一个方向。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Contact/Root/*",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Y",
+        "role": "Depth",
+        "vrchatMin": 0.9,
+        "vrchatMax": 1.1
+      },
+      {
+        "oscPath": "Sensa/Contact/Root/*",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Z",
+        "role": "Surge",
+        "vrchatMin": -0.1,
+        "vrchatMax": 0.1
+      },
+      {
+        "oscPath": "Sensa/Contact/Root/*",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "X",
+        "role": "Sway",
+        "vrchatMin": -0.1,
+        "vrchatMax": 0.1
+      }
+    ],
+    "requirementProfile": "self-contact"
+  },
+  {
+    "id": "osc-l0",
+    "group": "标准预设",
+    "name": "OSC 参数 → L0 主轴",
+    "description": "Depth 只是示例路径。换成实际收到的参数后，输入 0～1 对应主轴的预估位置 0～999。",
+    "mappings": [
+      {
+        "oscPath": "Depth",
+        "sourceMode": "Direct",
+        "role": "Depth"
+      }
+    ],
+    "requirementProfile": "direct"
+  },
+  {
+    "id": "ogb-depth-touch",
+    "group": "标准预设",
+    "name": "SPS 深度 → L0，触碰 → V0（需振动输出）",
+    "description": "主轴跟随 SPS 深度，振动输出跟随触碰强度。分别校准主轴行程和振动强度。",
+    "mappings": [
+      {
+        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers;OGB/Socket/**/DepthOthers;OGB/Plug/**/DepthOthers",
+        "sourceMode": "OgbDepth",
+        "role": "Depth"
+      },
+      {
+        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others;OGB/Socket/**/TouchOthers;OGB/Plug/**/TouchOthers;OGB/Plug/**/FrotOthers;OGB/Touch/**/Others",
+        "role": "V0",
+        "sourceMode": "OgbTouch"
+      }
+    ],
+    "requirementProfile": "sps-touch"
+  },
+  {
+    "id": "ogb-touch",
+    "group": "标准预设",
+    "name": "SPS 触碰 → V0（需振动输出）",
+    "description": "正式 SPS3 的 TouchOthers／FrotOthers 直接控制 V0；只有旧版需要时才配对同一对象的 Close。",
+    "mappings": [
+      {
+        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others;OGB/Socket/**/TouchOthers;OGB/Plug/**/TouchOthers;OGB/Plug/**/FrotOthers;OGB/Touch/**/Others",
+        "role": "V0",
+        "sourceMode": "OgbTouch"
+      }
+    ],
+    "requirementProfile": "touch"
   },
   {
     "id": "native-contact-speed",
-    "name": "原生 Contact · 速度强度",
+    "group": "标准预设",
+    "name": "Contact 相对速率 → V0（需振动输出）",
     "description": "相对速率 0～1 m/s → V0；任意方向移动越快，振动目标越强。两行使用同一接收器参数名，SenderType 门控作用于整组轴映射。",
     "mappings": [
       {
@@ -92,11 +438,49 @@
         "vrchatMin": 0,
         "vrchatMax": 1
       }
-    ]
+    ],
+    "requirementProfile": "speed"
+  },
+  {
+    "id": "contact-speed",
+    "group": "标准预设",
+    "name": "Contact 自身定位速率 → V0（需振动输出）",
+    "description": "自己装了 Sensa Contact 自身定位组件。左右、上下、前后运动都会带来振动，静止时回到零。把 Root 换成自己的实例，按舒适速度校准 V0，并允许实验空间输入。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Contact/Root/*",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Speed",
+        "role": "V0",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      }
+    ],
+    "requirementProfile": "self-contact"
+  },
+  {
+    "id": "native-pb-stretch",
+    "group": "标准预设",
+    "name": "PhysBone 拉伸 → L0（抓取时）",
+    "description": "自己的 Avatar 会上报 PhysBone 抓取和拉伸时可用。将两行 MyPB 换成同一根骨骼链的参数前缀。抓住后拉得越远，主轴走得越远；松手关闭整组轴映射门控。",
+    "mappings": [
+      {
+        "oscPath": "MyPB_Stretch",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      },
+      {
+        "oscPath": "MyPB_IsGrabbed",
+        "role": "GateEnable"
+      }
+    ],
+    "requirementProfile": "pb"
   },
   {
     "id": "native-contact-approach",
-    "name": "原生 Contact · 接近时振动",
+    "group": "标准预设",
+    "name": "Contact 接近变化率 → V0（需振动输出）",
     "description": "仅 Proximity 接收器。接近值每秒增加 0～2 → V0；不变或减小时为零。两行使用同一接收器参数名，SenderType 门控作用于整组轴映射。",
     "mappings": [
       {
@@ -113,53 +497,7 @@
         "vrchatMin": 0,
         "vrchatMax": 1
       }
-    ]
-  },
-  {
-    "id": "contact-position",
-    "name": "Sensa Contact · 位置",
-    "description": "专用 Contact 直接定位：将 Root 换成实际对象，选择位置轴并校准两个端点，单位为米。",
-    "mappings": [
-      {
-        "oscPath": "Sensa/Contact/Root/*",
-        "sourceMode": "SensaPoint",
-        "pointMetric": "Z",
-        "role": "Depth",
-        "vrchatMin": 0,
-        "vrchatMax": 0.2
-      }
-    ]
-  },
-  {
-    "id": "contact-speed",
-    "name": "Sensa Contact · 速度强度",
-    "description": "专用 Contact 相对速率 → V0；将 Root 换成实际对象，再按 m/s 校准强度范围。",
-    "mappings": [
-      {
-        "oscPath": "Sensa/Contact/Root/*",
-        "sourceMode": "SensaPoint",
-        "pointMetric": "Speed",
-        "role": "V0",
-        "vrchatMin": 0,
-        "vrchatMax": 1
-      }
-    ]
-  },
-  {
-    "id": "native-pb-stretch",
-    "name": "PhysBone · 拉伸",
-    "description": "将 MyPB 换成实际参数前缀，再校准 Stretch；松手关闭门控。",
-    "mappings": [
-      {
-        "oscPath": "MyPB_Stretch",
-        "role": "Depth",
-        "vrchatMin": 0,
-        "vrchatMax": 1
-      },
-      {
-        "oscPath": "MyPB_IsGrabbed",
-        "role": "GateEnable"
-      }
-    ]
+    ],
+    "requirementProfile": "approach"
   }
 ]

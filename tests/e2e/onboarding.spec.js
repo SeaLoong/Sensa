@@ -1,4 +1,4 @@
-import { test, expect, text, workspace, card, expectMappingTab, observePageCommands } from './fixtures.js';
+import { selectMappingPreset, test, expect, text, workspace, card, expectMappingTab, observePageCommands } from './fixtures.js';
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
@@ -391,9 +391,12 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.getByTestId('axis-mappings-panel')).toBeVisible();
         await page.getByTestId('onboarding-edit-mappings').click();
         const library = page.getByTestId('axis-mappings-panel');
-        await library.getByRole('combobox', { name: await text(page, '预设方案'), exact: true }).selectOption('ogb-depth');
+        const variants = library.locator('#mapping-preset-variant');
+        await selectMappingPreset(page, 'ogb-depth');
         await unchanged(page, rig, initial);
-        await attachState(page, info, 'scene-preset-library', { locale, selectedPreset: 'ogb-depth', draftOnly: true }, library);
+        const setups = await variants.locator('option').allTextContents();
+        expect(setups).toContain(await text(page, 'Pose 三轴 → L0/R1/R2（OSR2）'));
+        await attachState(page, info, 'scene-preset-library', { locale, requirements: await library.getByTestId('preset-requirements').innerText(), groups: await variants.locator('optgroup').evaluateAll(groups => groups.map(group => group.label)), setups, selectedPreset: 'ogb-depth', draftOnly: true }, library);
         await library.getByRole('button', { name: await text(page, '替换草稿'), exact: true }).click();
         await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await expect(page.locator('.mapping-row')).toHaveCount(1);
@@ -406,7 +409,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         const depth = await passiveSnapshot(page, rig);
         expect(depth.config.computedSignals).toEqual(initial.config.computedSignals);
         expect(depth.config.outputs).toEqual(initial.config.outputs);
-        await library.getByRole('combobox', { name: await text(page, '预设方案'), exact: true }).selectOption('ogb-touch');
+        await selectMappingPreset(page, 'ogb-touch');
         await library.getByRole('button', { name: await text(page, '追加草稿'), exact: true }).click();
         await expect(page.locator('.mapping-row')).toHaveCount(2);
         await expect(page.locator('.mapping-row__target select').nth(1)).toHaveValue('V0');

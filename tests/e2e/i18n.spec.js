@@ -1,4 +1,4 @@
-import { test, expect, card, text, enable, mode, active, workspace, oscWorkspace, expand, allowSpatial, checkpoint, outputValue, observePageCommands } from './fixtures.js';
+import { test, expect, card, text, enable, mode, active, workspace, oscWorkspace, selectMappingPreset, expand, allowSpatial, checkpoint, outputValue, observePageCommands } from './fixtures.js';
 import { pointSamples } from './mocks.js';
 import { assertCalibrationAlignment } from './ui-quality.js';
 
@@ -150,26 +150,63 @@ test('English presets, script and compact help use localized documentation', {ta
   await checkpoint(page,page.locator('.script-player__controls'),'english-script-loaded');
   await checkpoint(page,page.locator('.script-player__options'),'english-script-options');
   await oscWorkspace(page,'映射');
-  const presets = page.getByLabel(await text(page,'预设方案'),{exact:true});
-  await expect(presets.locator('option')).toHaveCount(10);
-  await expect(presets).toHaveValue('osc-l0');
-  await expect(presets.locator('option[value=ogb-depth-touch]')).toHaveCount(1);
-  await expect(presets.locator('option[value=contact-position]')).toHaveText('Sensa Contact · Position');
-  await expect(presets.locator('option[value=contact-speed]')).toHaveText('Sensa Contact · Speed intensity');
+  const presets = page.locator('#mapping-preset-variant');
+  await selectMappingPreset(page, 'native-contact-axial');
+  await expect(presets.locator('optgroup[label="Recommended presets"] option[value="native-contact-axial"]')).toHaveCount(1);
+  await expect(presets.locator('optgroup[label="Standard presets"] option[value="pose-six-axis"]')).toHaveCount(1);
+  const conditions = page.getByTestId('axis-mappings-panel').getByTestId('preset-requirements');
+  await expect(conditions).toContainText('SenderLocalPosition');
+  await expect(conditions).toContainText('matching the receiver tags');
+  await expect(conditions).toContainText('Additional axes if supported: L2');
+  await test.info().attach('contact-sway-requirements', { body: await conditions.screenshot(), contentType: 'image/png' });
+  await selectMappingPreset(page, 'pose-osr2');
+  await expect(conditions).toContainText('receiveOthers');
+  await expect(conditions).toContainText('L0 / R1 / R2');
+  await presets.selectOption({ label: 'Hold depth during sideways movement · Following plane…' });
+  const plane = page.getByTestId('computed-spatial-presets');
+  await expect(plane).toHaveJSProperty('open', true);
+  await plane.getByLabel(await text(page, '平面定位方式')).selectOption('Shader');
+  await expect(plane.getByTestId('preset-requirements')).toContainText('select both tiles');
+  await plane.getByLabel(await text(page, '平面定位方式')).selectOption('Markers');
+  await expect(plane.getByTestId('preset-requirements')).toContainText('Tracking Frame');
+  await plane.getByLabel(await text(page, '测量对象路径'), { exact: true }).fill('Sensa/Contact/Target/**');
+  await plane.getByLabel(await text(page, '平面参考对象路径'), { exact: true }).fill('Sensa/Contact/Guide_Origin/**');
+  await plane.getByLabel(await text(page, '设备有横移轴（L2），同时跟随左右偏移')).check();
+  await plane.getByRole('button', { name: await text(page, '将深度和横移设为 L0、L2（替换这两轴的草稿）'), exact: true }).click();
+  const planeSway = page.locator('.mapping-row').filter({ has: page.locator('.mapping-row__target option[value="Sway"]:checked') });
+  await expect(planeSway).toHaveCount(1);
+  await expect(planeSway.getByLabel(await text(page, '输入类型'), { exact: true })).toHaveValue('Computed');
+  await expect(page.locator('#mapping-tabs-mappings')).toHaveAttribute('aria-selected', 'true');
+  const planeRow = page.locator('.mapping-row').filter({ has: page.locator('.mapping-row__target option[value="Depth"]:checked') });
+  await expect(planeRow).toHaveCount(1);
+  await expect(planeRow.getByLabel(await text(page, '输入类型'), { exact: true })).toHaveValue('Computed');
   for (const [id, name, field] of [
-    ['native-contact-separation', 'Native Contact · Distance', 'PointSeparation'],
-    ['native-contact-speed', 'Native Contact · Speed intensity', 'SenderVelocityMagnitude'],
-    ['native-contact-approach', 'Native Contact · Vibration on approach', 'ProximitySpeed'],
+    ['native-contact-separation', 'Contact point separation → L0', 'PointSeparation'],
+    ['native-contact-axial', 'Follow depth with slow sideways tracking · Advanced Contact', 'SenderLocalPositionZ'],
+    ['native-contact-speed', 'Contact relative speed → V0 (vibration output)', 'SenderVelocityMagnitude'],
+    ['native-contact-approach', 'Contact approach rate → V0 (vibration output)', 'ProximitySpeed'],
   ]) {
+    await selectMappingPreset(page, id);
     await expect(presets.locator(`option[value="${id}"]`)).toHaveText(name);
-    await presets.selectOption(id);
     await page.getByRole('button', { name: await text(page, '替换草稿'), exact: true }).click();
     const paths = page.locator('.mapping-row__path input');
-    await expect(paths).toHaveCount(2);
-    await expect(paths.nth(0)).toHaveValue('MyContact_' + field);
-    await expect(paths.nth(1)).toHaveValue('MyContact_SenderType');
+    await expect(paths).toHaveCount(id === 'native-contact-axial' ? 3 : 2);
+    await expect(paths.first()).toHaveValue('MyContact_' + field);
+    await expect(paths.last()).toHaveValue('MyContact_SenderType');
+    if (id === 'native-contact-axial') {
+      await expect(paths.nth(1)).toHaveValue('MyContact_SenderLocalPositionX');
+      const sway = page.locator('.mapping-row').nth(1);
+      await expect(sway.locator('.mapping-row__target select')).toHaveValue('Sway');
+      await sway.getByText(await text(page, '范围与高级设置'), { exact: true }).click();
+      await expect(sway.getByLabel(await text(page, '每秒最多移动（格，0 表示不限）'))).toHaveValue('100');
+    }
   }
-  await page.getByLabel(await text(page,'预设方案'),{exact:true}).selectOption('ogb-depth');
+  await selectMappingPreset(page, 'pose-six-axis');
+  await page.getByRole('button', { name: await text(page, '替换草稿'), exact: true }).click();
+  const roles = await page.locator('.mapping-row__target select').evaluateAll(selects => selects.map(select => select.value));
+  expect(roles).toEqual(['Depth', 'AngleX', 'AngleY', 'Twist', 'Sway', 'Surge']);
+  await test.info().attach('standard-pose-six-axis-draft', { contentType: 'application/json', body: JSON.stringify({ roles }) });
+  await selectMappingPreset(page, 'ogb-depth');
   await expect(page.getByRole('button',{name:await text(page,'替换草稿'),exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'Help',exact:true}).click();
   const help = page.getByRole('dialog', { name: await text(page, '帮助与指南'), exact: true });

@@ -1,4 +1,4 @@
-import { test, expect, text, card, enable, mode, active, workspace, oscWorkspace, expand, allowSpatial, checkpoint, outputValue } from './fixtures.js';
+import { test, expect, text, card, enable, mode, active, workspace, oscWorkspace, selectMappingPreset, expand, allowSpatial, checkpoint, outputValue } from './fixtures.js';
 import { ports, fixedRootSamples, shaderRootSamples } from './mocks.js';
 import { assertCalibrationAlignment } from './ui-quality.js';
 
@@ -76,7 +76,7 @@ test.describe('vibration-only Intiface peer / 纯振动 Intiface 模拟端', () 
     await active(page, false);
 
     await oscWorkspace(page, '映射');
-    await page.getByLabel('预设方案', { exact: true }).selectOption('ogb-touch');
+    await selectMappingPreset(page, 'ogb-touch');
     await page.getByRole('button', { name: '替换草稿', exact: true }).click();
     await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
     await expect.poll(async () => (await savedConfiguration(page, rig)).signals.map(signal => signal.role)).toEqual(['V0']);

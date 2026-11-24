@@ -509,6 +509,7 @@ function makeSignalDraft(signal = {}) {
     vrchatMax: 1,
     mappedMin,
     mappedMax,
+    maxTravelPerSecond: 0,
     curve: 'Linear',
     role,
     isOgbSocket: false,
@@ -691,6 +692,7 @@ function normalizeOscPreset(preset, index = 0, options = {}) {
     name: (preset?.name || t("OSC 预设 {0}", [index + 1])).trim(),
     description: (preset?.description || '').trim(),
     isBuiltIn: Boolean(options.isBuiltIn),
+    ...(options.isBuiltIn && { group: t(preset.group), requirementProfile: preset.requirementProfile }),
     mappings: Array.isArray(preset?.mappings) ? preset.mappings.map(mapping => ({ ...stripSignalDraft(makeSignalDraft(mapping)) })).filter(mapping => Boolean(mapping.oscPath)) : [],
   };
 }

@@ -255,6 +255,7 @@ export interface SignalMapping {
   role: SignalRole;
   mappedMin: number | null;
   mappedMax: number | null;
+  maxTravelPerSecond: number;
   isOgbSocket: boolean;
   isOgbPlug: boolean;
 }

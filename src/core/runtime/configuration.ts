@@ -104,6 +104,7 @@ export function normalizeSignal(value: unknown): Model.SignalMapping {
   item.sourceMode = ['OgbDepth','OgbTouch','SpsSocketDepth','SensaPose','SensaPoint','Computed'].includes(item.sourceMode) ? item.sourceMode : 'Direct';
   item.oscPath = item.oscPath.trim(); item.poseMetric = choice(item.poseMetric,poseMetrics,'Depth');
   item.pointMetric = choice(item.pointMetric,pointMetrics,'Z'); item.curve = choice(item.curve,curves); item.role = choice(item.role,roles);
+  item.maxTravelPerSecond = clamp(Math.round(item.maxTravelPerSecond), 0, 999);
   item.mappedMin = clamp(item.mappedMin ?? 0,0,999); item.mappedMax = clamp(item.mappedMax ?? 999,item.mappedMin,999);
   return item;
 }
