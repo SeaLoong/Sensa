@@ -2,17 +2,18 @@ import React from 'react';
 import { t, docUrl } from './i18n.js';
 import { Button, ButtonLink, Disclosure, Modal } from './ui.tsx';
 
-export default function HelpDialog({ open, onClose, onNavigate, onStartGuide, emergencyAction, error, supportsListeners = true }) {
+export default function HelpDialog({ open, onClose, onNavigate, onSimulate, onStartGuide, emergencyAction, error, supportsListeners = true }) {
   const guide = (path, label) => <ButtonLink variant="text" href={docUrl(path)} target="_blank" rel="noreferrer">{label}</ButtonLink>;
   const openTool = callback => { onClose(); callback(); };
   return (
     <Modal open={open} emergencyAction={emergencyAction} error={error} title={t('帮助与指南')} wide
       onClose={onClose} actions={<Button onClick={onClose}>{t('关闭帮助')}</Button>}>
       <p className="help-intro">{supportsListeners
-        ? t('Sensa 把 VRChat / SPS、funscript 或网站控制连接到 OSR 和其他互动设备。先连接设备，再选择一种用法。')
-        : t('WebSensa 可以直接在浏览器中手动控制设备，或播放 funscript。先连接设备，再选择一种用法。')}</p>
+        ? t('想先看动作效果，可以打开 3D 模拟器。连接设备后，还可以用 VRChat、脚本或网站控制实际输出。')
+        : t('可以先在 3D 模拟器里调轴。连接设备后，也可以用浏览器手动控制或播放脚本。')}</p>
       <div className="actions help-entry-actions">
         {onStartGuide && <Button tone="primary" onClick={() => openTool(onStartGuide)}>{t('操作引导')}</Button>}
+        {onSimulate && <Button onClick={() => openTool(onSimulate)}>{t('打开 3D 模拟器')}</Button>}
         {guide('docs/start.md', t('使用指南'))}
         {onNavigate && <Button variant="text" onClick={() => onNavigate('outputs')}>{t('连接设备')}</Button>}
       </div>

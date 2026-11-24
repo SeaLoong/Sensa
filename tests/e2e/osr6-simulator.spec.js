@@ -1,5 +1,37 @@
 import { test, expect, workspace, oscWorkspace } from './fixtures.js';
 
+test('guide previews a Contact example and returns to the same step without changing configuration', { tag: ['@onboarding','@visual'] }, async ({page,rig},info) => {
+  const config = () => page.request.get(rig.baseUrl+'/api/config').then(response=>response.json());
+  const before = await config();
+  await page.getByRole('button',{name:'帮助',exact:true}).click();
+  await page.getByRole('button',{name:'打开 3D 模拟器',exact:true}).click();
+  const dialog = page.getByRole('dialog',{name:'OSR6 六轴模拟器'});
+  await expect(dialog.getByRole('tab',{name:'手动调轴'})).toHaveAttribute('aria-selected','true');
+  await dialog.getByRole('button',{name:'关闭',exact:true}).click();
+  await page.getByTestId('onboarding-start').click();
+  await page.getByTestId('onboarding-goal-osc').click();
+  const jump = async step => {
+    await page.locator('.onboarding-jump > summary').click();
+    await page.getByTestId('onboarding-step-'+step).click();
+  };
+  await jump('mapping');
+  await page.getByTestId('onboarding-simulate-sway').click();
+  await expect(dialog.getByLabel('试用映射')).toHaveValue('native-contact-axial');
+  await expect(page.getByTestId('guided-tour')).toHaveCount(0);
+  await dialog.getByRole('slider',{name:'左右位置 (X)'}).press('End');
+  await expect(dialog.getByTestId('osr6-L2')).toHaveText('560');
+  await info.attach('guided-sway-example',{body:await dialog.screenshot(),contentType:'image/png'});
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step','mapping');
+  await jump('device');
+  await page.getByTestId('onboarding-simulate-device').click();
+  await expect(dialog.getByRole('tab',{name:'手动调轴'})).toHaveAttribute('aria-selected','true');
+  await dialog.getByRole('button',{name:'关闭',exact:true}).click();
+  await expect(page.getByTestId('guided-tour')).toHaveAttribute('data-step','device');
+  expect(await config()).toEqual(before);
+  expect((await rig.overview()).runtime.inputActive).toBe(false);
+});
+
 test('OSR6 simulator shows manual, mapping and live poses without activating outputs', { tag: ['@input','@visual'] }, async ({ page, rig }, info) => {
   await workspace(page, '输出');
   const before = await rig.overview();
@@ -11,6 +43,12 @@ test('OSR6 simulator shows manual, mapping and live poses without activating out
   await expect(dialog.getByTestId('osr6-L0')).toHaveText('500');
   await expect.poll(() => dialog.locator('canvas').evaluate(canvas => canvas.width)).not.toBe(300);
   const centered = await pixels();
+  await expect(dialog.getByRole('link',{name:'实物照片'})).toHaveAttribute('href',/sr6-with-a-twist$/);
+  await dialog.getByRole('button',{name:'侧视图'}).click();
+  await expect.poll(pixels).not.toBe(centered);
+  await info.attach('sr6-side-linkage', {body:await dialog.screenshot(),contentType:'image/png'});
+  await dialog.getByRole('button',{name:'立体视图'}).click();
+  await expect.poll(pixels).toBe(centered);
   await dialog.getByRole('slider',{name:'L0 · 主轴行程',exact:true}).press('End');
   await expect(dialog.getByTestId('osr6-L0')).toHaveText('999');
   await expect.poll(pixels).not.toBe(centered);

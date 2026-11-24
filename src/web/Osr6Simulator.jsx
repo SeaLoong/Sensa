@@ -4,12 +4,13 @@ import { SelectField, ValueSliderField } from './controls.jsx';
 import { Button, Modal, Tabs, Toggle } from './ui.tsx';
 import { t } from './i18n.js';
 import { centeredCounts, createMappingSimulation, platformAxes, simulationInputs, targetCounts } from './osr6-simulation.js';
-import { drawPlatform } from './osr6-scene.js';
+import { drawPlatform, receiverPose, sr6PhotoReference } from './osr6-scene.js';
 
-const initialView = { yaw: .56, elevation: .40 };
+const initialView = { yaw: -.87, elevation: .33 };
 
 function PlatformView({ counts }) {
   const canvas = useRef(null), drag = useRef(null);
+  const pose = useMemo(() => receiverPose(counts), [counts]);
   const [view, setView] = useState(initialView);
   const [size, setSize] = useState(null);
   useEffect(() => {
@@ -26,8 +27,8 @@ function PlatformView({ counts }) {
     const ctx = node.getContext('2d');
     if (!ctx) return;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    drawPlatform(ctx, size.width, size.height, counts, view);
-  }, [counts, view, size]);
+    drawPlatform(ctx, size.width, size.height, pose, view);
+  }, [pose, view, size]);
   return <div className="osr6-stage">
     <canvas ref={canvas} role="img" aria-label={t('OSR6 六轴平台三维姿态')}
       onPointerDown={event => {
@@ -42,7 +43,8 @@ function PlatformView({ counts }) {
           elevation: Math.max(.02,Math.min(1.35,start.view.elevation + (event.clientY-start.y)*.009)) });
       }}
       onLostPointerCapture={() => { drag.current = null; }} />
-    <p className="osr6-caption">{t('平台姿态示意 · 拖动模型旋转视角')}</p>
+    <p className="osr6-caption">{t('平台姿态示意 · 拖动模型旋转视角')} · <a href={sr6PhotoReference} target="_blank" rel="noreferrer">{t('实物照片')}</a></p>
+    {pose.limited && <p className="osr6-caption" role="status">{t('目标超出示意机构行程，模型停在可达边界。')}</p>}
     <div className="osr6-cameras" aria-label={t('观察视角')} role="group">
       <Button onClick={() => setView(initialView)}>{t('立体视图')}</Button>
       <Button onClick={() => setView({ yaw: 0, elevation: .04 })}>{t('正视图')}</Button>
@@ -97,9 +99,9 @@ function MappingControls({ rows, onFrame }) {
   </div>;
 }
 
-export default function Osr6Simulator({ initialMode, drafts, presets, runtime, online, onClose, emergencyAction }) {
+export default function Osr6Simulator({ initialMode, guideExample = false, drafts, presets, runtime, online, onClose, emergencyAction }) {
   const [mode, setMode] = useState(initialMode);
-  const [source, setSource] = useState('');
+  const [source, setSource] = useState(guideExample ? 'native-contact-axial' : '');
   const [manual, setManual] = useState(centeredCounts);
   const [mapping, setMapping] = useState({ counts: centeredCounts, blocked: false });
   const rows = presets.find(preset => preset.id === source)?.mappings ?? drafts;
@@ -128,7 +130,7 @@ export default function Osr6Simulator({ initialMode, drafts, presets, runtime, o
           <SelectField label={t('试用映射')} value={source} onChange={setSource} options={[
             { value: '', label: t('当前映射草稿') }, ...presets.map(preset => ({ value: preset.id, label: preset.name, group: preset.group || t('自定义预设') })),
           ]} />
-          <p className="caption muted">{t('调整进入映射的读数，观察方向、行程和跟随速度。试用预设无需保存草稿。')}</p>
+          <p className="caption muted">{guideExample && source === 'native-contact-axial' ? t('把“左右位置”拖到一端。L2 会慢慢偏向同侧，L0 保持原位。关闭模拟器即可回到引导。') : t('调整进入映射的读数，观察方向、行程和跟随速度。试用预设无需保存草稿。')}</p>
           {mapping.blocked && <p role="status">{t('门控已关闭，平台停在上一位置。')}</p>}
           <MappingControls rows={rows} onFrame={setMapping} />
         </>}

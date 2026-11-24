@@ -8,7 +8,7 @@ Sensa sends movement, vibration or other controls to a device. Choose the connec
 
 ## Preview six-axis motion
 
-Open **Outputs → 3D output simulator** to try an OSR6 platform without connecting hardware. Move individual axes, drag the model to orbit, or use the front and side views. **Try mappings** accepts simulated readings for the current draft or a preset, including depth, signed sway and contact gates. For pose or computed inputs, supply the resolved metric or calculation result. **Live targets** follows Sensa’s command before device-specific limits. The model shows the intended platform pose with illustrative link dimensions and travel.
+Open **Outputs → 3D output simulator** to try an OSR6 platform without connecting hardware. Move individual axes, drag the model to orbit, or use the front and side views. **Try mappings** accepts simulated readings for the current draft or a preset, including depth, signed sway and contact gates. For pose or computed inputs, supply the resolved metric or calculation result. **Live targets** follows Sensa’s command before device-specific limits. The model follows an SR6 with a Twist receiver. Rear servos drive the front carrier through rotary cranks and fixed-length links. R0 rotates the insert independently. Dimensions are estimated from photos. A message marks the illustrated mechanism’s reach limit at combined extremes. [Front and side photos](https://yourhobbiescustomized.com/products/sr6-with-a-twist) · [SR6 and Twist mechanism](https://yourhobbiescustomized.com/pages/about-the-sr-series)
 
 ## OSR and TCode
 
